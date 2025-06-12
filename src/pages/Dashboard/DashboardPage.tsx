@@ -1,8 +1,10 @@
-import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText } from '@mui/material';
+import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button } from '@mui/material';
 import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
-const COLORS = ['#4caf50', '#f44336'];
+const COLORS = ['#3CCF91', '#e53935'];
 
 export const Dashboard = () => {
   const { data: testResults = [], total } = useGetList('test_results', {
@@ -45,16 +47,39 @@ export const Dashboard = () => {
   }).reverse();
 
   return (
-    <div style={{ padding: '20px' }}>
-      <Typography variant="h4" gutterBottom>
-        Dashboard de Pruebas
-      </Typography>
+    <div style={{ padding: '20px' }} id="dashboard-pdf-export">
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h4" gutterBottom sx={{ color: '#2B2D42' }}>
+          Dashboard
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          sx={{ backgroundColor: '#4B3C9D', color: '#fff', '&:hover': { backgroundColor: '#3a2e7a' } }}
+          onClick={async () => {
+            const input = document.getElementById('dashboard-pdf-export');
+            if (!input) return;
+            const canvas = await html2canvas(input, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pageWidth;
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save('dashboard.pdf');
+          }}
+        >
+          Exportar a PDF
+        </Button>
+      </Box>
       <Grid container spacing={3}>
         {/* Fila 1: Gráfica de pastel y gráfica de línea */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography color="textSecondary" gutterBottom>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
                 Éxito vs Fallos
               </Typography>
               <Box display="flex" justifyContent="center" alignItems="center" height={300}>
@@ -76,7 +101,7 @@ export const Dashboard = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography color="textSecondary" gutterBottom>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
                 Ejecuciones por Semana (últimas 3)
               </Typography>
               <Box display="flex" justifyContent="center" alignItems="center" height={300}>
@@ -87,7 +112,7 @@ export const Dashboard = () => {
                     <YAxis allowDecimals={false} />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="ejecuciones" stroke="#1976d2" strokeWidth={3} />
+                    <Line type="monotone" dataKey="ejecuciones" stroke="#4B3C9D" strokeWidth={3} />
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
@@ -99,17 +124,17 @@ export const Dashboard = () => {
       <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
               % Éxito
             </Typography>
-            <Typography variant="h5" color="primary">
+            <Typography variant="h5" sx={{ color: '#3CCF91' }}>
               {successRate}%
             </Typography>
           </CardContent>
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
               Prom. Duración (s)
             </Typography>
             <Typography variant="h5">
@@ -119,7 +144,7 @@ export const Dashboard = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
               Total de Pruebas
             </Typography>
             <Typography variant="h5">
@@ -129,20 +154,20 @@ export const Dashboard = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
               Exitosas
             </Typography>
-            <Typography variant="h5" color="primary">
+            <Typography variant="h5" sx={{ color: '#3CCF91' }}>
               {passedTests}
             </Typography>
           </CardContent>
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
               Fallidas
             </Typography>
-            <Typography variant="h5" color="error">
+            <Typography variant="h5" sx={{ color: '#e53935' }}>
               {failedTests}
             </Typography>
           </CardContent>
@@ -150,7 +175,7 @@ export const Dashboard = () => {
       </Box>
       {/* Lista de pruebas recientes */}
       <Box mt={4}>
-        <Typography variant="h6">Pruebas Recientes</Typography>
+        <Typography variant="h6" sx={{ color: '#2B2D42' }}>Pruebas Recientes</Typography>
         <List>
           {recentTests.map((test, idx) => (
             <ListItem key={idx} divider>
@@ -164,7 +189,7 @@ export const Dashboard = () => {
       </Box>
       {/* Lista de errores recientes */}
       <Box mt={4}>
-        <Typography variant="h6" color="error">Errores Recientes</Typography>
+        <Typography variant="h6" sx={{ color: '#e53935' }}>Errores Recientes</Typography>
         <List>
           {recentErrors.length === 0 && <ListItem><ListItemText primary="Sin errores recientes" /></ListItem>}
           {recentErrors.map((test, idx) => (
