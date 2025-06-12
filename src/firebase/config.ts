@@ -4,12 +4,12 @@ import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   // Aquí irán tus credenciales de Firebase
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyB8H3gWbDRUYXiavFc0VTBUvpRVAsR0DTs",
+  authDomain: "qa-admin-3a67e.firebaseapp.com",
+  projectId: "qa-admin-3a67e",
+  storageBucket: "qa-admin-3a67e.firebasestorage.app",
+  messagingSenderId: "680733125573",
+  appId: "1:680733125573:web:9c2064b2b1dec88b9a79ac"
 };
 
 const app = initializeApp(firebaseConfig);

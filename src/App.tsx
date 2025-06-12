@@ -13,7 +13,7 @@ function App() {
         dataProvider={dataProvider}
         dashboard={Dashboard}
       >
-        <Resource name="testResults" list={TestResultsList} />
+        <Resource name="test_results" list={TestResultsList} />
       </Admin>
     </BrowserRouter>
   );
