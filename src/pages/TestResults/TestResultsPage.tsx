@@ -16,7 +16,7 @@ export const TestResultsList = () => (
       <TextField source="id" />
       <TextField source="name" />
       <DateField source="date" />
-      <BooleanField source="status" />
+      <TextField source="status" />
       <TextField source="duration" />
       <TextField source="error" />
       <ShowButton />
