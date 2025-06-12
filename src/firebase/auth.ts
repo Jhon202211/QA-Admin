@@ -1,9 +1,10 @@
 import { auth } from './config';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
 
 export const authProvider = {
   login: async ({ username, password }: { username: string; password: string }) => {
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, username, password);
       return Promise.resolve();
     } catch (error) {

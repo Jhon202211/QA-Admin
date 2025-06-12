@@ -2,7 +2,7 @@ import { Card, CardContent, Typography, Grid } from '@mui/material';
 import { useGetList } from 'react-admin';
 
 export const Dashboard = () => {
-  const { data: testResults, total } = useGetList('testResults', {
+  const { data: testResults, total } = useGetList('test_results', {
     pagination: { page: 1, perPage: 10 },
     sort: { field: 'date', order: 'DESC' }
   });
