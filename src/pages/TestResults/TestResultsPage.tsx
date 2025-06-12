@@ -13,12 +13,12 @@ import {
 export const TestResultsList = () => (
   <List>
     <Datagrid>
-      <TextField source="id" />
-      <TextField source="name" />
-      <DateField source="date" />
-      <TextField source="status" />
-      <TextField source="duration" />
-      <TextField source="error" />
+      <TextField source="id" label="Id" />
+      <TextField source="name" label="Nombre" />
+      <DateField source="date" label="Fecha" />
+      <TextField source="status" label="Estado" />
+      <TextField source="duration" label="Duración (s)" />
+      <TextField source="error" label="Error" />
       <ShowButton />
       <EditButton />
       <DeleteButton />
