@@ -3,6 +3,11 @@ import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { es } from 'date-fns/locale';
+import React, { useState } from 'react';
 
 const COLORS = ['#3CCF91', '#e53935'];
 
@@ -24,8 +29,21 @@ export const Dashboard = () => {
     { name: 'Fallidas', value: failedTests }
   ];
 
-  // Calcular tests por semana (últimas 3 semanas)
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
+  // Filtrar testResults por rango de fechas seleccionado
+  const filteredResults = testResults.filter(test => {
+    if (!test.date) return false;
+    const d = new Date(test.date);
+    if (startDate && d < startDate) return false;
+    if (endDate && d > endDate) return false;
+    return true;
+  });
+
+  // Calcular tests por semana (últimas 3 semanas o rango seleccionado)
   const now = new Date();
+  const baseResults = (startDate || endDate) ? filteredResults : testResults;
   const weeks = [2, 1, 0].map(i => {
     const start = new Date(now);
     start.setDate(now.getDate() - now.getDay() - (i * 7));
@@ -36,7 +54,7 @@ export const Dashboard = () => {
     return { start, end };
   });
   const weeklyData = weeks.map(({ start, end }) => {
-    const count = testResults.filter(test => {
+    const count = baseResults.filter(test => {
       const d = test.date ? new Date(test.date) : null;
       return d && d >= start && d <= end;
     }).length;
@@ -78,14 +96,14 @@ export const Dashboard = () => {
         {/* Fila 1: Gráfica de pastel y gráfica de línea */}
         <Grid item xs={12} md={6}>
           <Card>
-            <CardContent>
+            <CardContent sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
                 Éxito vs Fallos
               </Typography>
-              <Box display="flex" justifyContent="center" alignItems="center" height={300}>
-                <ResponsiveContainer width={400} height={300}>
+              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1}>
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} label>
+                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={140} label>
                       {pieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
@@ -94,16 +112,37 @@ export const Dashboard = () => {
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
+                <Box mt={4}>
+                  <Typography variant="body2" align="center" color="textSecondary">
+                    Total de pruebas: <b>{total}</b> | Exitosas: <b>{passedTests}</b> | Fallidas: <b>{failedTests}</b>
+                  </Typography>
+                </Box>
               </Box>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} md={6}>
           <Card>
-            <CardContent>
+            <CardContent sx={{ minHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
-                Ejecuciones por Semana (últimas 3)
+                Ejecuciones por rango de fecha
               </Typography>
+              <Box display="flex" gap={2} mb={2}>
+                <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+                  <DatePicker
+                    label="Fecha inicio"
+                    value={startDate}
+                    onChange={setStartDate}
+                    slotProps={{ textField: { size: 'small' } }}
+                  />
+                  <DatePicker
+                    label="Fecha fin"
+                    value={endDate}
+                    onChange={setEndDate}
+                    slotProps={{ textField: { size: 'small' } }}
+                  />
+                </LocalizationProvider>
+              </Box>
               <Box display="flex" justifyContent="center" alignItems="center" height={300}>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={weeklyData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
