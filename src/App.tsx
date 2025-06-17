@@ -5,6 +5,7 @@ import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestRes
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box } from '@mui/material';
+import LoginPage from './pages/LoginPage';
 
 const CustomAppBar = (props: any) => {
   // const location = useLocation();
@@ -41,6 +42,7 @@ function App() {
         dataProvider={dataProvider}
         dashboard={Dashboard}
         layout={CustomLayout}
+        loginPage={LoginPage}
       >
         <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} />
       </Admin>
