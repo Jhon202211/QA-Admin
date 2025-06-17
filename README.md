@@ -2,6 +2,30 @@
 
 Panel de administración para gestionar pruebas de calidad y resultados de testing.
 
+## Variables de entorno
+
+Debes definir las siguientes variables de entorno para la configuración de Firebase (puedes agregarlas en un archivo `.env` o directamente en `src/firebase/config.ts`):
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+
+Ejemplo de archivo `.env`:
+
+```
+VITE_FIREBASE_API_KEY=tu_api_key
+VITE_FIREBASE_AUTH_DOMAIN=tu_auth_domain
+VITE_FIREBASE_PROJECT_ID=tu_project_id
+VITE_FIREBASE_STORAGE_BUCKET=tu_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=tu_messaging_sender_id
+VITE_FIREBASE_APP_ID=tu_app_id
+```
+
+Luego, asegúrate de que `src/firebase/config.ts` lea estas variables usando `import.meta.env`.
+
 ## Configuración Inicial
 
 Para comenzar a trabajar con el proyecto, necesitas:
