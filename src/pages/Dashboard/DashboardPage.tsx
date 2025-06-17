@@ -8,6 +8,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 import React, { useState } from 'react';
+import { differenceInCalendarDays, startOfDay, endOfDay, startOfWeek, endOfWeek, format } from 'date-fns';
 
 const COLORS = ['#3CCF91', '#e53935'];
 
@@ -21,7 +22,9 @@ export const Dashboard = () => {
   const failedTests = testResults.filter(test => test.status === 'failed').length;
   const successRate = total ? ((passedTests / total) * 100).toFixed(2) : '0';
   const avgDuration = testResults.length ? (testResults.reduce((acc, t) => acc + (t.duration || 0), 0) / testResults.length).toFixed(2) : '0';
-  const recentTests = testResults.slice(0, 5);
+  const recentTests = [...testResults]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
   const recentErrors = testResults.filter(test => test.status === 'failed' && test.error).slice(0, 5);
 
   const pieData = [
@@ -36,33 +39,43 @@ export const Dashboard = () => {
   const filteredResults = testResults.filter(test => {
     if (!test.date) return false;
     const d = new Date(test.date);
-    if (startDate && d < startDate) return false;
-    if (endDate && d > endDate) return false;
+    if (startDate && d < startOfDay(startDate)) return false;
+    if (endDate && d > endOfDay(endDate)) return false;
     return true;
   });
 
-  // Calcular tests por semana (últimas 3 semanas o rango seleccionado)
-  const now = new Date();
-  const baseResults = (startDate || endDate) ? filteredResults : testResults;
-  const weeks = [2, 1, 0].map(i => {
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay() - (i * 7));
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-  });
-  const weeklyData = weeks.map(({ start, end }) => {
-    const count = baseResults.filter(test => {
-      const d = test.date ? new Date(test.date) : null;
-      return d && d >= start && d <= end;
-    }).length;
-    return {
-      semana: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
-      ejecuciones: count
-    };
-  }).reverse();
+  // --- Nueva lógica: solo mostrar días seleccionados, o solo hoy si no hay selección ---
+  let chartData = [];
+  let xAxisKey = 'día';
+
+  if (startDate && endDate) {
+    const days = differenceInCalendarDays(endOfDay(endDate), startOfDay(startDate)) + 1;
+    const daysArr = Array.from({ length: days }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+    chartData = daysArr.map(d => {
+      const count = filteredResults.filter(test => {
+        const tDate = test.date ? new Date(test.date) : null;
+        return tDate && tDate >= startOfDay(d) && tDate <= endOfDay(d);
+      }).length;
+      return {
+        día: format(d, 'd/M/yyyy'),
+        ejecuciones: count
+      };
+    });
+  } else {
+    // Sin rango: solo mostrar el día de hoy
+    const today = startOfDay(new Date());
+    chartData = [{
+      día: format(today, 'd/M/yyyy'),
+      ejecuciones: testResults.filter(test => {
+        const tDate = test.date ? new Date(test.date) : null;
+        return tDate && tDate >= today && tDate <= endOfDay(today);
+      }).length
+    }];
+  }
 
   return (
     <div style={{ padding: '20px' }} id="dashboard-pdf-export">
@@ -145,9 +158,9 @@ export const Dashboard = () => {
               </Box>
               <Box display="flex" justifyContent="center" alignItems="center" height={300}>
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={weeklyData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="semana" tick={{ fontSize: 12 }} />
+                    <XAxis dataKey={xAxisKey} tick={{ fontSize: 12 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
                     <Legend />
