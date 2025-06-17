@@ -1,7 +1,7 @@
 import { Admin, Resource, Layout, AppBar, TitlePortal } from 'react-admin';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
-import { TestResultsList } from './pages/TestResults/TestResultsPage';
+import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestResults/TestResultsPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box } from '@mui/material';
@@ -42,7 +42,7 @@ function App() {
         dashboard={Dashboard}
         layout={CustomLayout}
       >
-        <Resource name="test_results" list={TestResultsList} />
+        <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} />
       </Admin>
     </BrowserRouter>
   );

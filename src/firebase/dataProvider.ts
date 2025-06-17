@@ -2,13 +2,46 @@ import { db } from './config';
 import { collection, getDocs, getDoc, doc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 
 export const dataProvider = {
-  getList: async (resource: string) => {
+  getList: async (resource: string, params: any = {}) => {
     const collectionRef = collection(db, resource);
     const snapshot = await getDocs(collectionRef);
-    const data = snapshot.docs.map(doc => ({
+    let data = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+
+    // Filtrado
+    if (params.filter) {
+      Object.entries(params.filter).forEach(([key, value]) => {
+        if (value) {
+          data = data.filter(item =>
+            item[key]?.toString().toLowerCase().includes(value.toString().toLowerCase())
+          );
+        }
+      });
+    }
+
+    // Ordenamiento
+    if (params.sort && params.sort.field) {
+      const { field, order } = params.sort;
+      data = data.sort((a, b) => {
+        if (a[field] === undefined || b[field] === undefined) return 0;
+        if (typeof a[field] === 'number' && typeof b[field] === 'number') {
+          return order === 'ASC' ? a[field] - b[field] : b[field] - a[field];
+        }
+        // Para fechas
+        if (field === 'date') {
+          return order === 'ASC'
+            ? new Date(a[field]).getTime() - new Date(b[field]).getTime()
+            : new Date(b[field]).getTime() - new Date(a[field]).getTime();
+        }
+        // Para strings
+        return order === 'ASC'
+          ? a[field].toString().localeCompare(b[field].toString())
+          : b[field].toString().localeCompare(a[field].toString());
+      });
+    }
+
     return {
       data,
       total: data.length
