@@ -4,6 +4,7 @@ import { Card, CardContent, TextField, Button, Typography, Box, InputAdornment, 
 import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import logo from '../assets/logo queo white small.svg';
 
 export default function LoginPage() {
   const login = useLogin();
@@ -26,17 +27,22 @@ export default function LoginPage() {
 
   return (
     <Box minHeight="100vh" display="flex" flexDirection="column" alignItems="center" justifyContent="center" sx={{ background: 'radial-gradient(circle at 50% 30%, #23234a 0%, #181a32 100%)' }}>
-      {/* Logo y marca */}
-      <Box display="flex" flexDirection="column" alignItems="center" mb={4} mt={6}>
-        <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="36" cy="36" r="28" fill="#fff" />
-          <path d="M12 60L-4 76" stroke="#fff" strokeWidth="6" strokeLinecap="round" />
-          <path d="M26 36l8 8 16-16" stroke="#3CCF91" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <Typography variant="h2" sx={{ color: '#fff', fontWeight: 700, mt: 2, letterSpacing: 1 }}>
-          QAScope
-        </Typography>
+      {/* Logo */}
+      <Box 
+        position="absolute"
+        top={40}
+        left={40}
+        width="120px"
+        height="120px"
+      >
+        <img src={logo} alt="QAScope Logo" style={{ width: '100%', height: '100%' }} />
       </Box>
+
+      {/* Título */}
+      <Typography variant="h2" sx={{ color: '#fff', fontWeight: 700, mb: 4, letterSpacing: 1 }}>
+        QAScope
+      </Typography>
+
       {/* Formulario */}
       <Card sx={{ minWidth: 350 }}>
         <CardContent>

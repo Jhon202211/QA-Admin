@@ -1,4 +1,4 @@
-import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button } from '@mui/material';
+import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button, TextField } from '@mui/material';
 import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import jsPDF from 'jspdf';
@@ -108,24 +108,33 @@ export const Dashboard = () => {
       <Grid container spacing={3}>
         {/* Fila 1: Gráfica de pastel y gráfica de línea */}
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+          <Card sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: 400, height: 400, mx: 'auto' }}>
+            <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
                 Éxito vs Fallos
               </Typography>
-              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1}>
-                <ResponsiveContainer width="100%" height={320}>
-                  <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={140} label>
+              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
+                <ResponsiveContainer width={350} height={320}>
+                  <PieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                    <Pie 
+                      data={pieData} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius={100}
+                      labelLine={{ stroke: '#2B2D42', strokeWidth: 1 }}
+                      label={({ name, value, percent }) => `${value} (${(percent * 100).toFixed(0)}%)`}
+                    >
                       {pieData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
-                    <Legend />
+                    <Legend verticalAlign="bottom" height={36}/>
                   </PieChart>
                 </ResponsiveContainer>
-                <Box mt={4}>
+                <Box mt={2}>
                   <Typography variant="body2" align="center" color="textSecondary">
                     Total de pruebas: <b>{total}</b> | Exitosas: <b>{passedTests}</b> | Fallidas: <b>{failedTests}</b>
                   </Typography>
@@ -135,36 +144,55 @@ export const Dashboard = () => {
           </Card>
         </Grid>
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent sx={{ minHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+          <Card sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: 400, height: 400, mx: 'auto' }}>
+            <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
                 Ejecuciones por rango de fecha
               </Typography>
-              <Box display="flex" gap={2} mb={2}>
-                <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-                  <DatePicker
-                    label="Fecha inicio"
-                    value={startDate}
-                    onChange={setStartDate}
-                    slotProps={{ textField: { size: 'small' } }}
-                  />
-                  <DatePicker
-                    label="Fecha fin"
-                    value={endDate}
-                    onChange={setEndDate}
-                    slotProps={{ textField: { size: 'small' } }}
-                  />
-                </LocalizationProvider>
-              </Box>
-              <Box display="flex" justifyContent="center" alignItems="center" height={300}>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
+                <Box display="flex" gap={2} mb={2}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+                    <DatePicker
+                      label="Fecha inicio"
+                      value={startDate}
+                      onChange={setStartDate}
+                      renderInput={(params) => <TextField {...params} size="small" />}
+                    />
+                    <DatePicker
+                      label="Fecha fin"
+                      value={endDate}
+                      onChange={setEndDate}
+                      renderInput={(params) => <TextField {...params} size="small" />}
+                    />
+                  </LocalizationProvider>
+                </Box>
+                <ResponsiveContainer width={350} height={320}>
+                  <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey={xAxisKey} tick={{ fontSize: 12 }} />
-                    <YAxis allowDecimals={false} />
+                    <XAxis 
+                      dataKey="día" 
+                      tick={{ fontSize: 11 }}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      allowDecimals={false}
+                      tick={{ fontSize: 11 }}
+                      width={40}
+                      domain={[0, 'auto']}
+                    />
                     <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="ejecuciones" stroke="#4B3C9D" strokeWidth={3} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="ejecuciones" 
+                      name="Ejecuciones" 
+                      stroke="#4B3C9D" 
+                      strokeWidth={2} 
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6, stroke: '#4B3C9D', strokeWidth: 2 }}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
