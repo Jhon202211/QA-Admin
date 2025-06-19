@@ -1,103 +1,140 @@
 import { useState } from 'react';
 import { useLogin, useNotify } from 'react-admin';
-import { Card, CardContent, TextField, Button, Typography, Box, InputAdornment, IconButton } from '@mui/material';
-import LockIcon from '@mui/icons-material/Lock';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import { Box, Button, Card, TextField, Typography } from '@mui/material';
 import logo from '../assets/logo queo white small.svg';
+import isotype from '../assets/isotype white small.svg';
 
-export default function LoginPage() {
-  const login = useLogin();
-  const notify = useNotify();
+const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const login = useLogin();
+  const notify = useNotify();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      await login({ username, password });
-    } catch (error) {
-      notify('Usuario o contraseña incorrectos', { type: 'error' });
-      setLoading(false);
-    }
+    login({ username, password }).catch(() =>
+      notify('Credenciales inválidas', { type: 'error' })
+    );
   };
 
   return (
-    <Box minHeight="100vh" display="flex" flexDirection="column" alignItems="center" justifyContent="center" sx={{ background: 'radial-gradient(circle at 50% 30%, #23234a 0%, #181a32 100%)' }}>
-      {/* Logo */}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        minWidth: '100vw',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#4B3C9D',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
+    >
       <Box 
-        position="absolute"
-        top={40}
-        left={40}
-        width="120px"
-        height="120px"
+        sx={{ 
+          maxWidth: '400px',
+          width: '100%',
+          padding: '0 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px'
+        }}
       >
-        <img src={logo} alt="QAScope Logo" style={{ width: '100%', height: '100%' }} />
-      </Box>
-
-      {/* Título */}
-      <Typography variant="h2" sx={{ color: '#fff', fontWeight: 700, mb: 4, letterSpacing: 1 }}>
-        QAScope
-      </Typography>
-
-      {/* Formulario */}
-      <Card sx={{ minWidth: 350 }}>
-        <CardContent>
-          <Box display="flex" flexDirection="column" alignItems="center" mb={2}>
-            <LockIcon sx={{ fontSize: 48, color: '#4B3C9D' }} />
+        <Box sx={{ textAlign: 'center', marginBottom: 1 }}>
+          <Typography
+            variant="h4"
+            sx={{
+              color: 'white',
+              fontWeight: 500,
+              fontSize: '2.5rem',
+              marginBottom: '4px'
+            }}
+          >
+            QAScope
+          </Typography>
+          <Box sx={{ position: 'relative', textAlign: 'right', marginTop: '-8px' }}>
+            <img src={logo} alt="Queo Logo" style={{ width: '80px' }} />
           </Box>
-          <form onSubmit={handleSubmit}>
+        </Box>
+
+        <Card
+          sx={{
+            width: '100%',
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+          }}
+        >
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
             <TextField
               label="Usuario"
-              placeholder="Ingresa tu usuario"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              fullWidth
-              margin="normal"
-              autoFocus
               required
+              autoFocus
+              variant="standard"
+              fullWidth
+              InputProps={{
+                sx: { '&:before': { borderColor: 'rgba(0, 0, 0, 0.12)' } }
+              }}
             />
             <TextField
               label="Contraseña"
-              placeholder="Ingresa tu contraseña"
-              type={showPassword ? 'text' : 'password'}
+              type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              fullWidth
-              margin="normal"
               required
+              variant="standard"
+              fullWidth
               InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(v => !v)} edge="end">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
+                sx: { '&:before': { borderColor: 'rgba(0, 0, 0, 0.12)' } }
               }}
             />
             <Button
-              type="submit"
               variant="contained"
-              color="primary"
+              type="submit"
               fullWidth
-              sx={{ mt: 2, backgroundColor: '#4B3C9D' }}
-              disabled={loading}
+              sx={{
+                mt: 2,
+                backgroundColor: '#4B3C9D',
+                textTransform: 'none',
+                py: 1,
+                '&:hover': {
+                  backgroundColor: '#3c2f7c',
+                },
+              }}
             >
               Iniciar sesión
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-      {/* Pie de página */}
-      <Box mt={6} mb={2}>
-        <Typography variant="body2" align="center" sx={{ color: '#fff', opacity: 0.8 }}>
-          © 2025 QAScope - Gestión de pruebas automatizadas
+          </Box>
+        </Card>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'rgba(255, 255, 255, 0.7)',
+            textAlign: 'center',
+            fontSize: '0.75rem',
+            mt: 1
+          }}
+        >
+          © 2023 QAScope - Gestión de pruebas automatizadas
         </Typography>
       </Box>
     </Box>
   );
-} 
+};
+
+export default LoginPage; 

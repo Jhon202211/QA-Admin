@@ -1,117 +1,200 @@
+import {
+  collection,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  orderBy,
+  limit,
+  startAfter,
+  Timestamp,
+} from 'firebase/firestore';
 import { db } from './config';
-import { collection, getDocs, getDoc, doc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import type { TestCase } from '../types/testCase';
+import type { TestPlan } from '../types/testPlanning';
+
+const convertTimestampToDate = (data: any) => {
+  if (!data) return data;
+  
+  const newData = { ...data };
+  Object.keys(newData).forEach(key => {
+    if (newData[key] instanceof Timestamp) {
+      newData[key] = newData[key].toDate();
+    }
+  });
+  return newData;
+};
+
+const convertDateToTimestamp = (data: any) => {
+  if (!data) return data;
+  
+  const newData = { ...data };
+  Object.keys(newData).forEach(key => {
+    if (newData[key] instanceof Date) {
+      newData[key] = Timestamp.fromDate(newData[key]);
+    }
+  });
+  return newData;
+};
 
 export const dataProvider = {
   getList: async (resource: string, params: any = {}) => {
     const collectionRef = collection(db, resource);
-    const snapshot = await getDocs(collectionRef);
-    let data = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    let q = query(collectionRef);
 
-    // Filtrado
+    // Aplicar filtros si existen
     if (params.filter) {
-      Object.entries(params.filter).forEach(([key, value]) => {
-        if (value) {
-          data = data.filter(item =>
-            item[key]?.toString().toLowerCase().includes(value.toString().toLowerCase())
-          );
-        }
+      Object.keys(params.filter).forEach(key => {
+        q = query(q, where(key, '==', params.filter[key]));
       });
     }
 
-    // Ordenamiento
-    if (params.sort && params.sort.field) {
-      const { field, order } = params.sort;
-      data = data.sort((a, b) => {
-        if (a[field] === undefined || b[field] === undefined) return 0;
-        if (typeof a[field] === 'number' && typeof b[field] === 'number') {
-          return order === 'ASC' ? a[field] - b[field] : b[field] - a[field];
-        }
-        // Para fechas
-        if (field === 'date') {
-          return order === 'ASC'
-            ? new Date(a[field]).getTime() - new Date(b[field]).getTime()
-            : new Date(b[field]).getTime() - new Date(a[field]).getTime();
-        }
-        // Para strings
-        return order === 'ASC'
-          ? a[field].toString().localeCompare(b[field].toString())
-          : b[field].toString().localeCompare(a[field].toString());
-      });
+    // Aplicar ordenamiento
+    if (params.sort) {
+      q = query(q, orderBy(params.sort.field, params.sort.order.toLowerCase()));
     }
 
-    return {
-      data,
-      total: data.length
-    };
-  },
-
-  getOne: async (resource: string, params: { id: string }) => {
-    const docRef = doc(db, resource, params.id);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
-      throw new Error('Document not found');
+    // Aplicar paginación
+    if (params.pagination) {
+      const { page, perPage } = params.pagination;
+      q = query(q, limit(perPage));
+      if (page > 1) {
+        const lastDoc = await getDocs(query(collectionRef, limit((page - 1) * perPage)));
+        q = query(q, startAfter(lastDoc.docs[lastDoc.docs.length - 1]));
+      }
     }
-    return {
-      data: {
-        id: docSnap.id,
-        ...docSnap.data()
-      }
-    };
-  },
 
-  create: async (resource: string, params: { data: any }) => {
-    const collectionRef = collection(db, resource);
-    const docRef = await addDoc(collectionRef, params.data);
-    return {
-      data: {
-        id: docRef.id,
-        ...params.data
-      }
-    };
-  },
-
-  update: async (resource: string, params: { id: string; data: any }) => {
-    const docRef = doc(db, resource, params.id);
-    await updateDoc(docRef, params.data);
-    return {
-      data: {
-        id: params.id,
-        ...params.data
-      }
-    };
-  },
-
-  delete: async (resource: string, params: { id: string }) => {
-    const docRef = doc(db, resource, params.id);
-    await deleteDoc(docRef);
-    return {
-      data: { id: params.id }
-    };
-  },
-
-  getMany: async (resource: string, params: { ids: string[] }) => {
-    const data = await Promise.all(
-      params.ids.map(id => dataProvider.getOne(resource, { id }))
-    );
-    return {
-      data: data.map(item => item.data)
-    };
-  },
-
-  getManyReference: async (resource: string, params: { target: string; id: string }) => {
-    const collectionRef = collection(db, resource);
-    const q = query(collectionRef, where(params.target, '==', params.id));
     const snapshot = await getDocs(q);
     const data = snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...convertTimestampToDate(doc.data())
     }));
+
     return {
       data,
-      total: data.length
+      total: snapshot.size,
     };
-  }
+  },
+
+  getOne: async (resource: string, params: any) => {
+    const docRef = doc(db, resource, params.id.toString());
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      throw new Error('Document not found');
+    }
+
+    return {
+      data: {
+        id: docSnap.id,
+        ...convertTimestampToDate(docSnap.data())
+      },
+    };
+  },
+
+  getMany: async (resource: string, params: any) => {
+    const data = await Promise.all(
+      params.ids.map((id: string | number) => {
+        const docRef = doc(db, resource, id.toString());
+        return getDoc(docRef).then(doc => ({
+          id: doc.id,
+          ...convertTimestampToDate(doc.data())
+        }));
+      })
+    );
+
+    return { data };
+  },
+
+  create: async (resource: string, params: any) => {
+    const collectionRef = collection(db, resource);
+    const data = convertDateToTimestamp(params.data);
+    const docRef = await addDoc(collectionRef, {
+      ...data,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+
+    return {
+      data: {
+        id: docRef.id,
+        ...params.data,
+      },
+    };
+  },
+
+  update: async (resource: string, params: any) => {
+    const { id, data } = params;
+    const docRef = doc(db, resource, id.toString());
+    const updateData = convertDateToTimestamp(data);
+    
+    await updateDoc(docRef, {
+      ...updateData,
+      updatedAt: Timestamp.now(),
+    });
+
+    return {
+      data: {
+        id,
+        ...data,
+      },
+    };
+  },
+
+  delete: async (resource: string, params: any) => {
+    const docRef = doc(db, resource, params.id.toString());
+    await deleteDoc(docRef);
+
+    return {
+      data: params,
+    };
+  },
+
+  deleteMany: async (resource: string, params: any) => {
+    const { ids } = params;
+    await Promise.all(
+      ids.map((id: string | number) => deleteDoc(doc(db, resource, id.toString())))
+    );
+
+    return {
+      data: ids,
+    };
+  },
+
+  updateMany: async (resource: string, params: any) => {
+    const { ids, data } = params;
+    const updateData = convertDateToTimestamp(data);
+    
+    await Promise.all(
+      ids.map((id: string | number) => 
+        updateDoc(doc(db, resource, id.toString()), {
+          ...updateData,
+          updatedAt: Timestamp.now(),
+        })
+      )
+    );
+
+    return {
+      data: ids,
+    };
+  },
+
+  getManyReference: async (resource: string, params: any) => {
+    const { target, id } = params;
+    const collectionRef = collection(db, resource);
+    const q = query(collectionRef, where(target, '==', id));
+    const snapshot = await getDocs(q);
+
+    return {
+      data: snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...convertTimestampToDate(doc.data())
+      })),
+      total: snapshot.size,
+    };
+  },
 }; 
