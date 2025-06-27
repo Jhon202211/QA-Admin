@@ -1,108 +1,299 @@
-import { Card, CardContent, Typography, Grid, Box, Button } from '@mui/material';
-import { Title, useGetList } from 'react-admin';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button, TextField } from '@mui/material';
+import { useGetList } from 'react-admin';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { es } from 'date-fns/locale';
+import React, { useState } from 'react';
+import { differenceInCalendarDays, startOfDay, endOfDay, startOfWeek, endOfWeek, format } from 'date-fns';
+
+const COLORS = ['#3CCF91', '#e53935'];
 
 export const Dashboard = () => {
   const { data: testResults = [], total } = useGetList('test_results', {
-    pagination: { page: 1, perPage: 100 },
+    pagination: { page: 1, perPage: 1000 },
     sort: { field: 'date', order: 'DESC' }
   });
 
   const passedTests = testResults.filter(test => test.status === 'passed').length;
   const failedTests = testResults.filter(test => test.status === 'failed').length;
+  const successRate = total ? ((passedTests / total) * 100).toFixed(2) : '0';
+  const avgDuration = testResults.length ? (testResults.reduce((acc, t) => acc + (t.duration || 0), 0) / testResults.length).toFixed(2) : '0';
+  const recentTests = [...testResults]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+  const recentErrors = testResults.filter(test => test.status === 'failed' && test.error).slice(0, 5);
 
   const pieData = [
     { name: 'Exitosas', value: passedTests },
     { name: 'Fallidas', value: failedTests }
   ];
 
-  const COLORS = ['#4CAF50', '#f44336'];
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
+  // Filtrar testResults por rango de fechas seleccionado
+  const filteredResults = testResults.filter(test => {
+    if (!test.date) return false;
+    const d = new Date(test.date);
+    if (startDate && d < startOfDay(startDate)) return false;
+    if (endDate && d > endOfDay(endDate)) return false;
+    return true;
+  });
+
+  // --- Nueva lógica: solo mostrar días seleccionados, o solo hoy si no hay selección ---
+  let chartData = [];
+  let xAxisKey = 'día';
+
+  if (startDate && endDate) {
+    const days = differenceInCalendarDays(endOfDay(endDate), startOfDay(startDate)) + 1;
+    const daysArr = Array.from({ length: days }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+    chartData = daysArr.map(d => {
+      const count = filteredResults.filter(test => {
+        const tDate = test.date ? new Date(test.date) : null;
+        return tDate && tDate >= startOfDay(d) && tDate <= endOfDay(d);
+      }).length;
+      return {
+        día: format(d, 'd/M/yyyy'),
+        ejecuciones: count
+      };
+    });
+  } else {
+    // Sin rango: solo mostrar el día de hoy
+    const today = startOfDay(new Date());
+    chartData = [{
+      día: format(today, 'd/M/yyyy'),
+      ejecuciones: testResults.filter(test => {
+        const tDate = test.date ? new Date(test.date) : null;
+        return tDate && tDate >= today && tDate <= endOfDay(today);
+      }).length
+    }];
+  }
 
   return (
-    <Box>
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        mb: 3
-      }}>
-        <Title title="Dashboard" />
-        <Button
-          variant="contained"
-          sx={{
-            bgcolor: '#4B3C9D',
-            '&:hover': { bgcolor: '#3c2f7c' }
-          }}
-        >
-          EXPORTAR A PDF
-        </Button>
-      </Box>
-
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="h6" gutterBottom>
-                Éxito vs Fallos
-              </Typography>
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ value, percent }) => `${value} (${(percent * 100).toFixed(0)}%)`}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Box>
-              <Typography variant="body2" sx={{ mt: 2 }}>
-                Total de pruebas: {total} | Exitosas: {passedTests} | Fallidas: {failedTests}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Ejecuciones por rango de fecha
-              </Typography>
-              <Box sx={{ mt: 2 }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" gutterBottom>
-                      Fecha inicio
+    <Box
+      sx={{
+        width: '100%',
+        display: 'block',
+        backgroundColor: '#f5f5f5',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+        padding: 0,
+        margin: 0,
+      }}
+    >
+      <Box sx={{ width: '100%', padding: '32px 32px 0 32px' }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} width="100%">
+          <Typography variant="h4" gutterBottom sx={{ color: '#2B2D42' }}>
+            Dashboard
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            sx={{ backgroundColor: '#4B3C9D', color: '#fff', '&:hover': { backgroundColor: '#3a2e7a' } }}
+            onClick={async () => {
+              const input = document.getElementById('dashboard-pdf-export');
+              if (!input) return;
+              const canvas = await html2canvas(input, { scale: 2 });
+              const imgData = canvas.toDataURL('image/png');
+              const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+              const pageWidth = pdf.internal.pageSize.getWidth();
+              const pageHeight = pdf.internal.pageSize.getHeight();
+              const imgProps = pdf.getImageProperties(imgData);
+              const pdfWidth = pageWidth;
+              const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+              pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+              pdf.save('dashboard.pdf');
+            }}
+          >
+            Exportar a PDF
+          </Button>
+        </Box>
+        <Grid container spacing={3} width="100%">
+          {/* Fila 1: Gráfica de pastel y gráfica de línea */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
+                <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
+                  Éxito vs Fallos
+                </Typography>
+                <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
+                  <ResponsiveContainer width={350} height={320}>
+                    <PieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                      <Pie 
+                        data={pieData} 
+                        dataKey="value" 
+                        nameKey="name" 
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={100}
+                        labelLine={{ stroke: '#2B2D42', strokeWidth: 1 }}
+                        label={({ name, value, percent }) => `${value} (${(percent * 100).toFixed(0)}%)`}
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <Box mt={2}>
+                    <Typography variant="body2" align="center" color="textSecondary">
+                      Total de pruebas: <b>{total}</b> | Exitosas: <b>{passedTests}</b> | Fallidas: <b>{failedTests}</b>
                     </Typography>
-                    <input type="date" style={{ width: '100%', padding: '8px', border: '1px solid #e0e0e0', borderRadius: '4px' }} />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" gutterBottom>
-                      Fecha fin
-                    </Typography>
-                    <input type="date" style={{ width: '100%', padding: '8px', border: '1px solid #e0e0e0', borderRadius: '4px' }} />
-                  </Grid>
-                </Grid>
-                <Box sx={{ height: '230px', display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 2 }}>
-                  <Typography color="textSecondary">Gráfico de ejecuciones aquí.</Typography>
+                  </Box>
                 </Box>
-              </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
+                <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
+                  Ejecuciones por rango de fecha
+                </Typography>
+                <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
+                  <Box display="flex" gap={2} mb={2}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+                      <DatePicker
+                        label="Fecha inicio"
+                        value={startDate}
+                        onChange={setStartDate}
+                        renderInput={(params) => <TextField {...params} size="small" />}
+                      />
+                      <DatePicker
+                        label="Fecha fin"
+                        value={endDate}
+                        onChange={setEndDate}
+                        renderInput={(params) => <TextField {...params} size="small" />}
+                      />
+                    </LocalizationProvider>
+                  </Box>
+                  <ResponsiveContainer width={350} height={320}>
+                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="día" 
+                        tick={{ fontSize: 11 }}
+                        interval={0}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                      />
+                      <YAxis 
+                        allowDecimals={false}
+                        tick={{ fontSize: 11 }}
+                        width={40}
+                        domain={[0, 'auto']}
+                      />
+                      <Tooltip />
+                      <Line 
+                        type="monotone" 
+                        dataKey="ejecuciones" 
+                        name="Ejecuciones" 
+                        stroke="#4B3C9D" 
+                        strokeWidth={2} 
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 6, stroke: '#4B3C9D', strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+        {/* Fila 2: KPIs pequeñas */}
+        <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
+          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+                % Éxito
+              </Typography>
+              <Typography variant="h5" sx={{ color: '#3CCF91' }}>
+                {successRate}%
+              </Typography>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+                Prom. Duración (s)
+              </Typography>
+              <Typography variant="h5">
+                {avgDuration}
+              </Typography>
+            </CardContent>
+          </Card>
+          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+                Total de Pruebas
+              </Typography>
+              <Typography variant="h5">
+                {total}
+              </Typography>
+            </CardContent>
+          </Card>
+          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+                Exitosas
+              </Typography>
+              <Typography variant="h5" sx={{ color: '#3CCF91' }}>
+                {passedTests}
+              </Typography>
+            </CardContent>
+          </Card>
+          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+                Fallidas
+              </Typography>
+              <Typography variant="h5" sx={{ color: '#e53935' }}>
+                {failedTests}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+        {/* Lista de pruebas recientes */}
+        <Box mt={4}>
+          <Typography variant="h6" sx={{ color: '#2B2D42' }}>Pruebas Recientes</Typography>
+          <List>
+            {recentTests.map((test, idx) => (
+              <ListItem key={idx} divider>
+                <ListItemText
+                  primary={`${test.name || 'Sin nombre'} (${test.status})`}
+                  secondary={`Duración: ${test.duration || 0}s | Fecha: ${test.date ? new Date(test.date).toLocaleString() : 'Sin fecha'}`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+        {/* Lista de errores recientes */}
+        <Box mt={4}>
+          <Typography variant="h6" sx={{ color: '#e53935' }}>Errores Recientes</Typography>
+          <List>
+            {recentErrors.length === 0 && <ListItem><ListItemText primary="Sin errores recientes" /></ListItem>}
+            {recentErrors.map((test, idx) => (
+              <ListItem key={idx} divider>
+                <ListItemText
+                  primary={test.name || 'Sin nombre'}
+                  secondary={test.error}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Box>
     </Box>
   );
 }; 

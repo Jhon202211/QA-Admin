@@ -41,7 +41,7 @@ export const TestPlanningPage = () => {
   const [selectedStatus, setSelectedStatus] = useState<TestPlanStatus | ''>('');
 
   return (
-    <Box p={3}>
+    <Box sx={{ width: '100%', backgroundColor: '#f5f5f5', minHeight: '100vh', boxSizing: 'border-box', padding: '32px 32px 0 32px', margin: 0 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
           Planificación de Pruebas

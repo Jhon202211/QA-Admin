@@ -11,6 +11,8 @@ import { TestCasesPage } from './pages/TestCases/TestCasesPage';
 import { TestPlanningPage } from './pages/TestPlanning/TestPlanningPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
+import { useEffect } from 'react';
+import { useSidebarState } from 'react-admin';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
@@ -50,30 +52,35 @@ const CustomLayout = (props: any) => (
       '& .RaSidebar-fixed': {
         position: 'fixed',
         height: 'calc(100vh - 64px)',
-        backgroundColor: '#fff',
-        borderRight: '1px solid #e0e0e0',
+        backgroundColor: '#f5f5f5',
+        borderRight: 'none',
         left: 0,
         top: '64px',
         width: '240px',
+        boxShadow: 'none',
       },
       '& .RaLayout-appFrame': {
         marginTop: '64px',
       },
       '& .RaLayout-contentWithSidebar': {
         marginLeft: '240px',
-        padding: '24px 32px',
-        backgroundColor: '#f5f5f5',
         minHeight: 'calc(100vh - 64px)',
+        maxWidth: '100vw',
+        width: '100vw',
+        boxSizing: 'border-box',
       },
       '& .RaLayout-content': {
         padding: 0,
         backgroundColor: 'transparent',
+        maxWidth: '100vw',
+        width: '100vw',
+        boxSizing: 'border-box',
       },
       '& .RaMenu-root': {
-        marginTop: '12px',
+        marginTop: '24px',
       },
       '& .RaMenu-item': {
-        padding: '8px 24px',
+        padding: '12px 28px',
       },
       '& .RaListToolbar-root': {
         display: 'flex',
