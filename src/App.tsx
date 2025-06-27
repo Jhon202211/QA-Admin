@@ -44,53 +44,62 @@ const CustomAppBar = (props: any) => {
   );
 };
 
-const CustomLayout = (props: any) => (
-  <Layout
-    {...props}
-    appBar={CustomAppBar}
-    sx={{
-      '& .RaSidebar-fixed': {
-        position: 'fixed',
-        height: 'calc(100vh - 64px)',
-        backgroundColor: '#f5f5f5',
-        borderRight: 'none',
-        left: 0,
-        top: '64px',
-        width: '240px',
-        boxShadow: 'none',
-      },
-      '& .RaLayout-appFrame': {
-        marginTop: '64px',
-      },
-      '& .RaLayout-contentWithSidebar': {
-        marginLeft: '240px',
-        minHeight: 'calc(100vh - 64px)',
-        maxWidth: '100vw',
-        width: '100vw',
-        boxSizing: 'border-box',
-      },
-      '& .RaLayout-content': {
-        padding: 0,
-        backgroundColor: 'transparent',
-        maxWidth: '100vw',
-        width: '100vw',
-        boxSizing: 'border-box',
-      },
-      '& .RaMenu-root': {
-        marginTop: '24px',
-      },
-      '& .RaMenu-item': {
-        padding: '12px 28px',
-      },
-      '& .RaListToolbar-root': {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
-      }
-    }}
-  />
-);
+const CustomLayout = (props: any) => {
+  const [open] = useSidebarState();
+  return (
+    <Layout
+      {...props}
+      appBar={CustomAppBar}
+      sx={{
+        '& .RaSidebar-fixed': {
+          position: 'fixed',
+          height: 'calc(100vh - 64px)',
+          backgroundColor: '#f5f5f5',
+          borderRight: 'none',
+          left: 0,
+          top: '64px',
+          width: open ? '240px' : '0px',
+          minWidth: 0,
+          maxWidth: open ? '240px' : '0px',
+          boxShadow: 'none',
+          overflowX: 'hidden',
+          transition: 'width 0.2s',
+        },
+        '& .RaLayout-appFrame': {
+          marginTop: '64px',
+        },
+        '& .RaLayout-contentWithSidebar': {
+          marginLeft: open ? '240px' : '0px',
+          minHeight: 'calc(100vh - 64px)',
+          width: open ? 'calc(100vw - 240px)' : '100vw',
+          maxWidth: 'none',
+          boxSizing: 'border-box',
+          backgroundColor: '#f5f5f5',
+          transition: 'margin-left 0.2s, width 0.2s',
+        },
+        '& .RaLayout-content': {
+          padding: 0,
+          backgroundColor: 'transparent',
+          width: '100%',
+          maxWidth: 'none',
+          boxSizing: 'border-box',
+        },
+        '& .RaMenu-root': {
+          marginTop: '24px',
+        },
+        '& .RaMenu-item': {
+          padding: '12px 28px',
+        },
+        '& .RaListToolbar-root': {
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px',
+        }
+      }}
+    />
+  );
+};
 
 function App() {
   return (

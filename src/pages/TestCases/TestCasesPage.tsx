@@ -11,7 +11,7 @@ import {
 import { Box, Typography } from '@mui/material';
 
 const Empty = () => (
-  <Box sx={{ width: '100%', backgroundColor: '#f5f5f5', minHeight: '100vh', boxSizing: 'border-box', padding: '32px 32px 0 32px', margin: 0, textAlign: 'center' }}>
+  <Box sx={{ minHeight: '100vh', boxSizing: 'border-box', padding: '32px 32px 0 0', margin: 0, textAlign: 'center' }}>
     <Typography variant="h5" paragraph>
       No hay casos de prueba
     </Typography>

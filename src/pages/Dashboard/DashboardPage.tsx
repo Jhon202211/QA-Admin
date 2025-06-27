@@ -80,12 +80,9 @@ export const Dashboard = () => {
   return (
     <Box
       sx={{
-        width: '100%',
-        display: 'block',
-        backgroundColor: '#f5f5f5',
         minHeight: '100vh',
         boxSizing: 'border-box',
-        padding: 0,
+        padding: '32px 32px 0 0',
         margin: 0,
       }}
     >
