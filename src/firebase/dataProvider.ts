@@ -25,6 +25,9 @@ const convertTimestampToDate = (data: any) => {
     if (newData[key] instanceof Timestamp) {
       newData[key] = newData[key].toDate();
     }
+    if (key === 'date' && typeof newData[key] === 'string') {
+      newData[key] = new Date(newData[key]);
+    }
   });
   return newData;
 };

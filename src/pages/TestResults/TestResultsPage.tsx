@@ -3,7 +3,8 @@ import {
   Datagrid,
   TextField,
   DateField,
-  NumberField,
+  BooleanField,
+  ReferenceField,
   ShowButton,
   EditButton,
   DeleteButton,
@@ -14,71 +15,51 @@ import {
   TextInput,
   DateInput,
   NumberInput,
-  SelectInput,
-  TopToolbar,
-  ExportButton
 } from 'react-admin';
-import { Box, Typography } from '@mui/material';
-
-const ListActions = () => (
-    <TopToolbar>
-        <ExportButton />
-    </TopToolbar>
-);
-
-const Empty = () => (
-  <Box sx={{ minHeight: '100vh', boxSizing: 'border-box', padding: '32px 32px 0 0', margin: 0, textAlign: 'center' }}>
-    <Typography variant="h5" paragraph>
-      No hay resultados de pruebas todavía
-    </Typography>
-    <Typography variant="body1">
-      Los resultados de las pruebas aparecerán aquí una vez que se ejecuten.
-    </Typography>
-  </Box>
-);
+import { Typography } from '@mui/material';
 
 export const TestResultsList = () => (
-  <List actions={<ListActions />} empty={<Empty />} title="Resultados">
-    <Datagrid rowClick="show">
+  <div style={{ padding: '20px' }}>
+    <Typography variant="h4" gutterBottom>
+      Resultados
+    </Typography>
+    <List>
+      <Datagrid>
+        <TextField source="id" label="Id" />
+        <TextField source="name" label="Nombre" />
+        <DateField source="date" label="Fecha" />
+        <TextField source="status" label="Estado" />
+        <TextField source="duration" label="Duración (s)" />
+        <TextField source="error" label="Error" />
+        <ShowButton />
+        <EditButton />
+        <DeleteButton />
+      </Datagrid>
+    </List>
+  </div>
+);
+
+export const TestResultShow = (props: any) => (
+  <Show {...props}>
+    <SimpleShowLayout>
       <TextField source="id" label="Id" />
       <TextField source="name" label="Nombre" />
       <DateField source="date" label="Fecha" />
       <TextField source="status" label="Estado" />
-      <NumberField source="duration" label="Duración (s)" options={{ maximumFractionDigits: 2 }} />
+      <TextField source="duration" label="Duración (s)" />
       <TextField source="error" label="Error" />
-      <ShowButton />
-      <EditButton />
-      <DeleteButton />
-    </Datagrid>
-  </List>
-);
-
-export const TestResultShow = () => (
-  <Show>
-    <SimpleShowLayout>
-      <TextField source="id" />
-      <TextField source="name" />
-      <DateField source="date" />
-      <TextField source="status" />
-      <NumberField source="duration" options={{ maximumFractionDigits: 2 }} />
-      <TextField source="error" />
     </SimpleShowLayout>
   </Show>
 );
 
-export const TestResultEdit = () => (
-  <Edit>
+export const TestResultEdit = (props: any) => (
+  <Edit {...props}>
     <SimpleForm>
-      <TextInput source="id" disabled />
-      <TextInput source="name" />
-      <DateInput source="date" />
-      <SelectInput source="status" choices={[
-        { id: 'passed', name: 'Passed' },
-        { id: 'failed', name: 'Failed' },
-        { id: 'skipped', name: 'Skipped' },
-      ]} />
-      <NumberInput source="duration" />
-      <TextInput source="error" multiline />
+      <TextInput source="name" label="Nombre" />
+      <DateInput source="date" label="Fecha" />
+      <TextInput source="status" label="Estado" />
+      <NumberInput source="duration" label="Duración (s)" />
+      <TextInput source="error" label="Error" />
     </SimpleForm>
   </Edit>
 ); 
