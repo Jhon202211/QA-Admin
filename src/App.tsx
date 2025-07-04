@@ -13,6 +13,10 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 import { useEffect } from 'react';
 import { useSidebarState } from 'react-admin';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import EventNoteIcon from '@mui/icons-material/EventNote';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
@@ -124,9 +128,9 @@ function App() {
           dashboard={Dashboard}
           requireAuth
         >
-          <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} />
-          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} />
-          <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} />
+          <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} icon={FactCheckIcon} />
+          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} />
+          <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
         </Admin>
         <Footer />
       </BrowserRouter>
