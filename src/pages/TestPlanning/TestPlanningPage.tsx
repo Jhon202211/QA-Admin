@@ -1,24 +1,33 @@
-import { useState } from 'react';
 import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  Button,
-  Chip,
-  LinearProgress,
-  IconButton,
-  TextField,
-  InputAdornment,
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Search as SearchIcon,
-  FilterList as FilterListIcon,
-  CalendarMonth as CalendarIcon,
-} from '@mui/icons-material';
-import type { TestPlan, TestPlanStatus } from '../../types/testPlanning';
+  List,
+  useListContext,
+  EditButton,
+  DeleteButton,
+  TopToolbar,
+  CreateButton,
+  ExportButton,
+  FilterButton,
+  TextInput,
+  SelectInput,
+  DateField,
+  DateInput,
+  SimpleForm,
+  Create,
+  Edit
+} from 'react-admin';
+import { Box, Typography, Card, CardContent, Chip, Grid, IconButton } from '@mui/material';
+import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
+
+const planFilters = [
+  <TextInput label="Buscar por nombre" source="name" alwaysOn />,
+  <SelectInput label="Estado" source="status" choices={[
+    { id: 'draft', name: 'Borrador' },
+    { id: 'active', name: 'Activo' },
+    { id: 'in_progress', name: 'En Progreso' },
+    { id: 'completed', name: 'Completado' },
+    { id: 'cancelled', name: 'Cancelado' }
+  ]} alwaysOn />,
+];
 
 const statusColors = {
   draft: '#9e9e9e',
@@ -36,108 +45,156 @@ const statusLabels = {
   cancelled: 'Cancelado'
 };
 
-export const TestPlanningPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<TestPlanStatus | ''>('');
+const Empty = () => (
+  <Box sx={{ minHeight: '100vh', boxSizing: 'border-box', padding: '32px 32px 0 0', margin: 0, textAlign: 'center' }}>
+    <Typography variant="h5" paragraph>
+      No hay planes de prueba
+    </Typography>
+    <Typography variant="body1">
+      Crea tu primer plan de pruebas para empezar a organizar tu testing.
+    </Typography>
+    <CreateButton />
+  </Box>
+);
 
+const ListActions = () => (
+  <TopToolbar>
+    <FilterButton />
+    <CreateButton />
+    <ExportButton />
+  </TopToolbar>
+);
+
+function TestPlanningCardList() {
+  const { data, isLoading } = useListContext();
+  if (isLoading) return <Typography>Cargando...</Typography>;
+  if (!data || data.length === 0) return <Empty />;
   return (
-    <Box sx={{ minHeight: '100vh', boxSizing: 'border-box', padding: '32px 32px 0 0', margin: 0 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
-          Planificación de Pruebas
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => {/* TODO: Implementar creación */}}
-        >
-          Nuevo Plan de Pruebas
-        </Button>
-      </Box>
-
-      <Box display="flex" gap={2} mb={3}>
-        <TextField
-          placeholder="Buscar planes de prueba..."
-          variant="outlined"
-          size="small"
-          fullWidth
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <IconButton>
-          <FilterListIcon />
-        </IconButton>
-      </Box>
-
-      <Grid container spacing={2}>
-        {/* TODO: Implementar lista de planes de prueba */}
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+    <Grid container direction="column" spacing={3} sx={{ background: 'transparent', boxShadow: 'none' }}>
+      {data.map((plan: any) => (
+        <Grid item={true} key={plan.id} sx={{ width: '100%', maxWidth: 700, ml: 0 }}>
+          <Card
+            sx={{
+              borderRadius: 3,
+              background: '#fff',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 4px 16px 0 rgba(80,80,120,0.13)',
+              transition: 'box-shadow 0.2s, transform 0.2s',
+              '&:hover': {
+                boxShadow: '0 8px 32px 0 rgba(80,80,120,0.22)',
+                transform: 'translateY(-4px) scale(1.02)'
+              },
+              p: 0
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
                 <Box>
-                  <Typography variant="h6">
-                    Sprint 23 - Testing Plan
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#2B2D42', mb: 0.5 }}>
+                    {plan.name}
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Plan de pruebas para el sprint 23
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1, minHeight: 32 }}>
+                    {plan.description}
                   </Typography>
                 </Box>
-                <Box display="flex" gap={1} alignItems="center">
-                  <Chip
-                    label="En Progreso"
-                    size="small"
-                    style={{ backgroundColor: statusColors.in_progress, color: 'white' }}
-                  />
-                  <IconButton size="small">
-                    <CalendarIcon />
-                  </IconButton>
-                </Box>
-              </Box>
-              
-              <Box>
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2">Progreso</Typography>
-                  <Typography variant="body2">75%</Typography>
-                </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={75}
+                <Chip
+                  label={statusLabels[(plan.status as keyof typeof statusLabels)] || plan.status}
+                  size="small"
                   sx={{
-                    height: 8,
-                    borderRadius: 4,
+                    backgroundColor: statusColors[(plan.status as keyof typeof statusColors)] || '#ccc',
+                    color: 'white',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    px: 1.5,
+                    borderRadius: 1
                   }}
                 />
               </Box>
-
+              <Box display="flex" alignItems="center" gap={2} mb={2}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Inicio: <DateField source="startDate" record={plan} showTime={false} />
+                  </Typography>
+                </Box>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Fin: <DateField source="endDate" record={plan} showTime={false} />
+                  </Typography>
+                </Box>
+              </Box>
               <Box display="flex" gap={2} mt={2}>
-                <Typography variant="body2" color="textSecondary">
-                  Casos totales: 40
-                </Typography>
-                <Typography variant="body2" color="success.main">
-                  Pasados: 30
-                </Typography>
-                <Typography variant="body2" color="error.main">
-                  Fallidos: 5
-                </Typography>
-                <Typography variant="body2" color="warning.main">
-                  Pendientes: 5
-                </Typography>
+                <EditButton record={plan} label="Editar" sx={{ color: '#4B3C9D', fontWeight: 600 }} />
+                <DeleteButton record={plan} label="Eliminar" sx={{ color: '#e53935', fontWeight: 600 }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
-    </Box>
+      ))}
+    </Grid>
   );
-};
+}
 
-export default TestPlanningPage; 
+export const TestPlanningPage = () => (
+  <List
+    actions={<ListActions />}
+    empty={<Empty />}
+    title="Planificación de Pruebas"
+    filters={planFilters}
+    pagination={false}
+    sx={{
+      background: 'transparent',
+      boxShadow: 'none',
+      padding: 0,
+      '& .RaList-content': {
+        background: 'transparent',
+        boxShadow: 'none',
+        padding: 0,
+      },
+      '& .MuiPaper-root': {
+        background: 'transparent',
+        boxShadow: 'none',
+        padding: 0,
+      }
+    }}
+  >
+    <TestPlanningCardList />
+  </List>
+);
+
+export const TestPlanningCreate = (props: any) => (
+  <Create {...props} title="Nuevo Plan de Pruebas">
+    <SimpleForm>
+      <TextInput source="name" label="Nombre" fullWidth required />
+      <TextInput source="description" label="Descripción" multiline fullWidth />
+      <SelectInput source="status" label="Estado" choices={[
+        { id: 'draft', name: 'Borrador' },
+        { id: 'active', name: 'Activo' },
+        { id: 'in_progress', name: 'En Progreso' },
+        { id: 'completed', name: 'Completado' },
+        { id: 'cancelled', name: 'Cancelado' }
+      ]} required />
+      <DateInput source="startDate" label="Fecha de inicio" />
+      <DateInput source="endDate" label="Fecha de fin" />
+    </SimpleForm>
+  </Create>
+);
+
+export const TestPlanningEdit = (props: any) => (
+  <Edit {...props} title="Editar Plan de Pruebas">
+    <SimpleForm>
+      <TextInput source="name" label="Nombre" fullWidth required />
+      <TextInput source="description" label="Descripción" multiline fullWidth />
+      <SelectInput source="status" label="Estado" choices={[
+        { id: 'draft', name: 'Borrador' },
+        { id: 'active', name: 'Activo' },
+        { id: 'in_progress', name: 'En Progreso' },
+        { id: 'completed', name: 'Completado' },
+        { id: 'cancelled', name: 'Cancelado' }
+      ]} required />
+      <DateInput source="startDate" label="Fecha de inicio" />
+      <DateInput source="endDate" label="Fecha de fin" />
+    </SimpleForm>
+  </Edit>
+); 
