@@ -11,7 +11,7 @@ const automatedCases = [
   { id: 'test_create_company.py', name: 'Crear empresa', description: 'Prueba de creación de empresa.' },
 ];
 
-const API_URL = 'http://localhost:8000/tests/execute';
+const API_URL = 'http://localhost:9000/tests/execute';
 const API_TOKEN = 'valid_token'; // Token fijo para pruebas
 
 export const AutomationRunnerPage = () => {
