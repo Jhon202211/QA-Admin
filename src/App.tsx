@@ -7,7 +7,7 @@ import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import isotype from './assets/isotype white small.svg';
-import { TestCasesPage } from './pages/TestCases/TestCasesPage';
+import { TestCasesPage, TestCaseCreate, TestCaseEdit } from './pages/TestCases/TestCasesPage';
 import { TestPlanningPage } from './pages/TestPlanning/TestPlanningPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
@@ -114,7 +114,7 @@ function App() {
           requireAuth
         >
           <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} />
-          <Resource name="test_cases" list={TestCasesPage} />
+          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} />
           <Resource name="test_planning" list={TestPlanningPage} />
         </Admin>
       </BrowserRouter>
