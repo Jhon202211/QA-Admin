@@ -53,7 +53,7 @@ const ListActions = () => (
 );
 
 export const TestCasesPage = () => (
-  <Box sx={{ padding: '20px' }}>
+  <Box sx={{ paddingTop: '20px', paddingRight: '20px', paddingBottom: '20px' }}>
     <Typography variant="h4" gutterBottom>
       Casos de Prueba
     </Typography>
