@@ -132,7 +132,20 @@ export const dataProvider = {
 
   create: async (resource: string, params: any) => {
     const collectionRef = collection(db, resource);
-    const data = convertDateToTimestamp(params.data);
+    let caseKey = params.data.caseKey;
+    // Si el usuario no proporciona caseKey, generarlo automáticamente
+    if (!caseKey) {
+      const snapshot = await getDocs(collectionRef);
+      // Filtrar solo los que tienen caseKey y extraer el número
+      const keys = snapshot.docs
+        .map(doc => (doc.data() as { caseKey?: string }).caseKey)
+        .filter(key => typeof key === 'string' && /^CP\d{3,}$/.test(key as string))
+        .map(key => parseInt((key as string).replace('CP', ''), 10));
+      const max = keys.length > 0 ? Math.max(...keys) : 0;
+      const next = (max + 1).toString().padStart(3, '0');
+      caseKey = `CP${next}`;
+    }
+    const data = convertDateToTimestamp({ ...params.data, caseKey });
     const docRef = await addDoc(collectionRef, {
       ...data,
       createdAt: Timestamp.now(),
@@ -143,6 +156,7 @@ export const dataProvider = {
       data: {
         id: docRef.id,
         ...params.data,
+        caseKey,
       },
     };
   },

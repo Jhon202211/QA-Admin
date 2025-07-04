@@ -9,16 +9,26 @@ export interface TestStep {
   expectedResult: string;
   actualResult?: string;
   attachments?: string[];
+  evidences?: string[];
+  status?: 'passed' | 'failed' | 'blocked' | 'not_executed';
 }
 
 export interface TestCase {
   id: string;
+  caseKey: string;
   title: string;
   description: string;
+  prerequisites?: string[];
+  testData?: string;
+  expectedResult?: string;
+  actualResult?: string;
+  module?: string;
+  responsible?: string;
+  executionResult?: 'passed' | 'failed' | 'blocked' | 'not_executed';
+  notes?: string;
   type: TestCaseType;
   status: TestCaseStatus;
   priority: TestCasePriority;
-  prerequisites?: string[];
   steps: TestStep[];
   tags: string[];
   createdBy: string;
