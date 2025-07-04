@@ -47,39 +47,56 @@ const convertDateToTimestamp = (data: any) => {
 export const dataProvider = {
   getList: async (resource: string, params: any = {}) => {
     const collectionRef = collection(db, resource);
-    let q = query(collectionRef);
+    const snapshot = await getDocs(collectionRef);
+    let data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-    // Aplicar filtros si existen
+    // Filtrado
     if (params.filter) {
-      Object.keys(params.filter).forEach(key => {
-        q = query(q, where(key, '==', params.filter[key]));
+      Object.entries(params.filter).forEach(([key, value]) => {
+        if (value) {
+          data = data.filter(item =>
+            item[key]?.toString().toLowerCase().includes(value.toString().toLowerCase())
+          );
+        }
       });
     }
 
-    // Aplicar ordenamiento
-    if (params.sort) {
-      q = query(q, orderBy(params.sort.field, params.sort.order.toLowerCase()));
+    // Ordenamiento
+    if (params.sort && params.sort.field) {
+      const { field, order } = params.sort;
+      data = data.sort((a, b) => {
+        if (a[field] === undefined || b[field] === undefined) return 0;
+        if (typeof a[field] === 'number' && typeof b[field] === 'number') {
+          return order === 'ASC' ? a[field] - b[field] : b[field] - a[field];
+        }
+        // Para fechas
+        if (field === 'date') {
+          return order === 'ASC'
+            ? new Date(a[field]).getTime() - new Date(b[field]).getTime()
+            : new Date(b[field]).getTime() - new Date(a[field]).getTime();
+        }
+        // Para strings
+        return order === 'ASC'
+          ? a[field].toString().localeCompare(b[field].toString())
+          : b[field].toString().localeCompare(a[field].toString());
+      });
     }
 
-    // Aplicar paginación
+    // Paginación
+    let total = data.length;
     if (params.pagination) {
       const { page, perPage } = params.pagination;
-      q = query(q, limit(perPage));
-      if (page > 1) {
-        const lastDoc = await getDocs(query(collectionRef, limit((page - 1) * perPage)));
-        q = query(q, startAfter(lastDoc.docs[lastDoc.docs.length - 1]));
-      }
+      const start = (page - 1) * perPage;
+      const end = start + perPage;
+      data = data.slice(start, end);
     }
-
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...convertTimestampToDate(doc.data())
-    }));
 
     return {
       data,
-      total: snapshot.size,
+      total
     };
   },
 
