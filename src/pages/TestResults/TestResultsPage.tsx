@@ -25,7 +25,6 @@ export const TestResultsList = () => (
     </Typography>
     <List>
       <Datagrid>
-        <TextField source="id" label="Id" />
         <TextField source="name" label="Nombre" />
         <DateField source="date" label="Fecha" />
         <TextField source="status" label="Estado" />
