@@ -50,7 +50,7 @@ export const dataProvider = {
     const snapshot = await getDocs(collectionRef);
     let data = snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...convertTimestampToDate(doc.data())
     }));
 
     // Filtrado
