@@ -87,13 +87,13 @@ function TestPlanningCardList() {
               p: 0
             }}
           >
-            <CardContent sx={{ p: 3 }}>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#2B2D42', mb: 0.5 }}>
+            <CardContent sx={{ p: 3, background: '#fff' }}>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2} sx={{ background: '#fff' }}>
+                <Box sx={{ background: '#fff' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#2B2D42', mb: 0.5, background: '#fff' }}>
                     {plan.name}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1, minHeight: 32 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1, minHeight: 32, background: '#fff' }}>
                     {plan.description}
                   </Typography>
                 </Box>
@@ -110,23 +110,23 @@ function TestPlanningCardList() {
                   }}
                 />
               </Box>
-              <Box display="flex" alignItems="center" gap={2} mb={2}>
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D' }} />
-                  <Typography variant="caption" color="text.secondary">
+              <Box display="flex" alignItems="center" gap={2} mb={2} sx={{ background: '#fff' }}>
+                <Box display="flex" alignItems="center" gap={0.5} sx={{ background: '#fff' }}>
+                  <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D', background: '#fff' }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ background: '#fff' }}>
                     Inicio: <DateField source="startDate" record={plan} showTime={false} />
                   </Typography>
                 </Box>
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D' }} />
-                  <Typography variant="caption" color="text.secondary">
+                <Box display="flex" alignItems="center" gap={0.5} sx={{ background: '#fff' }}>
+                  <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D', background: '#fff' }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ background: '#fff' }}>
                     Fin: <DateField source="endDate" record={plan} showTime={false} />
                   </Typography>
                 </Box>
               </Box>
-              <Box display="flex" gap={2} mt={2}>
-                <EditButton record={plan} label="Editar" sx={{ color: '#4B3C9D', fontWeight: 600 }} />
-                <DeleteButton record={plan} label="Eliminar" sx={{ color: '#e53935', fontWeight: 600 }} />
+              <Box display="flex" gap={2} mt={2} sx={{ background: '#fff' }}>
+                <EditButton record={plan} label="Editar" sx={{ color: '#4B3C9D', fontWeight: 600, background: '#fff' }} />
+                <DeleteButton record={plan} label="Eliminar" sx={{ color: '#e53935', fontWeight: 600, background: '#fff' }} />
               </Box>
             </CardContent>
           </Card>
