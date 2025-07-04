@@ -76,9 +76,9 @@ export const TestCasesPage = () => (
 );
 
 export const TestCaseCreate = (props: any) => (
-  <Create {...props} title="Nuevo Caso de Prueba">
+  <Create {...props} title="Nuevo Caso de Prueba" redirect="list">
     <SimpleForm>
-      <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth required />
+      <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth />
       <TextInput source="name" label="Nombre" fullWidth required />
       <TextInput source="description" label="Descripción" multiline fullWidth />
       <TextInput source="prerequisites" label="Precondiciones" multiline fullWidth />
@@ -129,7 +129,7 @@ export const TestCaseCreate = (props: any) => (
 export const TestCaseEdit = (props: any) => (
   <Edit {...props} title="Editar Caso de Prueba">
     <SimpleForm>
-      <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth required />
+      <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth />
       <TextInput source="name" label="Nombre" fullWidth required />
       <TextInput source="description" label="Descripción" multiline fullWidth />
       <TextInput source="prerequisites" label="Precondiciones" multiline fullWidth />
