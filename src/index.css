@@ -92,3 +92,10 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* Restaurar visibilidad y reducir el ancho del div azul visual */
+.MuiDrawer-paper {
+  width: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+}
