@@ -48,39 +48,41 @@ export const AutomationRunnerPage = () => {
   };
 
   return (
-    <Box sx={{ padding: '20px', maxWidth: 700, margin: '0 auto' }}>
+    <Box sx={{ padding: '20px' }}>
       <Typography variant="h4" gutterBottom>
         Automatización
       </Typography>
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Casos automatizados disponibles
-          </Typography>
-          <List>
-            {automatedCases.map(caso => (
-              <ListItem key={caso.id} secondaryAction={
-                runningId === caso.id ? (
-                  <CircularProgress size={28} />
-                ) : results[caso.id] === 'success' ? (
-                  <CheckCircleIcon color="success" />
-                ) : results[caso.id] === 'error' ? (
-                  <ErrorIcon color="error" />
-                ) : (
-                  <IconButton edge="end" color="primary" onClick={() => handleRun(caso.id)}>
-                    <PlayArrowIcon />
-                  </IconButton>
-                )
-              }>
-                <ListItemText
-                  primary={caso.name}
-                  secondary={caso.description}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </CardContent>
-      </Card>
+      <Box sx={{ maxWidth: 420 }}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Casos automatizados disponibles
+            </Typography>
+            <List>
+              {automatedCases.map(caso => (
+                <ListItem key={caso.id} secondaryAction={
+                  runningId === caso.id ? (
+                    <CircularProgress size={28} />
+                  ) : results[caso.id] === 'success' ? (
+                    <CheckCircleIcon color="success" />
+                  ) : results[caso.id] === 'error' ? (
+                    <ErrorIcon color="error" />
+                  ) : (
+                    <IconButton edge="end" color="primary" onClick={() => handleRun(caso.id)}>
+                      <PlayArrowIcon />
+                    </IconButton>
+                  )
+                }>
+                  <ListItemText
+                    primary={caso.name}
+                    secondary={caso.description}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </CardContent>
+        </Card>
+      </Box>
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar(s => ({ ...s, open: false }))}>
         <Alert onClose={() => setSnackbar(s => ({ ...s, open: false }))} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
