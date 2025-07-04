@@ -1,30 +1,50 @@
 import React, { useState } from 'react';
-import { Box, Typography, Card, CardContent, Button, CircularProgress, List, ListItem, ListItemText, IconButton } from '@mui/material';
+import { Box, Typography, Card, CardContent, CircularProgress, List, ListItem, ListItemText, IconButton, Snackbar, Alert } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 
 // Casos automatizados simulados
 const automatedCases = [
-  { id: 'auto-1', name: 'Login exitoso', description: 'Prueba de login con credenciales válidas.' },
-  { id: 'auto-2', name: 'Registro de usuario', description: 'Prueba de registro con datos válidos.' },
-  { id: 'auto-3', name: 'Búsqueda de producto', description: 'Prueba de búsqueda en el catálogo.' },
+  { id: 'test_create_user.py', name: 'Crear usuario', description: 'Prueba de creación de usuario.' },
+  { id: 'test_create_visitor.py', name: 'Crear visitante', description: 'Prueba de creación de visitante.' },
+  { id: 'test_create_company.py', name: 'Crear empresa', description: 'Prueba de creación de empresa.' },
 ];
+
+const API_URL = 'http://localhost:8000/tests/execute';
+const API_TOKEN = 'valid_token'; // Token fijo para pruebas
 
 export const AutomationRunnerPage = () => {
   const [runningId, setRunningId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, 'success' | 'error' | null>>({});
+  const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
-  const handleRun = (id: string) => {
+  const handleRun = async (id: string) => {
     setRunningId(id);
     setResults(prev => ({ ...prev, [id]: null }));
-    // Simulación de llamada al backend
-    setTimeout(() => {
-      // Simula éxito o error aleatorio
-      const isSuccess = Math.random() > 0.3;
-      setResults(prev => ({ ...prev, [id]: isSuccess ? 'success' : 'error' }));
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_TOKEN}`
+        },
+        body: JSON.stringify({ test_file: id })
+      });
+      const data = await response.json();
+      if (response.ok && data.status === 'started') {
+        setResults(prev => ({ ...prev, [id]: 'success' }));
+        setSnackbar({ open: true, message: 'Ejecución iniciada correctamente', severity: 'success' });
+      } else {
+        setResults(prev => ({ ...prev, [id]: 'error' }));
+        setSnackbar({ open: true, message: data.message || 'Error al iniciar la ejecución', severity: 'error' });
+      }
+    } catch (error: any) {
+      setResults(prev => ({ ...prev, [id]: 'error' }));
+      setSnackbar({ open: true, message: error.message || 'Error de red', severity: 'error' });
+    } finally {
       setRunningId(null);
-    }, 2000);
+    }
   };
 
   return (
@@ -61,6 +81,11 @@ export const AutomationRunnerPage = () => {
           </List>
         </CardContent>
       </Card>
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar(s => ({ ...s, open: false }))}>
+        <Alert onClose={() => setSnackbar(s => ({ ...s, open: false }))} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }; 
