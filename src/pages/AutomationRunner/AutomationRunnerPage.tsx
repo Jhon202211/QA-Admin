@@ -9,6 +9,9 @@ const automatedCases = [
   { id: 'test_create_user.py', name: 'Crear usuario', description: 'Prueba de creación de usuario.' },
   { id: 'test_create_visitor.py', name: 'Crear visitante', description: 'Prueba de creación de visitante.' },
   { id: 'test_create_company.py', name: 'Crear empresa', description: 'Prueba de creación de empresa.' },
+  { id: 'test_create_room_reservation.py', name: 'Reservar sala', description: 'Prueba de reserva de sala.' },
+  { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa', description: 'Prueba de desactivación de usuario o empresa.' },
+  { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa', description: 'Prueba de restauración de usuario o empresa.' },
 ];
 
 const API_URL = 'http://localhost:9000/tests/execute';
