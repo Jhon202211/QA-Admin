@@ -101,6 +101,17 @@ const CustomLayout = (props: any) => {
   );
 };
 
+const Footer = () => {
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
+  if (isLoginPage) return null;
+  return (
+    <Box sx={{ width: '100%', textAlign: 'center', py: 2, color: '#888', fontSize: 14, background: 'transparent' }}>
+      © 2025 QAScope - Gestión de pruebas automatizadas | v0.5
+    </Box>
+  );
+};
+
 function App() {
   return (
     <ErrorBoundary>
@@ -117,6 +128,7 @@ function App() {
           <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} />
         </Admin>
+        <Footer />
       </BrowserRouter>
     </ErrorBoundary>
   );
