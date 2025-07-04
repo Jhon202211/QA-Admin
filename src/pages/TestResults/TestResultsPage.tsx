@@ -15,8 +15,9 @@ import {
   TextInput,
   DateInput,
   NumberInput,
+  FunctionField,
 } from 'react-admin';
-import { Typography } from '@mui/material';
+import { Typography, Chip } from '@mui/material';
 
 export const TestResultsList = () => (
   <div style={{ padding: '20px' }}>
@@ -27,7 +28,19 @@ export const TestResultsList = () => (
       <Datagrid>
         <TextField source="name" label="Nombre" />
         <DateField source="date" label="Fecha" />
-        <TextField source="status" label="Estado" />
+        <FunctionField
+          label="Estado"
+          render={record => (
+            <Chip
+              label={record.status === 'passed' ? 'Pasó' : 'Falló'}
+              sx={{
+                backgroundColor: record.status === 'passed' ? '#4caf50' : '#e53935',
+                color: '#fff',
+                fontWeight: 600
+              }}
+            />
+          )}
+        />
         <TextField source="duration" label="Duración (s)" />
         <TextField source="error" label="Error" />
         <ShowButton />
