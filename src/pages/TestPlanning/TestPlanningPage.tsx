@@ -72,7 +72,7 @@ function TestPlanningCardList() {
   return (
     <Grid container direction="column" spacing={3} sx={{ background: 'transparent', boxShadow: 'none' }}>
       {data.map((plan: any) => (
-        <Grid item={true} key={plan.id} sx={{ width: '100%', maxWidth: 700, ml: 0 }}>
+        <Grid key={plan.id} sx={{ width: '100%', maxWidth: 700, ml: 0 }}>
           <Card
             sx={{
               borderRadius: 3,
@@ -137,30 +137,34 @@ function TestPlanningCardList() {
 }
 
 export const TestPlanningPage = () => (
-  <List
-    actions={<ListActions />}
-    empty={<Empty />}
-    title="Planificación de Pruebas"
-    filters={planFilters}
-    pagination={false}
-    sx={{
-      background: 'transparent',
-      boxShadow: 'none',
-      padding: 0,
-      '& .RaList-content': {
+  <Box sx={{ padding: '20px' }}>
+    <Typography variant="h4" gutterBottom>
+      Planificación de Pruebas
+    </Typography>
+    <List
+      actions={<ListActions />}
+      empty={<Empty />}
+      filters={planFilters}
+      pagination={false}
+      sx={{
         background: 'transparent',
         boxShadow: 'none',
         padding: 0,
-      },
-      '& .MuiPaper-root': {
-        background: 'transparent',
-        boxShadow: 'none',
-        padding: 0,
-      }
-    }}
-  >
-    <TestPlanningCardList />
-  </List>
+        '& .RaList-content': {
+          background: 'transparent',
+          boxShadow: 'none',
+          padding: 0,
+        },
+        '& .MuiPaper-root': {
+          background: 'transparent',
+          boxShadow: 'none',
+          padding: 0,
+        }
+      }}
+    >
+      <TestPlanningCardList />
+    </List>
+  </Box>
 );
 
 export const TestPlanningCreate = (props: any) => (

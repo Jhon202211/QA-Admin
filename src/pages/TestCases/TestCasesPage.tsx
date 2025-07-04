@@ -53,26 +53,30 @@ const ListActions = () => (
 );
 
 export const TestCasesPage = () => (
-  <List
-    actions={<ListActions />}
-    empty={<Empty />}
-    title="Casos de Prueba"
-    filters={caseFilters}
-  >
-    <Datagrid>
-      <TextField source="caseKey" label="ID" />
-      <TextField source="name" label="Nombre" />
-      <TextField source="description" label="Descripción" />
-      <ChipField source="priority" label="Prioridad" />
-      <TextField source="status" label="Estado" />
-      <TextField source="module" label="Módulo" />
-      <TextField source="responsible" label="Responsable" />
-      <TextField source="executionResult" label="Resultado de ejecución" />
-      <DateField source="updatedAt" label="Última actualización" />
-      <EditButton />
-      <DeleteButton />
-    </Datagrid>
-  </List>
+  <Box sx={{ padding: '20px' }}>
+    <Typography variant="h4" gutterBottom>
+      Casos de Prueba
+    </Typography>
+    <List
+      actions={<ListActions />}
+      empty={<Empty />}
+      filters={caseFilters}
+    >
+      <Datagrid>
+        <TextField source="caseKey" label="ID" />
+        <TextField source="name" label="Nombre" />
+        <TextField source="description" label="Descripción" />
+        <ChipField source="priority" label="Prioridad" />
+        <TextField source="status" label="Estado" />
+        <TextField source="module" label="Módulo" />
+        <TextField source="responsible" label="Responsable" />
+        <TextField source="executionResult" label="Resultado de ejecución" />
+        <DateField source="updatedAt" label="Última actualización" />
+        <EditButton />
+        <DeleteButton />
+      </Datagrid>
+    </List>
+  </Box>
 );
 
 export const TestCaseCreate = (props: any) => (

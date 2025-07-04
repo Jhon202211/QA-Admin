@@ -78,218 +78,209 @@ export const Dashboard = () => {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        boxSizing: 'border-box',
-        padding: '32px 32px 0 0',
-        margin: 0,
-      }}
-    >
-      <Box sx={{ width: '100%', padding: '32px 32px 0 32px' }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} width="100%">
-          <Typography variant="h4" gutterBottom sx={{ color: '#2B2D42' }}>
-            Dashboard
-          </Typography>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            sx={{ backgroundColor: '#4B3C9D', color: '#fff', '&:hover': { backgroundColor: '#3a2e7a' } }}
-            onClick={async () => {
-              const input = document.getElementById('dashboard-pdf-export');
-              if (!input) return;
-              const canvas = await html2canvas(input, { scale: 2 });
-              const imgData = canvas.toDataURL('image/png');
-              const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-              const pageWidth = pdf.internal.pageSize.getWidth();
-              const pageHeight = pdf.internal.pageSize.getHeight();
-              const imgProps = pdf.getImageProperties(imgData);
-              const pdfWidth = pageWidth;
-              const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-              pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-              pdf.save('dashboard.pdf');
-            }}
-          >
-            Exportar a PDF
-          </Button>
-        </Box>
-        <Grid container spacing={3} width="100%">
-          {/* Fila 1: Gráfica de pastel y gráfica de línea */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-              <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
-                <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
-                  Éxito vs Fallos
-                </Typography>
-                <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
-                  <ResponsiveContainer width={350} height={320}>
-                    <PieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
-                      <Pie 
-                        data={pieData} 
-                        dataKey="value" 
-                        nameKey="name" 
-                        cx="50%" 
-                        cy="50%" 
-                        outerRadius={100}
-                        labelLine={{ stroke: '#2B2D42', strokeWidth: 1 }}
-                        label={({ name, value, percent }) => `${value} (${(percent * 100).toFixed(0)}%)`}
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend verticalAlign="bottom" height={36}/>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <Box mt={2}>
-                    <Typography variant="body2" align="center" color="textSecondary">
-                      Total de pruebas: <b>{total}</b> | Exitosas: <b>{passedTests}</b> | Fallidas: <b>{failedTests}</b>
-                    </Typography>
-                  </Box>
+    <Box sx={{ padding: '20px' }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} width="100%">
+        <Typography variant="h4" gutterBottom sx={{ color: '#2B2D42' }}>
+          Dashboard
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          sx={{ backgroundColor: '#4B3C9D', color: '#fff', '&:hover': { backgroundColor: '#3a2e7a' } }}
+          onClick={async () => {
+            const input = document.getElementById('dashboard-pdf-export');
+            if (!input) return;
+            const canvas = await html2canvas(input, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pageWidth;
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save('dashboard.pdf');
+          }}
+        >
+          Exportar a PDF
+        </Button>
+      </Box>
+      <Grid container spacing={3} width="100%">
+        {/* Fila 1: Gráfica de pastel y gráfica de línea */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+            <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
+                Éxito vs Fallos
+              </Typography>
+              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
+                <ResponsiveContainer width={350} height={320}>
+                  <PieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                    <Pie 
+                      data={pieData} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius={100}
+                      labelLine={{ stroke: '#2B2D42', strokeWidth: 1 }}
+                      label={({ name, value, percent }) => `${value} (${(percent * 100).toFixed(0)}%)`}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                </ResponsiveContainer>
+                <Box mt={2}>
+                  <Typography variant="body2" align="center" color="textSecondary">
+                    Total de pruebas: <b>{total}</b> | Exitosas: <b>{passedTests}</b> | Fallidas: <b>{failedTests}</b>
+                  </Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-              <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
-                <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
-                  Ejecuciones por rango de fecha
-                </Typography>
-                <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
-                  <Box display="flex" gap={2} mb={2}>
-                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-                      <DatePicker
-                        label="Fecha inicio"
-                        value={startDate}
-                        onChange={setStartDate}
-                        renderInput={(params) => <TextField {...params} size="small" />}
-                      />
-                      <DatePicker
-                        label="Fecha fin"
-                        value={endDate}
-                        onChange={setEndDate}
-                        renderInput={(params) => <TextField {...params} size="small" />}
-                      />
-                    </LocalizationProvider>
-                  </Box>
-                  <ResponsiveContainer width={350} height={320}>
-                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="día" 
-                        tick={{ fontSize: 11 }}
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                      />
-                      <YAxis 
-                        allowDecimals={false}
-                        tick={{ fontSize: 11 }}
-                        width={40}
-                        domain={[0, 'auto']}
-                      />
-                      <Tooltip />
-                      <Line 
-                        type="monotone" 
-                        dataKey="ejecuciones" 
-                        name="Ejecuciones" 
-                        stroke="#4B3C9D" 
-                        strokeWidth={2} 
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6, stroke: '#4B3C9D', strokeWidth: 2 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+              </Box>
+            </CardContent>
+          </Card>
         </Grid>
-        {/* Fila 2: KPIs pequeñas */}
-        <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
-          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
-                % Éxito
+        <Grid item xs={12} md={6}>
+          <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+            <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
+              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
+                Ejecuciones por rango de fecha
               </Typography>
-              <Typography variant="h5" sx={{ color: '#3CCF91' }}>
-                {successRate}%
-              </Typography>
+              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
+                <Box display="flex" gap={2} mb={2}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+                    <DatePicker
+                      label="Fecha inicio"
+                      value={startDate}
+                      onChange={setStartDate}
+                      renderInput={(params) => <TextField {...params} size="small" />}
+                    />
+                    <DatePicker
+                      label="Fecha fin"
+                      value={endDate}
+                      onChange={setEndDate}
+                      renderInput={(params) => <TextField {...params} size="small" />}
+                    />
+                  </LocalizationProvider>
+                </Box>
+                <ResponsiveContainer width={350} height={320}>
+                  <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="día" 
+                      tick={{ fontSize: 11 }}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      allowDecimals={false}
+                      tick={{ fontSize: 11 }}
+                      width={40}
+                      domain={[0, 'auto']}
+                    />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="ejecuciones" 
+                      name="Ejecuciones" 
+                      stroke="#4B3C9D" 
+                      strokeWidth={2} 
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6, stroke: '#4B3C9D', strokeWidth: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
             </CardContent>
           </Card>
-          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
-                Prom. Duración (s)
-              </Typography>
-              <Typography variant="h5">
-                {avgDuration}
-              </Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
-                Total de Pruebas
-              </Typography>
-              <Typography variant="h5">
-                {total}
-              </Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
-                Exitosas
-              </Typography>
-              <Typography variant="h5" sx={{ color: '#3CCF91' }}>
-                {passedTests}
-              </Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
-                Fallidas
-              </Typography>
-              <Typography variant="h5" sx={{ color: '#e53935' }}>
-                {failedTests}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        {/* Lista de pruebas recientes */}
-        <Box mt={4}>
-          <Typography variant="h6" sx={{ color: '#2B2D42' }}>Pruebas Recientes</Typography>
-          <List>
-            {recentTests.map((test, idx) => (
-              <ListItem key={idx} divider>
-                <ListItemText
-                  primary={`${test.name || 'Sin nombre'} (${test.status})`}
-                  secondary={`Duración: ${test.duration || 0}s | Fecha: ${test.date ? new Date(test.date).toLocaleString() : 'Sin fecha'}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-        {/* Lista de errores recientes */}
-        <Box mt={4}>
-          <Typography variant="h6" sx={{ color: '#e53935' }}>Errores Recientes</Typography>
-          <List>
-            {recentErrors.length === 0 && <ListItem><ListItemText primary="Sin errores recientes" /></ListItem>}
-            {recentErrors.map((test, idx) => (
-              <ListItem key={idx} divider>
-                <ListItemText
-                  primary={test.name || 'Sin nombre'}
-                  secondary={test.error}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
+        </Grid>
+      </Grid>
+      {/* Fila 2: KPIs pequeñas */}
+      <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
+        <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+              % Éxito
+            </Typography>
+            <Typography variant="h5" sx={{ color: '#3CCF91' }}>
+              {successRate}%
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+              Prom. Duración (s)
+            </Typography>
+            <Typography variant="h5">
+              {avgDuration}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+              Total de Pruebas
+            </Typography>
+            <Typography variant="h5">
+              {total}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+              Exitosas
+            </Typography>
+            <Typography variant="h5" sx={{ color: '#3CCF91' }}>
+              {passedTests}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+              Fallidas
+            </Typography>
+            <Typography variant="h5" sx={{ color: '#e53935' }}>
+              {failedTests}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+      {/* Lista de pruebas recientes */}
+      <Box mt={4}>
+        <Typography variant="h6" sx={{ color: '#2B2D42' }}>Pruebas Recientes</Typography>
+        <List>
+          {recentTests.map((test, idx) => (
+            <ListItem key={idx} divider>
+              <ListItemText
+                primary={`${test.name || 'Sin nombre'} (${test.status})`}
+                secondary={`Duración: ${test.duration || 0}s | Fecha: ${test.date ? new Date(test.date).toLocaleString() : 'Sin fecha'}`}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+      {/* Lista de errores recientes */}
+      <Box mt={4}>
+        <Typography variant="h6" sx={{ color: '#e53935' }}>Errores Recientes</Typography>
+        <List>
+          {recentErrors.length === 0 && <ListItem><ListItemText primary="Sin errores recientes" /></ListItem>}
+          {recentErrors.map((test, idx) => (
+            <ListItem key={idx} divider>
+              <ListItemText
+                primary={test.name || 'Sin nombre'}
+                secondary={test.error}
+              />
+            </ListItem>
+          ))}
+        </List>
       </Box>
     </Box>
   );
