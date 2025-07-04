@@ -18,9 +18,10 @@ import {
   ArrayInput,
   SimpleFormIterator,
   FileInput,
-  FileField
+  FileField,
+  FunctionField
 } from 'react-admin';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Chip } from '@mui/material';
 import { RichTextInput } from 'ra-input-rich-text';
 
 const caseFilters = [
@@ -66,7 +67,22 @@ export const TestCasesPage = () => (
         <TextField source="caseKey" label="ID" />
         <TextField source="name" label="Nombre" />
         <TextField source="description" label="Descripción" />
-        <ChipField source="priority" label="Prioridad" />
+        <FunctionField
+          label="Prioridad"
+          render={record => (
+            <Chip
+              label={record.priority}
+              sx={{
+                backgroundColor:
+                  record.priority === 'Alta' ? '#e53935' :
+                  record.priority === 'Media' ? '#ff9800' :
+                  record.priority === 'Baja' ? '#4caf50' : '#bdbdbd',
+                color: '#fff',
+                fontWeight: 600
+              }}
+            />
+          )}
+        />
         <TextField source="status" label="Estado" />
         <TextField source="module" label="Módulo" />
         <TextField source="responsible" label="Responsable" />
