@@ -19,7 +19,7 @@ import {
 } from 'react-admin';
 import { Box, Typography, Card, CardContent, Chip, Grid, IconButton, Modal, Paper, Divider, Button, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { dataProvider } from '../../firebase/dataProvider';
 
 const planFilters = [
@@ -71,7 +71,7 @@ const ListActions = () => (
 
 function TestPlanningCardList() {
   const { data, isLoading } = useListContext();
-  const { data: testResults = [] } = useGetList('test_results');
+  const { data: testResults = [], refetch: refetchTestResults } = useGetList('test_results');
   const { data: manualCases = [] } = useGetList('test_cases');
   const [open, setOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
@@ -80,6 +80,7 @@ function TestPlanningCardList() {
   const [manualResults, setManualResults] = useState<Record<string, string>>({});
   const [autoStatus, setAutoStatus] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
+  const pollingRefs = useRef<Record<string, any>>({});
 
   const handleOpen = (plan: any) => {
     setSelectedPlan(plan);
@@ -105,8 +106,12 @@ function TestPlanningCardList() {
   };
 
   // Función para obtener el estado del último resultado de un test automatizado
-  const getAutomatedTestStatus = (testId: string) => {
-    const results = testResults.filter((r: any) => r.name === testId);
+  const getAutomatedTestStatus = (testId: string, planId?: string) => {
+    const pid = planId || selectedPlan?.id;
+    const baseName = testId.replace('.py', '');
+    const results = testResults.filter((r: any) =>
+      (r.name === testId || r.name === baseName) && r.planId === pid
+    );
     if (results.length === 0) return null;
     // Tomar el más reciente por fecha
     const last = results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -119,7 +124,40 @@ function TestPlanningCardList() {
     return test?.executionResult || null;
   };
 
-  // Ejecutar todos los tests automatizados
+  // Polling para cada test automatizado
+  const startPolling = (executionId: string, testId: string, planId: string) => {
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutos
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const statusResponse = await fetch(`http://localhost:9000/tests/status/${executionId}`, {
+          headers: { 'Authorization': 'Bearer valid_token' }
+        });
+        if (!statusResponse.ok) throw new Error('Error status');
+        const status = await statusResponse.json();
+        if (status.status === 'completed' || status.status === 'failed' || status.status === 'error') {
+          clearInterval(interval);
+          pollingRefs.current[testId] = null;
+          // Esperar 2s y refrescar resultados desde Firestore
+          setTimeout(() => {
+            refetchTestResults && refetchTestResults();
+            setAutoStatus(s => ({ ...s }));
+          }, 2000);
+        }
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          pollingRefs.current[testId] = null;
+        }
+      } catch {
+        clearInterval(interval);
+        pollingRefs.current[testId] = null;
+      }
+    }, 5000);
+    pollingRefs.current[testId] = interval;
+  };
+
+  // Ejecutar todos los tests automatizados con polling
   const handleRunAutomated = async () => {
     if (!selectedPlanRun) return;
     setRunning(true);
@@ -132,10 +170,12 @@ function TestPlanningCardList() {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer valid_token'
           },
-          body: JSON.stringify({ test_file: testId })
+          body: JSON.stringify({ test_file: testId, planId: selectedPlanRun.id })
         });
         const data = await response.json();
-        setAutoStatus(s => ({ ...s, [testId]: data.status === 'started' ? 'success' : 'error' }));
+        if (data.execution_id) {
+          startPolling(data.execution_id, testId, selectedPlanRun.id);
+        }
       } catch {
         setAutoStatus(s => ({ ...s, [testId]: 'error' }));
       }
@@ -145,12 +185,24 @@ function TestPlanningCardList() {
 
   // Guardar resultados de manuales
   const handleSaveManuals = async () => {
+    // Limpiar arrays para evitar undefined
+    const cleanManualTestCases = (selectedPlanRun.manualTestCases || []).filter(Boolean);
+    const cleanAutomatedTests = (selectedPlanRun.automatedTests || []).filter(Boolean);
     for (const testId of Object.keys(manualResults)) {
       const test = manualCases.find((t: any) => t.id === testId);
       if (test) {
         await dataProvider.update('test_cases', { id: testId, data: { ...test, executionResult: manualResults[testId] } });
       }
     }
+    // Actualizar el plan de pruebas sin undefined
+    await dataProvider.update('test_planning', {
+      id: selectedPlanRun.id,
+      data: {
+        ...selectedPlanRun,
+        manualTestCases: cleanManualTestCases,
+        automatedTests: cleanAutomatedTests
+      }
+    });
     handleCloseRun();
   };
 
@@ -235,7 +287,7 @@ function TestPlanningCardList() {
               <Typography variant="h6">Test Automatizados</Typography>
               <Box component="ul" sx={{ pl: 3, mb: 2 }}>
                 {(selectedPlan.automatedTests || []).map((testId: string, idx: number) => {
-                  const status = getAutomatedTestStatus(testId);
+                  const status = getAutomatedTestStatus(testId, selectedPlan.id);
                   return (
                     <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
                       <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -290,14 +342,25 @@ function TestPlanningCardList() {
               <Divider sx={{ mb: 2 }} />
               <Typography variant="h6">Test Automatizados</Typography>
               <Box component="ul" sx={{ pl: 3, mb: 2 }}>
-                {(selectedPlanRun.automatedTests || []).map((testId: string, idx: number) => (
-                  <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-                    <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    {autoStatus[testId] === 'success' && <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />}
-                    {autoStatus[testId] === 'error' && <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />}
-                    {autoStatus[testId] === 'running' && <Chip label="Ejecutando..." sx={{ ml: 2, backgroundColor: '#ff9800', color: '#fff', fontWeight: 600 }} />}
-                  </li>
-                ))}
+                {(selectedPlanRun.automatedTests || []).map((testId: string, idx: number) => {
+                  const status = getAutomatedTestStatus(testId, selectedPlanRun.id);
+                  return (
+                    <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {status && (
+                        <Chip
+                          label={status === 'passed' ? 'Pasó' : 'Falló'}
+                          sx={{
+                            ml: 2,
+                            backgroundColor: status === 'passed' ? '#4caf50' : '#e53935',
+                            color: '#fff',
+                            fontWeight: 600
+                          }}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
               </Box>
               {selectedPlanRun.automatedTests?.length > 0 && (
                 <Button variant="contained" color="primary" onClick={handleRunAutomated} disabled={running} sx={{ mb: 3 }}>
