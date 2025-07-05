@@ -177,11 +177,12 @@ function TestPlanningCardList() {
     for (const testId of selectedPlanRun.automatedTests || []) {
       setAutoStatus(s => ({ ...s, [testId]: 'running' }));
       try {
-        const caseId = testToCaseId[testId] || null;
+        const caseId = testToCaseId[testId] || '';
+        const planId = selectedPlanRun?.id || '';
         console.log("Enviando ejecución:", {
           test_file: testId,
-          planId: selectedPlanRun.id,
-          caseId
+          planId: planId,
+          caseId: caseId
         });
         const response = await fetch('http://localhost:9000/tests/execute', {
           method: 'POST',
@@ -189,7 +190,11 @@ function TestPlanningCardList() {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer valid_token'
           },
-          body: JSON.stringify({ test_file: testId, planId: selectedPlanRun.id, caseId })
+          body: JSON.stringify({
+            test_file: testId,
+            planId: planId,
+            caseId: caseId
+          })
         });
         const data = await response.json();
         if (data.execution_id) {
