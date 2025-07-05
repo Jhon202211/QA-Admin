@@ -105,13 +105,26 @@ function TestPlanningCardList() {
     setRunning(false);
   };
 
+  // Mapeo de test automatizado a caseId (ajusta según tu correspondencia real)
+  const testToCaseId: Record<string, string> = {
+    'test_create_user.py': 'TC001',
+    'test_create_company.py': 'TC002',
+    'test_create_visitor.py': 'TC003',
+    'test_create_room_reservation.py': 'TC004',
+    'test_deactivate_user_company.py': 'TC005',
+    'test_restore_user_company.py': 'TC006',
+  };
+
   // Función para obtener el estado del último resultado de un test automatizado
   const getAutomatedTestStatus = (testId: string, planId?: string) => {
     const pid = planId || selectedPlan?.id;
     const baseName = testId.replace('.py', '');
-    const results = testResults.filter((r: any) =>
-      (r.name === testId || r.name === baseName) && r.planId === pid
-    );
+    const caseId = testToCaseId[testId] || null;
+    const results = testResults.filter((r: any) => {
+      const rName = (r.name || '').replace('.py', '');
+      const tName = baseName;
+      return r.planId === pid && rName === tName && (!caseId || r.caseId === caseId);
+    });
     if (results.length === 0) return null;
     // Tomar el más reciente por fecha
     const last = results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -164,13 +177,19 @@ function TestPlanningCardList() {
     for (const testId of selectedPlanRun.automatedTests || []) {
       setAutoStatus(s => ({ ...s, [testId]: 'running' }));
       try {
+        const caseId = testToCaseId[testId] || null;
+        console.log("Enviando ejecución:", {
+          test_file: testId,
+          planId: selectedPlanRun.id,
+          caseId
+        });
         const response = await fetch('http://localhost:9000/tests/execute', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer valid_token'
           },
-          body: JSON.stringify({ test_file: testId, planId: selectedPlanRun.id })
+          body: JSON.stringify({ test_file: testId, planId: selectedPlanRun.id, caseId })
         });
         const data = await response.json();
         if (data.execution_id) {
@@ -291,16 +310,14 @@ function TestPlanningCardList() {
                   return (
                     <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
                       <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      {status && (
-                        <Chip
-                          label={status === 'passed' ? 'Pasó' : 'Falló'}
-                          sx={{
-                            ml: 2,
-                            backgroundColor: status === 'passed' ? '#4caf50' : '#e53935',
-                            color: '#fff',
-                            fontWeight: 600
-                          }}
-                        />
+                      {status === 'passed' && (
+                        <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
+                      )}
+                      {status === 'failed' && (
+                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />
+                      )}
+                      {status === null && (
+                        <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
                       )}
                     </li>
                   );
@@ -347,16 +364,14 @@ function TestPlanningCardList() {
                   return (
                     <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
                       <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      {status && (
-                        <Chip
-                          label={status === 'passed' ? 'Pasó' : 'Falló'}
-                          sx={{
-                            ml: 2,
-                            backgroundColor: status === 'passed' ? '#4caf50' : '#e53935',
-                            color: '#fff',
-                            fontWeight: 600
-                          }}
-                        />
+                      {status === 'passed' && (
+                        <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
+                      )}
+                      {status === 'failed' && (
+                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />
+                      )}
+                      {status === null && (
+                        <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
                       )}
                     </li>
                   );
