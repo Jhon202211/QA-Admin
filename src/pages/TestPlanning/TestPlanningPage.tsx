@@ -13,7 +13,9 @@ import {
   DateInput,
   SimpleForm,
   Create,
-  Edit
+  Edit,
+  SelectArrayInput,
+  useGetList
 } from 'react-admin';
 import { Box, Typography, Card, CardContent, Chip, Grid, IconButton } from '@mui/material';
 import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
@@ -167,38 +169,78 @@ export const TestPlanningPage = () => (
   </Box>
 );
 
-export const TestPlanningCreate = (props: any) => (
-  <Create {...props} title="Nuevo Plan de Pruebas">
-    <SimpleForm>
-      <TextInput source="name" label="Nombre" fullWidth required />
-      <TextInput source="description" label="Descripción" multiline fullWidth />
-      <SelectInput source="status" label="Estado" choices={[
-        { id: 'draft', name: 'Borrador' },
-        { id: 'active', name: 'Activo' },
-        { id: 'in_progress', name: 'En Progreso' },
-        { id: 'completed', name: 'Completado' },
-        { id: 'cancelled', name: 'Cancelado' }
-      ]} required />
-      <DateInput source="startDate" label="Fecha de inicio" />
-      <DateInput source="endDate" label="Fecha de fin" />
-    </SimpleForm>
-  </Create>
-);
+export const TestPlanningCreate = (props: any) => {
+  const { data: manualCases = [] } = useGetList('test_cases');
+  return (
+    <Create {...props} title="Nuevo Plan de Pruebas">
+      <SimpleForm>
+        <TextInput source="name" label="Nombre" fullWidth required />
+        <TextInput source="description" label="Descripción" multiline fullWidth />
+        <SelectInput source="status" label="Estado" choices={[
+          { id: 'draft', name: 'Borrador' },
+          { id: 'active', name: 'Activo' },
+          { id: 'in_progress', name: 'En Progreso' },
+          { id: 'completed', name: 'Completado' },
+          { id: 'cancelled', name: 'Cancelado' }
+        ]} required />
+        <DateInput source="startDate" label="Fecha de inicio" />
+        <DateInput source="endDate" label="Fecha de fin" />
+        <SelectArrayInput
+          source="manualTestCases"
+          label="Casos de prueba manuales"
+          choices={manualCases.map(tc => ({ id: tc.id, name: tc.name }))}
+        />
+        <SelectArrayInput
+          source="automatedTests"
+          label="Tests automatizados"
+          choices={[
+            { id: 'test_create_user.py', name: 'Crear usuario' },
+            { id: 'test_create_visitor.py', name: 'Crear visitante' },
+            { id: 'test_create_company.py', name: 'Crear empresa' },
+            { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
+            { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
+            { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
+          ]}
+        />
+      </SimpleForm>
+    </Create>
+  );
+};
 
-export const TestPlanningEdit = (props: any) => (
-  <Edit {...props} title="Editar Plan de Pruebas">
-    <SimpleForm>
-      <TextInput source="name" label="Nombre" fullWidth required />
-      <TextInput source="description" label="Descripción" multiline fullWidth />
-      <SelectInput source="status" label="Estado" choices={[
-        { id: 'draft', name: 'Borrador' },
-        { id: 'active', name: 'Activo' },
-        { id: 'in_progress', name: 'En Progreso' },
-        { id: 'completed', name: 'Completado' },
-        { id: 'cancelled', name: 'Cancelado' }
-      ]} required />
-      <DateInput source="startDate" label="Fecha de inicio" />
-      <DateInput source="endDate" label="Fecha de fin" />
-    </SimpleForm>
-  </Edit>
-); 
+export const TestPlanningEdit = (props: any) => {
+  const { data: manualCases = [] } = useGetList('test_cases');
+  return (
+    <Edit {...props} title="Editar Plan de Pruebas">
+      <SimpleForm>
+        <TextInput source="name" label="Nombre" fullWidth required />
+        <TextInput source="description" label="Descripción" multiline fullWidth />
+        <SelectInput source="status" label="Estado" choices={[
+          { id: 'draft', name: 'Borrador' },
+          { id: 'active', name: 'Activo' },
+          { id: 'in_progress', name: 'En Progreso' },
+          { id: 'completed', name: 'Completado' },
+          { id: 'cancelled', name: 'Cancelado' }
+        ]} required />
+        <DateInput source="startDate" label="Fecha de inicio" />
+        <DateInput source="endDate" label="Fecha de fin" />
+        <SelectArrayInput
+          source="manualTestCases"
+          label="Casos de prueba manuales"
+          choices={manualCases.map(tc => ({ id: tc.id, name: tc.name }))}
+        />
+        <SelectArrayInput
+          source="automatedTests"
+          label="Tests automatizados"
+          choices={[
+            { id: 'test_create_user.py', name: 'Crear usuario' },
+            { id: 'test_create_visitor.py', name: 'Crear visitante' },
+            { id: 'test_create_company.py', name: 'Crear empresa' },
+            { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
+            { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
+            { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
+          ]}
+        />
+      </SimpleForm>
+    </Edit>
+  );
+}; 
