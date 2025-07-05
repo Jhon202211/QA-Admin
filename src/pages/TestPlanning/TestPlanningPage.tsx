@@ -17,9 +17,10 @@ import {
   SelectArrayInput,
   useGetList
 } from 'react-admin';
-import { Box, Typography, Card, CardContent, Chip, Grid, IconButton, Modal, Paper, Divider } from '@mui/material';
+import { Box, Typography, Card, CardContent, Chip, Grid, IconButton, Modal, Paper, Divider, Button, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
 import { useState } from 'react';
+import { dataProvider } from '../../firebase/dataProvider';
 
 const planFilters = [
   <TextInput label="Buscar por nombre" source="name" alwaysOn />,
@@ -74,6 +75,11 @@ function TestPlanningCardList() {
   const { data: manualCases = [] } = useGetList('test_cases');
   const [open, setOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [openRun, setOpenRun] = useState(false);
+  const [selectedPlanRun, setSelectedPlanRun] = useState<any>(null);
+  const [manualResults, setManualResults] = useState<Record<string, string>>({});
+  const [autoStatus, setAutoStatus] = useState<Record<string, string>>({});
+  const [running, setRunning] = useState(false);
 
   const handleOpen = (plan: any) => {
     setSelectedPlan(plan);
@@ -82,6 +88,20 @@ function TestPlanningCardList() {
   const handleClose = () => {
     setOpen(false);
     setSelectedPlan(null);
+  };
+
+  const handleOpenRun = (plan: any) => {
+    setSelectedPlanRun(plan);
+    setManualResults({});
+    setAutoStatus({});
+    setOpenRun(true);
+  };
+  const handleCloseRun = () => {
+    setOpenRun(false);
+    setSelectedPlanRun(null);
+    setManualResults({});
+    setAutoStatus({});
+    setRunning(false);
   };
 
   // Función para obtener el estado del último resultado de un test automatizado
@@ -97,6 +117,41 @@ function TestPlanningCardList() {
   const getManualTestStatus = (testId: string) => {
     const test = manualCases.find((t: any) => t.id === testId);
     return test?.executionResult || null;
+  };
+
+  // Ejecutar todos los tests automatizados
+  const handleRunAutomated = async () => {
+    if (!selectedPlanRun) return;
+    setRunning(true);
+    for (const testId of selectedPlanRun.automatedTests || []) {
+      setAutoStatus(s => ({ ...s, [testId]: 'running' }));
+      try {
+        const response = await fetch('http://localhost:9000/tests/execute', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer valid_token'
+          },
+          body: JSON.stringify({ test_file: testId })
+        });
+        const data = await response.json();
+        setAutoStatus(s => ({ ...s, [testId]: data.status === 'started' ? 'success' : 'error' }));
+      } catch {
+        setAutoStatus(s => ({ ...s, [testId]: 'error' }));
+      }
+    }
+    setRunning(false);
+  };
+
+  // Guardar resultados de manuales
+  const handleSaveManuals = async () => {
+    for (const testId of Object.keys(manualResults)) {
+      const test = manualCases.find((t: any) => t.id === testId);
+      if (test) {
+        await dataProvider.update('test_cases', { id: testId, data: { ...test, executionResult: manualResults[testId] } });
+      }
+    }
+    handleCloseRun();
   };
 
   if (isLoading) return <Typography>Cargando...</Typography>;
@@ -118,7 +173,8 @@ function TestPlanningCardList() {
                   transform: 'translateY(-4px) scale(1.02)'
                 },
                 p: 0,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                position: 'relative'
               }}
               onClick={() => handleOpen(plan)}
             >
@@ -162,6 +218,7 @@ function TestPlanningCardList() {
                 <Box display="flex" gap={2} mt={2} sx={{ background: '#fff' }}>
                   <EditButton record={plan} label="Editar" sx={{ color: '#4B3C9D', fontWeight: 600, background: '#fff' }} />
                   <DeleteButton record={plan} label="Eliminar" sx={{ color: '#e53935', fontWeight: 600, background: '#fff' }} />
+                  <Button variant="contained" color="primary" sx={{ ml: 'auto', fontWeight: 600 }} onClick={e => { e.stopPropagation(); handleOpenRun(plan); }}>Ejecutar plan</Button>
                 </Box>
               </CardContent>
             </Card>
@@ -220,6 +277,60 @@ function TestPlanningCardList() {
                   );
                 })}
               </Box>
+            </>
+          )}
+        </Paper>
+      </Modal>
+      {/* Modal de ejecución de plan */}
+      <Modal open={openRun} onClose={handleCloseRun}>
+        <Paper sx={{ position: 'absolute', top: '50%', left: '60%', transform: 'translate(-50%, -50%)', minWidth: 420, maxWidth: 600, p: 4, borderRadius: 4, outline: 'none' }}>
+          {selectedPlanRun && (
+            <>
+              <Typography variant="h5" sx={{ mb: 2 }}>Ejecutar Plan: {selectedPlanRun.name}</Typography>
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="h6">Test Automatizados</Typography>
+              <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+                {(selectedPlanRun.automatedTests || []).map((testId: string, idx: number) => (
+                  <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+                    <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    {autoStatus[testId] === 'success' && <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />}
+                    {autoStatus[testId] === 'error' && <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />}
+                    {autoStatus[testId] === 'running' && <Chip label="Ejecutando..." sx={{ ml: 2, backgroundColor: '#ff9800', color: '#fff', fontWeight: 600 }} />}
+                  </li>
+                ))}
+              </Box>
+              {selectedPlanRun.automatedTests?.length > 0 && (
+                <Button variant="contained" color="primary" onClick={handleRunAutomated} disabled={running} sx={{ mb: 3 }}>
+                  Ejecutar todos los automatizados
+                </Button>
+              )}
+              <Typography variant="h6">Test manuales</Typography>
+              <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+                {(selectedPlanRun.manualTestCases || []).map((testId: string, idx: number) => {
+                  const test = manualCases.find((t: any) => t.id === testId);
+                  const status = manualResults[testId] || test?.executionResult;
+                  return (
+                    <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ minWidth: 32 }}>{idx + 1}.</span> {test?.name || testId}
+                      <ToggleButtonGroup
+                        exclusive
+                        value={status || ''}
+                        onChange={(_, value) => setManualResults(r => ({ ...r, [testId]: value }))}
+                        sx={{ ml: 2 }}
+                        size="small"
+                      >
+                        <ToggleButton value="passed" sx={{ color: '#4caf50', borderColor: '#4caf50' }}>Pasó</ToggleButton>
+                        <ToggleButton value="failed" sx={{ color: '#e53935', borderColor: '#e53935' }}>Falló</ToggleButton>
+                      </ToggleButtonGroup>
+                      {status === 'passed' && <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />}
+                      {status === 'failed' && <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />}
+                    </li>
+                  );
+                })}
+              </Box>
+              <Button variant="contained" color="success" onClick={handleSaveManuals} sx={{ mt: 2 }}>
+                Guardar resultados manuales
+              </Button>
             </>
           )}
         </Paper>
