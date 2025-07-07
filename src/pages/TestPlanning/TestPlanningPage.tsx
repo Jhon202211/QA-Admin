@@ -118,11 +118,11 @@ function TestPlanningCardList() {
   // Mapeo de alias de nombre de test automatizado
   const testNameAliases: Record<string, string[]> = {
     'test_create_company.py': ['test_create_company', 'pytest'],
-    'test_create_user.py': ['test_create_user'],
-    'test_create_visitor.py': ['test_create_visitor'],
-    'test_create_room_reservation.py': ['test_create_room_reservation'],
-    'test_deactivate_user_company.py': ['test_deactivate_user_company'],
-    'test_restore_user_company.py': ['test_restore_user_company'],
+    'test_create_user.py': ['test_create_user', 'pytest'],
+    'test_create_visitor.py': ['test_create_visitor', 'pytest'],
+    'test_create_room_reservation.py': ['test_create_room_reservation', 'pytest'],
+    'test_deactivate_user_company.py': ['test_deactivate_user_company', 'pytest'],
+    'test_restore_user_company.py': ['test_restore_user_company', 'pytest'],
     // Agrega más alias si es necesario
   };
 
