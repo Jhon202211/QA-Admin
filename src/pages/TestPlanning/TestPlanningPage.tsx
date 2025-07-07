@@ -192,11 +192,8 @@ function TestPlanningCardList() {
       try {
         const caseId = testToCaseId[testId] || '';
         const planId = selectedPlanRun?.id || '';
-        console.log("Enviando ejecución:", {
-          test_file: testId,
-          planId: planId,
-          caseId: caseId
-        });
+        // Log para validar cada petición
+        console.log('Enviando ejecución desde plan:', { test_file: testId, planId, caseId });
         const response = await fetch('http://localhost:9000/tests/execute', {
           method: 'POST',
           headers: {
@@ -469,7 +466,7 @@ export const TestPlanningPage = () => (
 export const TestPlanningCreate = (props: any) => {
   const { data: manualCases = [] } = useGetList('test_cases');
   return (
-    <Create {...props} title="Nuevo Plan de Pruebas">
+    <Create {...props} title="Nuevo Plan de Pruebas" redirect="list">
       <SimpleForm>
         <TextInput source="name" label="Nombre" fullWidth required />
         <TextInput source="description" label="Descripción" multiline fullWidth />

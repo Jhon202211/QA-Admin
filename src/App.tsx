@@ -19,7 +19,6 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import { AutomationRunnerPage } from './pages/AutomationRunner/AutomationRunnerPage';
-import { TestProvider } from './context/TestContext';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
@@ -122,24 +121,22 @@ const Footer = () => {
 function App() {
   return (
     <ErrorBoundary>
-      <TestProvider>
-        <BrowserRouter>
-          <Admin
-            authProvider={authProvider}
-            dataProvider={dataProvider}
-            layout={CustomLayout}
-            loginPage={LoginPage}
-            dashboard={Dashboard}
-            requireAuth
-          >
-            <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} icon={FactCheckIcon} />
-            <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} />
-            <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
-            <Resource name="automation" list={AutomationRunnerPage} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
-          </Admin>
-          <Footer />
-        </BrowserRouter>
-      </TestProvider>
+      <BrowserRouter>
+        <Admin
+          authProvider={authProvider}
+          dataProvider={dataProvider}
+          layout={CustomLayout}
+          loginPage={LoginPage}
+          dashboard={Dashboard}
+          requireAuth
+        >
+          <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} icon={FactCheckIcon} />
+          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} />
+          <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
+          <Resource name="automation" list={AutomationRunnerPage} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
+        </Admin>
+        <Footer />
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }
