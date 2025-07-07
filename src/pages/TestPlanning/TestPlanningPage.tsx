@@ -115,15 +115,28 @@ function TestPlanningCardList() {
     'test_restore_user_company.py': 'TC006',
   };
 
+  // Mapeo de alias de nombre de test automatizado
+  const testNameAliases: Record<string, string[]> = {
+    'test_create_company.py': ['test_create_company', 'pytest'],
+    'test_create_user.py': ['test_create_user'],
+    'test_create_visitor.py': ['test_create_visitor'],
+    'test_create_room_reservation.py': ['test_create_room_reservation'],
+    'test_deactivate_user_company.py': ['test_deactivate_user_company'],
+    'test_restore_user_company.py': ['test_restore_user_company'],
+    // Agrega más alias si es necesario
+  };
+
   // Función para obtener el estado del último resultado de un test automatizado
   const getAutomatedTestStatus = (testId: string, planId?: string) => {
     const pid = planId || selectedPlan?.id;
     const baseName = testId.replace('.py', '');
     const caseId = testToCaseId[testId] || null;
+    const aliases = [baseName, ...(testNameAliases[testId] || [])];
     const results = testResults.filter((r: any) => {
       const rName = (r.name || '').replace('.py', '');
-      const tName = baseName;
-      return r.planId === pid && rName === tName && (!caseId || r.caseId === caseId);
+      // Acepta si el nombre coincide con alguno de los alias
+      const nameMatch = aliases.includes(rName);
+      return r.planId === pid && nameMatch && (!caseId || r.caseId === caseId);
     });
     if (results.length === 0) return null;
     // Tomar el más reciente por fecha
