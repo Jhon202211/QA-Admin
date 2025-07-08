@@ -376,6 +376,15 @@ function TestPlanningCardList() {
               <Box component="ul" sx={{ pl: 3, mb: 2 }}>
                 {(selectedPlanRun.automatedTests || []).map((testId: string, idx: number) => {
                   const status = getAutomatedTestStatus(testId, selectedPlanRun.id);
+                  // Mostrar 'Ejecutándose' si está corriendo
+                  if (autoStatus[testId] === 'running') {
+                    return (
+                      <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+                        <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        <Chip label="Ejecutándose" sx={{ ml: 2, backgroundColor: '#ff9800', color: '#fff', fontWeight: 600 }} />
+                      </li>
+                    );
+                  }
                   return (
                     <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
                       <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
