@@ -82,6 +82,44 @@ function TestPlanningCardList() {
   const [running, setRunning] = useState(false);
   const pollingRefs = useRef<Record<string, any>>({});
 
+  // Polling para refrescar resultados en el modal de detalle
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (open) {
+      interval = setInterval(() => {
+        refetchTestResults && refetchTestResults();
+      }, 5000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [open, refetchTestResults]);
+
+  // Refrescar resultados solo cuando todos los tests hayan terminado
+  useEffect(() => {
+    if (!openRun) return;
+    // Si no hay tests automatizados, no hacer nada
+    if (!selectedPlanRun || !selectedPlanRun.automatedTests || selectedPlanRun.automatedTests.length === 0) return;
+    // Si alguno está corriendo, no refrescar
+    const algunoCorriendo = selectedPlanRun.automatedTests.some((testId: string) => autoStatus[testId] === 'running');
+    if (!algunoCorriendo) {
+      refetchTestResults && refetchTestResults();
+    }
+  }, [openRun, autoStatus, selectedPlanRun, refetchTestResults]);
+
+  // Actualizar autoStatus cuando cambien los resultados de los tests
+  useEffect(() => {
+    if (!openRun || !selectedPlanRun || !selectedPlanRun.automatedTests) return;
+    const newStatus: Record<string, string> = { ...autoStatus };
+    for (const testId of selectedPlanRun.automatedTests) {
+      const status = getAutomatedTestStatus(testId, selectedPlanRun.id);
+      if (status === 'passed' || status === 'failed' || status === 'blocked' || status === 'not_executed') {
+        newStatus[testId] = status;
+      }
+    }
+    setAutoStatus(newStatus);
+  }, [testResults, openRun, selectedPlanRun]);
+
   const handleOpen = (plan: any) => {
     setSelectedPlan(plan);
     setOpen(true);
