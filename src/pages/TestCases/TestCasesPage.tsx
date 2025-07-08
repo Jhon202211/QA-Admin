@@ -83,10 +83,31 @@ export const TestCasesPage = () => (
             />
           )}
         />
+        <FunctionField
+          label="Resultado de ejecución"
+          render={record => (
+            <Chip
+              label={
+                record.executionResult === 'passed' ? 'Aprobado' :
+                record.executionResult === 'failed' ? 'Fallido' :
+                record.executionResult === 'blocked' ? 'Bloqueado' :
+                record.executionResult === 'not_executed' ? 'No ejecutado' : record.executionResult
+              }
+              sx={{
+                backgroundColor:
+                  record.executionResult === 'passed' ? '#4caf50' :
+                  record.executionResult === 'failed' ? '#e53935' :
+                  record.executionResult === 'blocked' ? '#ff9800' :
+                  record.executionResult === 'not_executed' ? '#bdbdbd' : '#bdbdbd',
+                color: '#fff',
+                fontWeight: 600
+              }}
+            />
+          )}
+        />
         <TextField source="status" label="Estado" />
         <TextField source="module" label="Módulo" />
         <TextField source="responsible" label="Responsable" />
-        <TextField source="executionResult" label="Resultado de ejecución" />
         <DateField source="updatedAt" label="Última actualización" />
         <EditButton />
         <DeleteButton />
@@ -97,14 +118,12 @@ export const TestCasesPage = () => (
 
 export const TestCaseCreate = (props: any) => (
   <Create {...props} title="Nuevo Caso de Prueba" redirect="list">
-    <SimpleForm>
+    <SimpleForm defaultValues={{ executionResult: 'not_executed' }}>
       <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth />
       <TextInput source="name" label="Nombre" fullWidth required />
       <TextInput source="description" label="Descripción" multiline fullWidth />
       <TextInput source="prerequisites" label="Precondiciones" multiline fullWidth />
-      <TextInput source="testData" label="Datos de prueba" multiline fullWidth />
       <TextInput source="expectedResult" label="Resultado esperado" multiline fullWidth />
-      <TextInput source="actualResult" label="Resultado real" multiline fullWidth />
       <TextInput source="module" label="Módulo o funcionalidad" fullWidth />
       <TextInput source="responsible" label="Responsable" fullWidth />
       <SelectInput source="executionResult" label="Resultado de ejecución" choices={[
@@ -117,20 +136,9 @@ export const TestCaseCreate = (props: any) => (
       <FileInput source="attachments" label="Evidencias adjuntas" multiple>
         <FileField source="src" title="title" />
       </FileInput>
-      <ArrayInput source="steps" label="Pasos del caso de prueba">
+      <ArrayInput source="steps" label={<span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Pasos del caso de prueba</span>}>
         <SimpleFormIterator>
           <RichTextInput source="description" label="Descripción del paso (puedes usar viñetas y numeración)" fullWidth />
-          <TextInput source="expectedResult" label="Resultado esperado" fullWidth />
-          <TextInput source="actualResult" label="Resultado real" fullWidth />
-          <SelectInput source="status" label="Estado" choices={[
-            { id: 'passed', name: 'Aprobado' },
-            { id: 'failed', name: 'Fallido' },
-            { id: 'blocked', name: 'Bloqueado' },
-            { id: 'not_executed', name: 'No ejecutado' },
-          ]} />
-          <FileInput source="evidences" label="Evidencias del paso" multiple>
-            <FileField source="src" title="title" />
-          </FileInput>
         </SimpleFormIterator>
       </ArrayInput>
       <SelectInput source="priority" label="Prioridad" choices={[
@@ -153,9 +161,7 @@ export const TestCaseEdit = (props: any) => (
       <TextInput source="name" label="Nombre" fullWidth required />
       <TextInput source="description" label="Descripción" multiline fullWidth />
       <TextInput source="prerequisites" label="Precondiciones" multiline fullWidth />
-      <TextInput source="testData" label="Datos de prueba" multiline fullWidth />
       <TextInput source="expectedResult" label="Resultado esperado" multiline fullWidth />
-      <TextInput source="actualResult" label="Resultado real" multiline fullWidth />
       <TextInput source="module" label="Módulo o funcionalidad" fullWidth />
       <TextInput source="responsible" label="Responsable" fullWidth />
       <SelectInput source="executionResult" label="Resultado de ejecución" choices={[
@@ -168,20 +174,9 @@ export const TestCaseEdit = (props: any) => (
       <FileInput source="attachments" label="Evidencias adjuntas" multiple>
         <FileField source="src" title="title" />
       </FileInput>
-      <ArrayInput source="steps" label="Pasos del caso de prueba">
+      <ArrayInput source="steps" label={<span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Pasos del caso de prueba</span>}>
         <SimpleFormIterator>
           <RichTextInput source="description" label="Descripción del paso (puedes usar viñetas y numeración)" fullWidth />
-          <TextInput source="expectedResult" label="Resultado esperado" fullWidth />
-          <TextInput source="actualResult" label="Resultado real" fullWidth />
-          <SelectInput source="status" label="Estado" choices={[
-            { id: 'passed', name: 'Aprobado' },
-            { id: 'failed', name: 'Fallido' },
-            { id: 'blocked', name: 'Bloqueado' },
-            { id: 'not_executed', name: 'No ejecutado' },
-          ]} />
-          <FileInput source="evidences" label="Evidencias del paso" multiple>
-            <FileField source="src" title="title" />
-          </FileInput>
         </SimpleFormIterator>
       </ArrayInput>
       <SelectInput source="priority" label="Prioridad" choices={[
