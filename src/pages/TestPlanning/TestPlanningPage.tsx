@@ -170,12 +170,20 @@ function TestPlanningCardList() {
     const baseName = testId.replace('.py', '');
     const caseId = testToCaseId[testId] || null;
     const aliases = [baseName, ...(testNameAliases[testId] || [])];
-    const results = testResults.filter((r: any) => {
+    // Buscar primero por planId
+    let results = testResults.filter((r: any) => {
       const rName = (r.name || '').replace('.py', '');
-      // Acepta si el nombre coincide con alguno de los alias
       const nameMatch = aliases.includes(rName);
       return r.planId === pid && nameMatch && (!caseId || r.caseId === caseId);
     });
+    // Si no hay resultados por planId, buscar por nombre/alias sin planId
+    if (results.length === 0) {
+      results = testResults.filter((r: any) => {
+        const rName = (r.name || '').replace('.py', '');
+        const nameMatch = aliases.includes(rName);
+        return nameMatch && (!caseId || r.caseId === caseId);
+      });
+    }
     if (results.length === 0) return null;
     // Tomar el más reciente por fecha
     const last = results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
