@@ -37,7 +37,8 @@ export const AutomationRunnerPage = () => {
           'Authorization': `Bearer ${API_TOKEN}`
         },
         body: JSON.stringify({
-          test_file: id
+          test_file: id,
+          executionType: 'individual'
         })
       });
       const data = await response.json();

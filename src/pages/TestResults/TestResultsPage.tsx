@@ -60,6 +60,10 @@ export const TestResultsList = () => {
             render={record => planIdToName[record.planId] || record.planId || '-'}
           />
           <FunctionField
+            label="Tipo de Ejecución"
+            render={record => record.executionType === 'individual' ? 'Individual' : 'Plan'}
+          />
+          <FunctionField
             label="Estado"
             render={record => (
               <Chip
