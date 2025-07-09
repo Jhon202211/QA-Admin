@@ -1,5 +1,5 @@
 import { Admin, Resource, Layout, AppBar } from 'react-admin';
-import { BrowserRouter, useLocation } from 'react-router-dom';
+import { BrowserRouter, useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestResults/TestResultsPage';
 import { authProvider } from './firebase/auth';

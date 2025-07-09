@@ -61,7 +61,7 @@ export const TestResultsList = () => {
       <Typography variant="h4" gutterBottom>
         Resultados
       </Typography>
-      <List filters={filters} actions={<ExportButton />}>
+      <List filters={filters} actions={<ExportButton />} sort={{ field: 'date', order: 'DESC' }}>
         <Datagrid>
           <TextField source="name" label="Nombre" />
           <DateField source="date" label="Fecha" />
