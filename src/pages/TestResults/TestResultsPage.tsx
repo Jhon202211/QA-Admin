@@ -18,8 +18,18 @@ import {
   FunctionField,
   useGetList,
   SelectInput,
+  ExportButton,
 } from 'react-admin';
 import { Typography, Chip } from '@mui/material';
+
+const ActionsGroup = () => (
+  <div style={{ display: 'flex', gap: 8 }}>
+    <ExportButton />
+    <ShowButton label="Ver" />
+    <EditButton label="Editar" />
+    <DeleteButton label="Eliminar" />
+  </div>
+);
 
 export const TestResultsList = () => {
   const { data: plans = [] } = useGetList('test_planning');
@@ -51,7 +61,7 @@ export const TestResultsList = () => {
       <Typography variant="h4" gutterBottom>
         Resultados
       </Typography>
-      <List filters={filters}>
+      <List filters={filters} actions={<ExportButton />}>
         <Datagrid>
           <TextField source="name" label="Nombre" />
           <DateField source="date" label="Fecha" />
@@ -78,9 +88,6 @@ export const TestResultsList = () => {
           />
           <TextField source="duration" label="Duración (s)" />
           <TextField source="error" label="Error" />
-          <ShowButton />
-          <EditButton />
-          <DeleteButton />
         </Datagrid>
       </List>
     </div>
