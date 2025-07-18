@@ -30,13 +30,18 @@ export class PlaywrightExecutor {
     try {
       console.log(`🚀 Iniciando ejecución de: ${script.name}`);
       
-      // Verificar y activar extensión de CORS si está disponible
+      // Deshabilitar extensión de CORS temporalmente para evitar interferencias
       const corsStatus = await corsExtensionService.detectExtension();
       if (corsStatus.isInstalled) {
-        console.log('🔧 Extensión de CORS detectada, activando para ejecución...');
-        await corsExtensionService.enableForExecution();
+        console.log('🔧 Extensión de CORS detectada, deshabilitando temporalmente...');
+        try {
+          await corsExtensionService.disable();
+          console.log('✅ Extensión de CORS deshabilitada para evitar interferencias');
+        } catch (error) {
+          console.log('⚠️ Error deshabilitando extensión CORS:', error);
+        }
       } else {
-        console.log('⚠️ Extensión de CORS no disponible, ejecutando en modo limitado');
+        console.log('⚠️ Extensión de CORS no disponible');
       }
       
       // Cerrar ventana anterior si existe
@@ -253,9 +258,17 @@ export class PlaywrightExecutor {
           }, 15000); // 15 segundos
 
           const listener = (event: MessageEvent) => {
-            console.log(`📨 Mensaje recibido:`, event.data);
+            // Filtrar mensajes de la extensión CORS que interfieren
+            if (event.data.type === 'CORS_EXTENSION_MESSAGE') {
+              console.log(`🚫 Ignorando mensaje de extensión CORS`);
+              return;
+            }
+            
+            console.log(`📨 Mensaje recibido en paso ${stepNumber}:`, event.data);
+            console.log(`🔍 Tipo de mensaje: ${event.data.type}, Paso esperado: ${stepNumber}, Paso recibido: ${event.data.stepNumber}`);
             
             if (event.data.type === 'PLAYWRIGHT_RESPONSE' && event.data.stepNumber === stepNumber) {
+              console.log(`✅ Respuesta correcta recibida para paso ${stepNumber}`);
               clearTimeout(timeout);
               window.removeEventListener('message', listener);
               
@@ -266,6 +279,8 @@ export class PlaywrightExecutor {
                 console.error(`❌ Error en paso ${stepNumber}:`, event.data.error);
                 reject(new Error(event.data.error || 'Error en ejecución'));
               }
+            } else {
+              console.log(`⚠️ Mensaje ignorado - tipo: ${event.data.type}, paso: ${event.data.stepNumber}`);
             }
           };
 

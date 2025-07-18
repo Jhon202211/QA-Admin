@@ -19,9 +19,11 @@ export class PlaywrightInjection {
           // Escuchar mensajes de Playwright
           window.addEventListener('message', async function(event) {
             console.log('📨 Mensaje recibido en ventana de destino:', event.data);
+            console.log('🔍 Tipo de mensaje:', event.data.type);
             
             if (event.data.type === 'PLAYWRIGHT_EXECUTE') {
-              console.log('📝 Ejecutando paso:', event.data.stepNumber, 'Código:', event.data.code);
+              console.log('📝 Ejecutando paso:', event.data.stepNumber);
+              console.log('📄 Código a ejecutar:', event.data.code);
               
               try {
                 // Ejecutar el código de Playwright de forma segura
@@ -32,7 +34,9 @@ export class PlaywrightInjection {
                 const result = await executeCode();
                 
                 // Responder con éxito
+                console.log('📤 Enviando respuesta de éxito para paso:', event.data.stepNumber);
                 if (window.opener) {
+                  console.log('📤 Enviando via window.opener');
                   window.opener.postMessage({
                     type: 'PLAYWRIGHT_RESPONSE',
                     stepNumber: event.data.stepNumber,
@@ -40,6 +44,7 @@ export class PlaywrightInjection {
                     result: result
                   }, '*');
                 } else if (window.parent) {
+                  console.log('📤 Enviando via window.parent');
                   window.parent.postMessage({
                     type: 'PLAYWRIGHT_RESPONSE',
                     stepNumber: event.data.stepNumber,
