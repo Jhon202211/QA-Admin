@@ -20,60 +20,70 @@ export class PlaywrightInjection {
           window.addEventListener('message', async function(event) {
             console.log('📨 Mensaje recibido en ventana de destino:', event.data);
             console.log('🔍 Tipo de mensaje:', event.data.type);
+            console.log('🎯 Origen del mensaje:', event.origin);
             
             if (event.data.type === 'PLAYWRIGHT_EXECUTE') {
               console.log('📝 Ejecutando paso:', event.data.stepNumber);
               console.log('📄 Código a ejecutar:', event.data.code);
+              console.log('🌐 URL actual:', window.location.href);
               
-              try {
-                // Ejecutar el código de Playwright de forma segura
-                console.log('🔧 Ejecutando código:', event.data.code);
-                
-                // Crear una función async para ejecutar el código
-                const executeCode = new Function('return (async () => { ' + event.data.code + ' })()');
-                const result = await executeCode();
-                
-                // Responder con éxito
-                console.log('📤 Enviando respuesta de éxito para paso:', event.data.stepNumber);
-                if (window.opener) {
-                  console.log('📤 Enviando via window.opener');
-                  window.opener.postMessage({
-                    type: 'PLAYWRIGHT_RESPONSE',
-                    stepNumber: event.data.stepNumber,
-                    success: true,
-                    result: result
-                  }, '*');
-                } else if (window.parent) {
-                  console.log('📤 Enviando via window.parent');
-                  window.parent.postMessage({
-                    type: 'PLAYWRIGHT_RESPONSE',
-                    stepNumber: event.data.stepNumber,
-                    success: true,
-                    result: result
-                  }, '*');
+                              try {
+                  // Ejecutar el código de Playwright de forma segura
+                  console.log('🔧 Ejecutando código:', event.data.code);
+                  
+                  // Crear una función async para ejecutar el código
+                  const executeCode = new Function('return (async () => { ' + event.data.code + ' })()');
+                  const result = await executeCode();
+                  
+                  // Responder con éxito
+                  console.log('📤 Enviando respuesta de éxito para paso:', event.data.stepNumber);
+                  console.log('📤 window.opener disponible:', !!window.opener);
+                  console.log('📤 window.parent disponible:', !!window.parent);
+                  
+                  if (window.opener) {
+                    console.log('📤 Enviando via window.opener');
+                    window.opener.postMessage({
+                      type: 'PLAYWRIGHT_RESPONSE',
+                      stepNumber: event.data.stepNumber,
+                      success: true,
+                      result: result
+                    }, '*');
+                    console.log('📤 Mensaje enviado via window.opener');
+                  } else if (window.parent) {
+                    console.log('📤 Enviando via window.parent');
+                    window.parent.postMessage({
+                      type: 'PLAYWRIGHT_RESPONSE',
+                      stepNumber: event.data.stepNumber,
+                      success: true,
+                      result: result
+                    }, '*');
+                    console.log('📤 Mensaje enviado via window.parent');
+                  } else {
+                    console.error('❌ No se puede enviar respuesta - no hay window.opener ni window.parent');
+                  }
+                  
+                  console.log('✅ Paso ejecutado exitosamente');
+                } catch (error) {
+                  console.error('❌ Error ejecutando paso:', error);
+                  
+                  // Responder con error
+                  console.log('📤 Enviando respuesta de error para paso:', event.data.stepNumber);
+                  if (window.opener) {
+                    window.opener.postMessage({
+                      type: 'PLAYWRIGHT_RESPONSE',
+                      stepNumber: event.data.stepNumber,
+                      success: false,
+                      error: error.message
+                    }, '*');
+                  } else if (window.parent) {
+                    window.parent.postMessage({
+                      type: 'PLAYWRIGHT_RESPONSE',
+                      stepNumber: event.data.stepNumber,
+                      success: false,
+                      error: error.message
+                    }, '*');
+                  }
                 }
-                
-                console.log('✅ Paso ejecutado exitosamente');
-              } catch (error) {
-                console.error('❌ Error ejecutando paso:', error);
-                
-                // Responder con error
-                if (window.opener) {
-                  window.opener.postMessage({
-                    type: 'PLAYWRIGHT_RESPONSE',
-                    stepNumber: event.data.stepNumber,
-                    success: false,
-                    error: error.message
-                  }, '*');
-                } else if (window.parent) {
-                  window.parent.postMessage({
-                    type: 'PLAYWRIGHT_RESPONSE',
-                    stepNumber: event.data.stepNumber,
-                    success: false,
-                    error: error.message
-                  }, '*');
-                }
-              }
             }
           });
 
@@ -92,17 +102,20 @@ export class PlaywrightInjection {
                   const executeCode = new Function('return (async () => { ' + event.data.code + ' })()');
                   const result = await executeCode();
                   
+                  console.log('📤 Enviando respuesta via opener para paso:', event.data.stepNumber);
                   window.opener.postMessage({
                     type: 'PLAYWRIGHT_RESPONSE',
                     stepNumber: event.data.stepNumber,
                     success: true,
                     result: result
                   }, '*');
+                  console.log('📤 Mensaje enviado via opener');
                   
                   console.log('✅ Paso ejecutado exitosamente via opener');
                 } catch (error) {
                   console.error('❌ Error ejecutando paso via opener:', error);
                   
+                  console.log('📤 Enviando respuesta de error via opener para paso:', event.data.stepNumber);
                   window.opener.postMessage({
                     type: 'PLAYWRIGHT_RESPONSE',
                     stepNumber: event.data.stepNumber,

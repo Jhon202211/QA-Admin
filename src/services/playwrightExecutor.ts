@@ -245,6 +245,9 @@ export class PlaywrightExecutor {
         // Usar postMessage directamente para evitar problemas de CORS
         try {
           console.log(`📤 Enviando paso ${stepNumber} via postMessage`);
+          console.log(`🎯 Ventana de destino:`, this.executionWindow);
+          console.log(`📄 Código a enviar:`, code);
+          
           this.executionWindow.postMessage({
             type: 'PLAYWRIGHT_EXECUTE',
             stepNumber,
@@ -258,16 +261,16 @@ export class PlaywrightExecutor {
           }, 15000); // 15 segundos
 
           const listener = (event: MessageEvent) => {
-            // Filtrar mensajes de la extensión CORS que interfieren
-            if (event.data.type === 'CORS_EXTENSION_MESSAGE') {
-              console.log(`🚫 Ignorando mensaje de extensión CORS`);
+            // Filtrar TODOS los mensajes que no sean PLAYWRIGHT_RESPONSE
+            if (event.data.type !== 'PLAYWRIGHT_RESPONSE') {
+              console.log(`🚫 Ignorando mensaje no deseado: ${event.data.type}`);
               return;
             }
             
             console.log(`📨 Mensaje recibido en paso ${stepNumber}:`, event.data);
             console.log(`🔍 Tipo de mensaje: ${event.data.type}, Paso esperado: ${stepNumber}, Paso recibido: ${event.data.stepNumber}`);
             
-            if (event.data.type === 'PLAYWRIGHT_RESPONSE' && event.data.stepNumber === stepNumber) {
+            if (event.data.stepNumber === stepNumber) {
               console.log(`✅ Respuesta correcta recibida para paso ${stepNumber}`);
               clearTimeout(timeout);
               window.removeEventListener('message', listener);
@@ -280,7 +283,7 @@ export class PlaywrightExecutor {
                 reject(new Error(event.data.error || 'Error en ejecución'));
               }
             } else {
-              console.log(`⚠️ Mensaje ignorado - tipo: ${event.data.type}, paso: ${event.data.stepNumber}`);
+              console.log(`⚠️ Mensaje ignorado - paso esperado: ${stepNumber}, recibido: ${event.data.stepNumber}`);
             }
           };
 
