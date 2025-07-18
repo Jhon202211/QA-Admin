@@ -283,12 +283,13 @@ export class PlaywrightExecutor {
 
   // Generar código para un paso específico
   private generateStepCode(step: any): string {
-    // Código simplificado y directo
+    // Código simplificado y directo sin await
     return `
       try {
         console.log('🎯 Ejecutando: ${step.action} en ${step.target}');
         ${this.generateDirectCode(step)}
         console.log('✅ Paso completado: ${step.action}');
+        return 'success';
       } catch (error) {
         console.error('❌ Error ejecutando paso:', error);
         throw error;
@@ -411,7 +412,7 @@ export class PlaywrightExecutor {
       case 'wait':
         return `
           console.log('⏱️ Esperando: ${step.value || 1000}ms');
-          await new Promise(resolve => setTimeout(resolve, ${step.value || 1000}));
+          return new Promise(resolve => setTimeout(resolve, ${step.value || 1000}));
         `;
         
       case 'screenshot':

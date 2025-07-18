@@ -17,15 +17,19 @@ export class PlaywrightInjection {
           console.log('🔧 Inyectando manejador de CORS...');
           
           // Escuchar mensajes de Playwright
-          window.addEventListener('message', function(event) {
+          window.addEventListener('message', async function(event) {
             console.log('📨 Mensaje recibido en ventana de destino:', event.data);
             
             if (event.data.type === 'PLAYWRIGHT_EXECUTE') {
               console.log('📝 Ejecutando paso:', event.data.stepNumber, 'Código:', event.data.code);
               
               try {
-                // Ejecutar el código de Playwright
-                const result = eval(event.data.code);
+                // Ejecutar el código de Playwright de forma segura
+                console.log('🔧 Ejecutando código:', event.data.code);
+                
+                // Crear una función async para ejecutar el código
+                const executeCode = new Function('return (async () => { ' + event.data.code + ' })()');
+                const result = await executeCode();
                 
                 // Responder con éxito
                 if (window.opener) {
@@ -70,14 +74,18 @@ export class PlaywrightInjection {
 
           // También escuchar en window.opener si existe
           if (window.opener) {
-            window.opener.addEventListener('message', function(event) {
+            window.opener.addEventListener('message', async function(event) {
               console.log('📨 Mensaje recibido via opener:', event.data);
               
               if (event.data.type === 'PLAYWRIGHT_EXECUTE') {
                 console.log('📝 Ejecutando paso via opener:', event.data.stepNumber);
                 
                 try {
-                  const result = eval(event.data.code);
+                  console.log('🔧 Ejecutando código via opener:', event.data.code);
+                  
+                  // Crear una función async para ejecutar el código
+                  const executeCode = new Function('return (async () => { ' + event.data.code + ' })()');
+                  const result = await executeCode();
                   
                   window.opener.postMessage({
                     type: 'PLAYWRIGHT_RESPONSE',
