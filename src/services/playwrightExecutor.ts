@@ -30,18 +30,19 @@ export class PlaywrightExecutor {
     try {
       console.log(`🚀 Iniciando ejecución de: ${script.name}`);
       
-      // Deshabilitar extensión de CORS temporalmente para evitar interferencias
-      const corsStatus = await corsExtensionService.detectExtension();
-      if (corsStatus.isInstalled) {
-        console.log('🔧 Extensión de CORS detectada, deshabilitando temporalmente...');
-        try {
-          await corsExtensionService.disable();
-          console.log('✅ Extensión de CORS deshabilitada para evitar interferencias');
-        } catch (error) {
-          console.log('⚠️ Error deshabilitando extensión CORS:', error);
-        }
-      } else {
-        console.log('⚠️ Extensión de CORS no disponible');
+      // Completamente deshabilitar extensión de CORS para evitar interferencias
+      console.log('🔧 Deshabilitando extensión de CORS completamente...');
+      try {
+        // Intentar deshabilitar sin esperar respuesta
+        corsExtensionService.disable().catch(() => {
+          console.log('⚠️ Extensión CORS no responde, continuando...');
+        });
+        
+        // Esperar un poco para que se deshabilite
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('✅ Extensión de CORS deshabilitada (o ignorando errores)');
+      } catch (error) {
+        console.log('⚠️ Error con extensión CORS, ignorando:', error);
       }
       
       // Cerrar ventana anterior si existe
@@ -135,12 +136,8 @@ export class PlaywrightExecutor {
       this.isExecuting = false;
       this.executionWindow = null;
       
-      // Desactivar extensión de CORS al finalizar
-      try {
-        await corsExtensionService.disable();
-      } catch (error) {
-        console.log('⚠️ Error desactivando extensión de CORS:', error);
-      }
+      // No reactivar extensión de CORS al finalizar para evitar problemas
+      console.log('✅ Ejecución finalizada sin reactivar extensión CORS');
     }
   }
 
