@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import ScriptsList from './ScriptsList';
 import AdvancedScriptEditor from './AdvancedScriptEditor';
+import ExecutionPanel from './ExecutionPanel';
 import type { PlaywrightScript } from '../../types/playwrightScript';
 
 export default function PlaywrightModule() {
   const [activeTab, setActiveTab] = useState<'scripts' | 'editor'>('scripts');
   const [selectedScript, setSelectedScript] = useState<PlaywrightScript | null>(null);
   const [currentView, setCurrentView] = useState<'list' | 'editor' | 'viewer'>('list');
+  const [executingScript, setExecutingScript] = useState<PlaywrightScript | null>(null);
+  const [showExecutionPanel, setShowExecutionPanel] = useState(false);
 
   const handleScriptSelect = (script: PlaywrightScript) => {
     setSelectedScript(script);
@@ -19,9 +22,8 @@ export default function PlaywrightModule() {
   };
 
   const handleScriptExecute = (script: PlaywrightScript) => {
-    // Aquí se ejecutaría el script
-    console.log('Ejecutando script:', script);
-    alert(`🚀 Ejecutando script: ${script.name}`);
+    setExecutingScript(script);
+    setShowExecutionPanel(true);
   };
 
   const handleScriptSave = (script: PlaywrightScript) => {
@@ -59,6 +61,17 @@ export default function PlaywrightModule() {
           </button>
         </div>
       </div>
+
+      {showExecutionPanel && executingScript && (
+        <ExecutionPanel
+          script={executingScript}
+          isOpen={showExecutionPanel}
+          onClose={() => {
+            setShowExecutionPanel(false);
+            setExecutingScript(null);
+          }}
+        />
+      )}
 
       <div className="module-content">
         {activeTab === 'scripts' && (
@@ -242,6 +255,25 @@ export default function PlaywrightModule() {
 
         .btn-back:hover {
           background: #7f8c8d;
+        }
+
+        .header-actions {
+          display: flex;
+          gap: 10px;
+        }
+
+        .btn-test-script {
+          padding: 10px 20px;
+          background: #f39c12;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 500;
+        }
+
+        .btn-test-script:hover {
+          background: #e67e22;
         }
 
         .btn-new-script {
