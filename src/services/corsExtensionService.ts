@@ -260,24 +260,31 @@ export class CorsExtensionService {
       const status = await this.detectExtension();
       
       if (!status.isInstalled) {
-        throw new Error('La extensión de CORS no está instalada');
+        console.log('⚠️ Extensión no detectada, continuando sin CORS');
+        return false;
       }
 
-      // Configurar para ejecución
-      await this.sendMessageToExtension({
-        action: 'enable',
-        mode: 'execution',
-        config: {
-          allowCrossOrigin: true,
-          allowMultipleTabs: true,
-          executeScripts: true
-        }
-      });
+      // Configurar para ejecución con timeout más largo
+      const result = await Promise.race([
+        this.sendMessageToExtension({
+          action: 'enable',
+          mode: 'execution',
+          config: {
+            allowCrossOrigin: true,
+            allowMultipleTabs: true,
+            executeScripts: true
+          }
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout activando extensión')), 10000)
+        )
+      ]);
 
       console.log('✅ Extensión de CORS activada para ejecución');
       return true;
     } catch (error) {
       console.error('❌ Error activando extensión para ejecución:', error);
+      console.log('⚠️ Continuando sin extensión CORS');
       return false;
     }
   }

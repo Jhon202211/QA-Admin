@@ -1,5 +1,6 @@
 import type { PlaywrightScript } from '../types/playwrightScript';
 import corsExtensionService from './corsExtensionService';
+import playwrightInjection from './playwrightInjection';
 
 export interface ExecutionResult {
   success: boolean;
@@ -65,11 +66,19 @@ export class PlaywrightExecutor {
           }
         }
         
-        console.log('✅ Ventana de ejecución creada exitosamente');
+              console.log('✅ Ventana de ejecución creada exitosamente');
+      
+      // Inyectar manejador de CORS en la ventana de destino
+      try {
+        playwrightInjection.injectCORSHandler(this.executionWindow);
+        console.log('✅ Manejador de CORS inyectado');
       } catch (error) {
-        console.error('❌ Error creando ventana de ejecución:', error);
-        throw new Error(`No se pudo abrir nueva pestaña: ${error instanceof Error ? error.message : String(error)}`);
+        console.log('⚠️ No se pudo inyectar manejador de CORS:', error);
       }
+    } catch (error) {
+      console.error('❌ Error creando ventana de ejecución:', error);
+      throw new Error(`No se pudo abrir nueva pestaña: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
       // Ejecutar los pasos uno por uno
       const result = await this.executeSteps(script);
@@ -158,12 +167,68 @@ export class PlaywrightExecutor {
     const stepCode = this.generateStepCode(step);
     
     try {
-      // Ejecutar el código en la nueva pestaña
-      await this.executeInWindow(stepCode);
+      // Verificar si la ventana sigue disponible
+      if (this.executionWindow.closed) {
+        throw new Error('Ventana de ejecución fue cerrada');
+      }
+
+      // Ejecutar el código en la nueva pestaña con manejo de CORS
+      await this.executeInWindowWithCORS(stepCode, stepNumber);
       
     } catch (error) {
+      console.error(`❌ Error en paso ${stepNumber}:`, error);
       throw new Error(`Error ejecutando paso ${stepNumber}: ${error}`);
     }
+  }
+
+  // Ejecutar código con manejo de CORS
+  private async executeInWindowWithCORS(code: string, stepNumber: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Verificar si la ventana sigue disponible
+        if (!this.executionWindow || this.executionWindow.closed) {
+          reject(new Error('Ventana de ejecución no disponible'));
+          return;
+        }
+
+        // Intentar ejecutar directamente primero
+        try {
+          (this.executionWindow as any).eval(code);
+          resolve();
+        } catch (directError) {
+          console.log(`⚠️ Ejecución directa falló, intentando postMessage:`, directError);
+          
+          // Fallback: usar postMessage
+          this.executionWindow.postMessage({
+            type: 'PLAYWRIGHT_EXECUTE',
+            stepNumber,
+            code
+          }, '*');
+
+          // Escuchar respuesta
+          const timeout = setTimeout(() => {
+            reject(new Error('Timeout en ejecución de paso'));
+          }, 5000);
+
+          const listener = (event: MessageEvent) => {
+            if (event.data.type === 'PLAYWRIGHT_RESPONSE' && event.data.stepNumber === stepNumber) {
+              clearTimeout(timeout);
+              window.removeEventListener('message', listener);
+              
+              if (event.data.success) {
+                resolve();
+              } else {
+                reject(new Error(event.data.error || 'Error en ejecución'));
+              }
+            }
+          };
+
+          window.addEventListener('message', listener);
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   // Generar código para un paso específico
