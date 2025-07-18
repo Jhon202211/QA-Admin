@@ -38,10 +38,37 @@ export class PlaywrightExecutor {
         console.log('⚠️ Extensión de CORS no disponible, ejecutando en modo limitado');
       }
       
-      // Abrir nueva pestaña
-      this.executionWindow = window.open('', '_blank');
-      if (!this.executionWindow) {
-        throw new Error('No se pudo abrir nueva pestaña');
+      // Abrir nueva pestaña con manejo de errores mejorado
+      try {
+        this.executionWindow = window.open('', '_blank');
+        if (!this.executionWindow) {
+          // Intentar con diferentes estrategias
+          console.log('⚠️ Primera estrategia falló, intentando alternativa...');
+          
+          // Estrategia 1: Abrir con URL específica
+          this.executionWindow = window.open('about:blank', '_blank');
+          if (!this.executionWindow) {
+            // Estrategia 2: Usar el mismo origen
+            this.executionWindow = window.open(window.location.href, '_blank');
+            if (!this.executionWindow) {
+              // Estrategia 3: Crear un iframe oculto
+              const iframe = document.createElement('iframe');
+              iframe.style.display = 'none';
+              iframe.src = 'about:blank';
+              document.body.appendChild(iframe);
+              this.executionWindow = iframe.contentWindow;
+              
+              if (!this.executionWindow) {
+                throw new Error('No se pudo abrir nueva pestaña - bloqueado por el navegador');
+              }
+            }
+          }
+        }
+        
+        console.log('✅ Ventana de ejecución creada exitosamente');
+      } catch (error) {
+        console.error('❌ Error creando ventana de ejecución:', error);
+        throw new Error(`No se pudo abrir nueva pestaña: ${error instanceof Error ? error.message : String(error)}`);
       }
 
       // Ejecutar los pasos uno por uno

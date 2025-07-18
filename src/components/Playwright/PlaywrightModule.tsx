@@ -4,6 +4,8 @@ import AdvancedScriptEditor from './AdvancedScriptEditor';
 import ExecutionPanel from './ExecutionPanel';
 import corsExtensionService from '../../services/corsExtensionService';
 import CorsExtensionInfo from './CorsExtensionInfo';
+import CorsExtensionTester from './CorsExtensionTester';
+import CorsDebugPanel from './CorsDebugPanel';
 import type { PlaywrightScript } from '../../types/playwrightScript';
 
 export default function PlaywrightModule() {
@@ -14,6 +16,8 @@ export default function PlaywrightModule() {
   const [showExecutionPanel, setShowExecutionPanel] = useState(false);
   const [corsExtensionStatus, setCorsExtensionStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const [showCorsInfo, setShowCorsInfo] = useState(false);
+  const [showCorsTester, setShowCorsTester] = useState(false);
+  const [showCorsDebug, setShowCorsDebug] = useState(false);
 
   const handleScriptSelect = (script: PlaywrightScript) => {
     setSelectedScript(script);
@@ -80,6 +84,18 @@ export default function PlaywrightModule() {
                   className="btn-install-cors"
                 >
                   Más Info
+                </button>
+                <button 
+                  onClick={() => setShowCorsTester(true)}
+                  className="btn-test-cors"
+                >
+                  🧪 Probar
+                </button>
+                <button 
+                  onClick={() => setShowCorsDebug(true)}
+                  className="btn-debug-cors"
+                >
+                  🔧 Debug
                 </button>
               </span>
             )}
@@ -283,6 +299,150 @@ export default function PlaywrightModule() {
 
         .btn-install-cors:hover {
           background: #0056b3;
+        }
+
+        .btn-test-cors {
+          background: #ffc107;
+          color: #212529;
+          border: none;
+          border-radius: 4px;
+          padding: 2px 8px;
+          font-size: 11px;
+          cursor: pointer;
+          transition: background 0.2s ease;
+        }
+
+        .btn-test-cors:hover {
+          background: #e0a800;
+        }
+
+        .btn-debug-cors {
+          background: #17a2b8;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 2px 8px;
+          font-size: 11px;
+          cursor: pointer;
+          transition: background 0.2s ease;
+        }
+
+        .btn-debug-cors:hover {
+          background: #138496;
+        }
+
+        .cors-tester-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .tester-modal-content {
+          background: white;
+          border-radius: 12px;
+          max-width: 800px;
+          max-height: 90vh;
+          overflow-y: auto;
+          width: 90%;
+        }
+
+        .tester-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid #e9ecef;
+          background: #f8f9fa;
+          border-radius: 12px 12px 0 0;
+        }
+
+        .tester-modal-header h3 {
+          margin: 0;
+          color: #2c3e50;
+        }
+
+        .btn-close-tester {
+          background: none;
+          border: none;
+          font-size: 24px;
+          color: #6c757d;
+          cursor: pointer;
+          padding: 0;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: background 0.2s ease;
+        }
+
+        .btn-close-tester:hover {
+          background: #e9ecef;
+        }
+
+        .cors-debug-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .debug-modal-content {
+          background: white;
+          border-radius: 12px;
+          max-width: 1000px;
+          max-height: 90vh;
+          overflow-y: auto;
+          width: 90%;
+        }
+
+        .debug-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid #e9ecef;
+          background: #f8f9fa;
+          border-radius: 12px 12px 0 0;
+        }
+
+        .debug-modal-header h3 {
+          margin: 0;
+          color: #2c3e50;
+        }
+
+        .btn-close-debug {
+          background: none;
+          border: none;
+          font-size: 24px;
+          color: #6c757d;
+          cursor: pointer;
+          padding: 0;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: background 0.2s ease;
+        }
+
+        .btn-close-debug:hover {
+          background: #e9ecef;
         }
 
         .module-header h2 {
@@ -543,6 +703,30 @@ export default function PlaywrightModule() {
         isVisible={showCorsInfo}
         onClose={() => setShowCorsInfo(false)}
       />
+
+      {showCorsTester && (
+        <div className="cors-tester-modal">
+          <div className="tester-modal-content">
+            <div className="tester-modal-header">
+              <h3>🔧 Validador de Extensión CORS</h3>
+              <button onClick={() => setShowCorsTester(false)} className="btn-close-tester">×</button>
+            </div>
+            <CorsExtensionTester />
+          </div>
+        </div>
+      )}
+
+      {showCorsDebug && (
+        <div className="cors-debug-modal">
+          <div className="debug-modal-content">
+            <div className="debug-modal-header">
+              <h3>🔧 Panel de Debug CORS</h3>
+              <button onClick={() => setShowCorsDebug(false)} className="btn-close-debug">×</button>
+            </div>
+            <CorsDebugPanel />
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
