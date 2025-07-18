@@ -237,50 +237,42 @@ export class PlaywrightExecutor {
 
         console.log(`🔧 Ejecutando paso ${stepNumber} en ventana:`, code);
 
-        // Intentar ejecutar directamente primero
+        // Usar postMessage directamente para evitar problemas de CORS
         try {
-          (this.executionWindow as any).eval(code);
-          console.log(`✅ Paso ${stepNumber} ejecutado directamente`);
-          resolve();
-        } catch (directError) {
-          console.log(`⚠️ Ejecución directa falló (CORS probable), intentando postMessage:`, directError);
-          
-          // Fallback: usar postMessage con timeout más largo
-          try {
-            this.executionWindow.postMessage({
-              type: 'PLAYWRIGHT_EXECUTE',
-              stepNumber,
-              code
-            }, '*');
+          console.log(`📤 Enviando paso ${stepNumber} via postMessage`);
+          this.executionWindow.postMessage({
+            type: 'PLAYWRIGHT_EXECUTE',
+            stepNumber,
+            code
+          }, '*');
 
-            // Escuchar respuesta con timeout más largo
-            const timeout = setTimeout(() => {
-              console.error(`❌ Timeout en paso ${stepNumber}`);
-              reject(new Error('Timeout en ejecución de paso'));
-            }, 20000); // Aumentado a 20 segundos
+          // Escuchar respuesta con timeout
+          const timeout = setTimeout(() => {
+            console.error(`❌ Timeout en paso ${stepNumber}`);
+            reject(new Error('Timeout en ejecución de paso'));
+          }, 15000); // 15 segundos
 
-            const listener = (event: MessageEvent) => {
-              console.log(`📨 Mensaje recibido:`, event.data);
+          const listener = (event: MessageEvent) => {
+            console.log(`📨 Mensaje recibido:`, event.data);
+            
+            if (event.data.type === 'PLAYWRIGHT_RESPONSE' && event.data.stepNumber === stepNumber) {
+              clearTimeout(timeout);
+              window.removeEventListener('message', listener);
               
-              if (event.data.type === 'PLAYWRIGHT_RESPONSE' && event.data.stepNumber === stepNumber) {
-                clearTimeout(timeout);
-                window.removeEventListener('message', listener);
-                
-                if (event.data.success) {
-                  console.log(`✅ Paso ${stepNumber} completado via postMessage`);
-                  resolve();
-                } else {
-                  console.error(`❌ Error en paso ${stepNumber}:`, event.data.error);
-                  reject(new Error(event.data.error || 'Error en ejecución'));
-                }
+              if (event.data.success) {
+                console.log(`✅ Paso ${stepNumber} completado exitosamente`);
+                resolve();
+              } else {
+                console.error(`❌ Error en paso ${stepNumber}:`, event.data.error);
+                reject(new Error(event.data.error || 'Error en ejecución'));
               }
-            };
+            }
+          };
 
-            window.addEventListener('message', listener);
-          } catch (postMessageError) {
-            console.error(`❌ Error enviando postMessage:`, postMessageError);
-            reject(new Error(`No se pudo ejecutar paso ${stepNumber}: ${postMessageError}`));
-          }
+          window.addEventListener('message', listener);
+        } catch (postMessageError) {
+          console.error(`❌ Error enviando postMessage:`, postMessageError);
+          reject(new Error(`No se pudo ejecutar paso ${stepNumber}: ${postMessageError}`));
         }
       } catch (error) {
         console.error(`❌ Error general en paso ${stepNumber}:`, error);
