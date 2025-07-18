@@ -1,5 +1,5 @@
 import { Admin, Resource, Layout, AppBar } from 'react-admin';
-import { BrowserRouter, useLocation, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestResults/TestResultsPage';
 import { authProvider } from './firebase/auth';
@@ -11,9 +11,9 @@ import { TestCasesPage, TestCaseCreate, TestCaseEdit } from './pages/TestCases/T
 import { TestPlanningPage, TestPlanningCreate, TestPlanningEdit } from './pages/TestPlanning/TestPlanningPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
-import { useEffect } from 'react';
+
 import { useSidebarState } from 'react-admin';
-import DashboardIcon from '@mui/icons-material/Dashboard';
+
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
