@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ScriptsList from './ScriptsList';
 import AdvancedScriptEditor from './AdvancedScriptEditor';
 import ExecutionPanel from './ExecutionPanel';
+import corsExtensionService from '../../services/corsExtensionService';
+import CorsExtensionInfo from './CorsExtensionInfo';
 import type { PlaywrightScript } from '../../types/playwrightScript';
 
 export default function PlaywrightModule() {
@@ -10,6 +12,8 @@ export default function PlaywrightModule() {
   const [currentView, setCurrentView] = useState<'list' | 'editor' | 'viewer'>('list');
   const [executingScript, setExecutingScript] = useState<PlaywrightScript | null>(null);
   const [showExecutionPanel, setShowExecutionPanel] = useState(false);
+  const [corsExtensionStatus, setCorsExtensionStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+  const [showCorsInfo, setShowCorsInfo] = useState(false);
 
   const handleScriptSelect = (script: PlaywrightScript) => {
     setSelectedScript(script);
@@ -42,10 +46,45 @@ export default function PlaywrightModule() {
     setCurrentView('list');
   };
 
+  // Verificar estado de la extensión de CORS
+  useEffect(() => {
+    const checkCorsExtension = async () => {
+      try {
+        const status = await corsExtensionService.detectExtension();
+        setCorsExtensionStatus(status.isInstalled ? 'available' : 'unavailable');
+      } catch (error) {
+        setCorsExtensionStatus('unavailable');
+      }
+    };
+
+    checkCorsExtension();
+  }, []);
+
   return (
     <div className="playwright-module">
       <div className="module-header">
-        <h2>🎭 Playwright: Scripts & Editor</h2>
+        <div className="header-left">
+          <h2>🎭 Playwright: Scripts & Editor</h2>
+          <div className="cors-status">
+            {corsExtensionStatus === 'checking' && (
+              <span className="status-checking">🔍 Verificando extensión CORS...</span>
+            )}
+            {corsExtensionStatus === 'available' && (
+              <span className="status-available">✅ Extensión CORS disponible</span>
+            )}
+            {corsExtensionStatus === 'unavailable' && (
+              <span className="status-unavailable">
+                ⚠️ Extensión CORS no disponible
+                <button 
+                  onClick={() => setShowCorsInfo(true)}
+                  className="btn-install-cors"
+                >
+                  Más Info
+                </button>
+              </span>
+            )}
+          </div>
+        </div>
         <div className="module-tabs">
           <button
             className={`tab-button ${activeTab === 'scripts' ? 'active' : ''}`}
@@ -189,10 +228,61 @@ export default function PlaywrightModule() {
         .module-header {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-start;
           margin-bottom: 20px;
           padding-bottom: 15px;
           border-bottom: 2px solid #e9ecef;
+        }
+
+        .header-left {
+          flex: 1;
+        }
+
+        .cors-status {
+          margin-top: 8px;
+          font-size: 14px;
+        }
+
+        .status-checking {
+          color: #856404;
+          background: #fff3cd;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+        }
+
+        .status-available {
+          color: #155724;
+          background: #d4edda;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+        }
+
+        .status-unavailable {
+          color: #721c24;
+          background: #f8d7da;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .btn-install-cors {
+          background: #007bff;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 2px 8px;
+          font-size: 11px;
+          cursor: pointer;
+          transition: background 0.2s ease;
+        }
+
+        .btn-install-cors:hover {
+          background: #0056b3;
         }
 
         .module-header h2 {
@@ -448,6 +538,11 @@ export default function PlaywrightModule() {
           margin: 0;
         }
       `}</style>
+
+      <CorsExtensionInfo 
+        isVisible={showCorsInfo}
+        onClose={() => setShowCorsInfo(false)}
+      />
     </div>
   );
 } 

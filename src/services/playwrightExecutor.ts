@@ -1,4 +1,5 @@
 import type { PlaywrightScript } from '../types/playwrightScript';
+import corsExtensionService from './corsExtensionService';
 
 export interface ExecutionResult {
   success: boolean;
@@ -27,6 +28,15 @@ export class PlaywrightExecutor {
     
     try {
       console.log(`🚀 Iniciando ejecución de: ${script.name}`);
+      
+      // Verificar y activar extensión de CORS si está disponible
+      const corsStatus = await corsExtensionService.detectExtension();
+      if (corsStatus.isInstalled) {
+        console.log('🔧 Extensión de CORS detectada, activando para ejecución...');
+        await corsExtensionService.enableForExecution();
+      } else {
+        console.log('⚠️ Extensión de CORS no disponible, ejecutando en modo limitado');
+      }
       
       // Abrir nueva pestaña
       this.executionWindow = window.open('', '_blank');
@@ -65,6 +75,13 @@ export class PlaywrightExecutor {
     } finally {
       this.isExecuting = false;
       this.executionWindow = null;
+      
+      // Desactivar extensión de CORS al finalizar
+      try {
+        await corsExtensionService.disable();
+      } catch (error) {
+        console.log('⚠️ Error desactivando extensión de CORS:', error);
+      }
     }
   }
 
