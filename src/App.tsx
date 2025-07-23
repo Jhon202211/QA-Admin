@@ -114,7 +114,7 @@ const Footer = () => {
   if (isLoginPage) return null;
   return (
     <Box sx={{ width: '100%', textAlign: 'center', py: 2, color: '#888', fontSize: 14, background: 'transparent' }}>
-      © 2025 QAScope - Gestión de pruebas automatizadas | v0.8
+      © 2025 QAScope - Gestión de pruebas automatizadas | v0.9
     </Box>
   );
 };
