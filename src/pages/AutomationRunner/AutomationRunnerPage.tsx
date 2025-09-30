@@ -13,6 +13,9 @@ const automatedCases = [
   { id: 'test_create_room_reservation.py', name: 'Reservar sala', description: 'Prueba de reserva de sala.' },
   { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa', description: 'Prueba de desactivación de usuario o empresa.' },
   { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa', description: 'Prueba de restauración de usuario o empresa.' },
+  { id: 'test_create_property.py', name: 'Crear Copropiedad', description: 'Prueba de creación de copropiedad.' },
+  { id: 'test_edit_property.py', name: 'Editar Copropiedad', description: 'Prueba de edición de copropiedad.' },
+  { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad', description: 'Prueba de desactivación de copropiedad.' },
 ];
 
 const API_URL = 'http://localhost:9000/tests/execute';

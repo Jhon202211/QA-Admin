@@ -549,6 +549,9 @@ export const TestPlanningCreate = (props: any) => {
             { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
             { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
             { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
+            { id: 'test_create_property.py', name: 'Crear Copropiedad' },
+            { id: 'test_edit_property.py', name: 'Editar Copropiedad' },
+            { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad' },
           ]}
         />
       </SimpleForm>
@@ -587,6 +590,9 @@ export const TestPlanningEdit = (props: any) => {
             { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
             { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
             { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
+            { id: 'test_create_property.py', name: 'Crear Copropiedad' },
+            { id: 'test_edit_property.py', name: 'Editar Copropiedad' },
+            { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad' },
           ]}
         />
       </SimpleForm>
