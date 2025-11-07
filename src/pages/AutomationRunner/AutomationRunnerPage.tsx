@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { Box, Typography, Card, CardContent, CircularProgress, List, ListItem, ListItemText, IconButton, Snackbar, Alert, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Card, CardContent, CircularProgress, List, ListItem, ListItemText, IconButton, Snackbar, Alert } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import { useGetList } from 'react-admin';
 
 // Casos automatizados simulados
 const automatedCases = [
@@ -25,8 +24,6 @@ export const AutomationRunnerPage = () => {
   const [runningId, setRunningId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, 'success' | 'error' | null>>({});
   const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
-  const { data: plans = [] } = useGetList('test_planning');
-  const { data: cases = [] } = useGetList('test_cases');
 
   const handleRun = async (id: string) => {
     console.log('Enviando ejecución:', { test_file: id });
