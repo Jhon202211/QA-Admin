@@ -1,40 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import ScriptsList from './ScriptsList';
 import AdvancedScriptEditor from './AdvancedScriptEditor';
-import ExecutionPanel from './ExecutionPanel';
-import corsExtensionService from '../../services/corsExtensionService';
-import CorsExtensionInfo from './CorsExtensionInfo';
-import CorsExtensionTester from './CorsExtensionTester';
-import CorsDebugPanel from './CorsDebugPanel';
-import type { PlaywrightScript } from '../../types/playwrightScript';
+
+// Tipos simplificados solo para la UI
+interface SimpleScript {
+  id: string;
+  name: string;
+  description?: string;
+  url: string;
+  steps: any[];
+  tags: string[];
+  status: 'draft' | 'active' | 'archived';
+  executionCount: number;
+  lastExecuted?: string;
+}
 
 export default function PlaywrightModule() {
   const [activeTab, setActiveTab] = useState<'scripts' | 'editor'>('scripts');
-  const [selectedScript, setSelectedScript] = useState<PlaywrightScript | null>(null);
+  const [selectedScript, setSelectedScript] = useState<SimpleScript | null>(null);
   const [currentView, setCurrentView] = useState<'list' | 'editor' | 'viewer'>('list');
-  const [executingScript, setExecutingScript] = useState<PlaywrightScript | null>(null);
-  const [showExecutionPanel, setShowExecutionPanel] = useState(false);
-  const [corsExtensionStatus, setCorsExtensionStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
-  const [showCorsInfo, setShowCorsInfo] = useState(false);
-  const [showCorsTester, setShowCorsTester] = useState(false);
-  const [showCorsDebug, setShowCorsDebug] = useState(false);
 
-  const handleScriptSelect = (script: PlaywrightScript) => {
+  const handleScriptSelect = (script: SimpleScript) => {
     setSelectedScript(script);
     setCurrentView('viewer');
   };
 
-  const handleScriptEdit = (script: PlaywrightScript) => {
+  const handleScriptEdit = (script: SimpleScript) => {
     setSelectedScript(script);
     setCurrentView('editor');
   };
 
-  const handleScriptExecute = (script: PlaywrightScript) => {
-    setExecutingScript(script);
-    setShowExecutionPanel(true);
+  const handleScriptExecute = (script: SimpleScript) => {
+    console.log('Ejecutar script:', script.name);
+    alert('Funcionalidad de ejecución no disponible');
   };
 
-  const handleScriptSave = (script: PlaywrightScript) => {
+  const handleScriptSave = (script: SimpleScript) => {
     console.log('Script guardado:', script);
     setSelectedScript(null);
     setCurrentView('list');
@@ -50,56 +51,11 @@ export default function PlaywrightModule() {
     setCurrentView('list');
   };
 
-  // Verificar estado de la extensión de CORS
-  useEffect(() => {
-    const checkCorsExtension = async () => {
-      try {
-        const status = await corsExtensionService.detectExtension();
-        setCorsExtensionStatus(status.isInstalled ? 'available' : 'unavailable');
-      } catch (error) {
-        setCorsExtensionStatus('unavailable');
-      }
-    };
-
-    checkCorsExtension();
-  }, []);
-
   return (
     <div className="playwright-module">
       <div className="module-header">
         <div className="header-left">
           <h2>🎭 Playwright: Scripts & Editor</h2>
-          <div className="cors-status">
-            {corsExtensionStatus === 'checking' && (
-              <span className="status-checking">🔍 Verificando extensión CORS...</span>
-            )}
-            {corsExtensionStatus === 'available' && (
-              <span className="status-available">✅ Extensión CORS disponible</span>
-            )}
-            {corsExtensionStatus === 'unavailable' && (
-              <span className="status-unavailable">
-                ⚠️ Extensión CORS no disponible
-                <button 
-                  onClick={() => setShowCorsInfo(true)}
-                  className="btn-install-cors"
-                >
-                  Más Info
-                </button>
-                <button 
-                  onClick={() => setShowCorsTester(true)}
-                  className="btn-test-cors"
-                >
-                  🧪 Probar
-                </button>
-                <button 
-                  onClick={() => setShowCorsDebug(true)}
-                  className="btn-debug-cors"
-                >
-                  🔧 Debug
-                </button>
-              </span>
-            )}
-          </div>
         </div>
         <div className="module-tabs">
           <button
@@ -116,17 +72,6 @@ export default function PlaywrightModule() {
           </button>
         </div>
       </div>
-
-      {showExecutionPanel && executingScript && (
-        <ExecutionPanel
-          script={executingScript}
-          isOpen={showExecutionPanel}
-          onClose={() => {
-            setShowExecutionPanel(false);
-            setExecutingScript(null);
-          }}
-        />
-      )}
 
       <div className="module-content">
         {activeTab === 'scripts' && (
@@ -200,7 +145,7 @@ export default function PlaywrightModule() {
                     <h5>Pasos del Script ({selectedScript.steps.length})</h5>
                     <div className="steps-list">
                       {selectedScript.steps.map((step, index) => (
-                        <div key={step.id} className="step-item">
+                        <div key={step.id || index} className="step-item">
                           <span className="step-number">{index + 1}</span>
                           <div className="step-content">
                             <div className="step-action">{step.action}</div>
@@ -252,197 +197,6 @@ export default function PlaywrightModule() {
 
         .header-left {
           flex: 1;
-        }
-
-        .cors-status {
-          margin-top: 8px;
-          font-size: 14px;
-        }
-
-        .status-checking {
-          color: #856404;
-          background: #fff3cd;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-        }
-
-        .status-available {
-          color: #155724;
-          background: #d4edda;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-        }
-
-        .status-unavailable {
-          color: #721c24;
-          background: #f8d7da;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .btn-install-cors {
-          background: #007bff;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 2px 8px;
-          font-size: 11px;
-          cursor: pointer;
-          transition: background 0.2s ease;
-        }
-
-        .btn-install-cors:hover {
-          background: #0056b3;
-        }
-
-        .btn-test-cors {
-          background: #ffc107;
-          color: #212529;
-          border: none;
-          border-radius: 4px;
-          padding: 2px 8px;
-          font-size: 11px;
-          cursor: pointer;
-          transition: background 0.2s ease;
-        }
-
-        .btn-test-cors:hover {
-          background: #e0a800;
-        }
-
-        .btn-debug-cors {
-          background: #17a2b8;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 2px 8px;
-          font-size: 11px;
-          cursor: pointer;
-          transition: background 0.2s ease;
-        }
-
-        .btn-debug-cors:hover {
-          background: #138496;
-        }
-
-        .cors-tester-modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .tester-modal-content {
-          background: white;
-          border-radius: 12px;
-          max-width: 800px;
-          max-height: 90vh;
-          overflow-y: auto;
-          width: 90%;
-        }
-
-        .tester-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 20px;
-          border-bottom: 1px solid #e9ecef;
-          background: #f8f9fa;
-          border-radius: 12px 12px 0 0;
-        }
-
-        .tester-modal-header h3 {
-          margin: 0;
-          color: #2c3e50;
-        }
-
-        .btn-close-tester {
-          background: none;
-          border: none;
-          font-size: 24px;
-          color: #6c757d;
-          cursor: pointer;
-          padding: 0;
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          transition: background 0.2s ease;
-        }
-
-        .btn-close-tester:hover {
-          background: #e9ecef;
-        }
-
-        .cors-debug-modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .debug-modal-content {
-          background: white;
-          border-radius: 12px;
-          max-width: 1000px;
-          max-height: 90vh;
-          overflow-y: auto;
-          width: 90%;
-        }
-
-        .debug-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 20px;
-          border-bottom: 1px solid #e9ecef;
-          background: #f8f9fa;
-          border-radius: 12px 12px 0 0;
-        }
-
-        .debug-modal-header h3 {
-          margin: 0;
-          color: #2c3e50;
-        }
-
-        .btn-close-debug {
-          background: none;
-          border: none;
-          font-size: 24px;
-          color: #6c757d;
-          cursor: pointer;
-          padding: 0;
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          transition: background 0.2s ease;
-        }
-
-        .btn-close-debug:hover {
-          background: #e9ecef;
         }
 
         .module-header h2 {
@@ -505,25 +259,6 @@ export default function PlaywrightModule() {
 
         .btn-back:hover {
           background: #7f8c8d;
-        }
-
-        .header-actions {
-          display: flex;
-          gap: 10px;
-        }
-
-        .btn-test-script {
-          padding: 10px 20px;
-          background: #f39c12;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 500;
-        }
-
-        .btn-test-script:hover {
-          background: #e67e22;
         }
 
         .btn-new-script {
@@ -698,35 +433,6 @@ export default function PlaywrightModule() {
           margin: 0;
         }
       `}</style>
-
-      <CorsExtensionInfo 
-        isVisible={showCorsInfo}
-        onClose={() => setShowCorsInfo(false)}
-      />
-
-      {showCorsTester && (
-        <div className="cors-tester-modal">
-          <div className="tester-modal-content">
-            <div className="tester-modal-header">
-              <h3>🔧 Validador de Extensión CORS</h3>
-              <button onClick={() => setShowCorsTester(false)} className="btn-close-tester">×</button>
-            </div>
-            <CorsExtensionTester />
-          </div>
-        </div>
-      )}
-
-      {showCorsDebug && (
-        <div className="cors-debug-modal">
-          <div className="debug-modal-content">
-            <div className="debug-modal-header">
-              <h3>🔧 Panel de Debug CORS</h3>
-              <button onClick={() => setShowCorsDebug(false)} className="btn-close-debug">×</button>
-            </div>
-            <CorsDebugPanel />
-          </div>
-        </div>
-      )}
     </div>
   );
-} 
+}

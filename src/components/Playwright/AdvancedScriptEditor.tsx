@@ -1,12 +1,30 @@
 import { useState, useEffect } from 'react';
-import playwrightScriptsService from '../../firebase/playwrightScripts';
-import type { PlaywrightScript, PlaywrightStep } from '../../types/playwrightScript';
-import EventRecorder from './EventRecorder';
+
+// Tipo simplificado solo para la UI
+interface SimpleScript {
+  id: string;
+  name: string;
+  description?: string;
+  url: string;
+  steps: SimpleStep[];
+  tags: string[];
+  status: 'draft' | 'active' | 'archived';
+  executionCount: number;
+}
+
+interface SimpleStep {
+  id: string;
+  action: string;
+  target: string;
+  value?: string;
+  description?: string;
+  order: number;
+}
 
 interface AdvancedScriptEditorProps {
-  script?: PlaywrightScript;
-  onSave?: (script: PlaywrightScript) => void;
-  onExecute?: (script: PlaywrightScript) => void;
+  script?: SimpleScript;
+  onSave?: (script: SimpleScript) => void;
+  onExecute?: (script: SimpleScript) => void;
 }
 
 const ACTION_TYPES = [
@@ -21,26 +39,20 @@ const ACTION_TYPES = [
 ];
 
 export default function AdvancedScriptEditor({ script, onSave, onExecute }: AdvancedScriptEditorProps) {
-  const [currentScript, setCurrentScript] = useState<PlaywrightScript>({
+  const [currentScript, setCurrentScript] = useState<SimpleScript>({
     id: '',
     name: '',
     description: '',
     url: '',
     steps: [],
     tags: [],
-    createdAt: '',
-    updatedAt: '',
-    createdBy: 'user',
-    isPublic: false,
-    executionCount: 0,
-    status: 'draft'
+    status: 'draft',
+    executionCount: 0
   });
 
-  const [editingStep, setEditingStep] = useState<PlaywrightStep | null>(null);
+  const [editingStep, setEditingStep] = useState<SimpleStep | null>(null);
   const [showStepForm, setShowStepForm] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [showRecorder, setShowRecorder] = useState(false);
 
   useEffect(() => {
     if (script) {
@@ -48,7 +60,7 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
     }
   }, [script]);
 
-  const handleScriptChange = (field: keyof PlaywrightScript, value: any) => {
+  const handleScriptChange = (field: keyof SimpleScript, value: any) => {
     setCurrentScript(prev => ({
       ...prev,
       [field]: value
@@ -56,7 +68,7 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
   };
 
   const addStep = () => {
-    const newStep: PlaywrightStep = {
+    const newStep: SimpleStep = {
       id: Date.now().toString(),
       action: 'click',
       target: '',
@@ -68,7 +80,7 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
     setShowStepForm(true);
   };
 
-  const editStep = (step: PlaywrightStep) => {
+  const editStep = (step: SimpleStep) => {
     setEditingStep(step);
     setShowStepForm(true);
   };
@@ -117,28 +129,46 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
     });
   };
 
-  const handleSave = async () => {
-    try {
-      if (currentScript.id) {
-        await playwrightScriptsService.updateScript(currentScript.id, currentScript);
-      } else {
-        const newId = await playwrightScriptsService.createScript({
-          ...currentScript,
-          description: currentScript.description || ''
-        });
-        setCurrentScript(prev => ({ ...prev, id: newId }));
-      }
-      
-      onSave?.(currentScript);
-      alert('✅ Script guardado exitosamente');
-    } catch (error) {
-      console.error('Error guardando script:', error);
-      alert('❌ Error guardando script');
-    }
+  const handleSave = () => {
+    onSave?.(currentScript);
+    alert('✅ Script guardado exitosamente');
   };
 
   const generateCode = () => {
-    const code = playwrightScriptsService.generatePlaywrightCode(currentScript);
+    // Generar código mock solo para mostrar la UI
+    let code = `import {test, expect } from '@playwright/test';\n\n`;
+    code += `test('${currentScript.name}', async ({ page }) => {\n`;
+
+    currentScript.steps.forEach(step => {
+      switch (step.action) {
+        case 'goto':
+          code += `  await page.goto('${step.target}');\n`;
+          break;
+        case 'click':
+          code += `  await page.click('${step.target}');\n`;
+          break;
+        case 'fill':
+          code += `  await page.fill('${step.target}', '${step.value || ''}');\n`;
+          break;
+        case 'type':
+          code += `  await page.type('${step.target}', '${step.value || ''}');\n`;
+          break;
+        case 'select':
+          code += `  await page.selectOption('${step.target}', '${step.value || ''}');\n`;
+          break;
+        case 'wait':
+          code += `  await page.waitForTimeout(${step.value || 1000});\n`;
+          break;
+        case 'screenshot':
+          code += `  await page.screenshot({ path: 'screenshot.png' });\n`;
+          break;
+        case 'hover':
+          code += `  await page.hover('${step.target}');\n`;
+          break;
+      }
+    });
+
+    code += `});\n`;
     setGeneratedCode(code);
   };
 
@@ -158,30 +188,6 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
     }));
   };
 
-  // Funciones para el grabador de eventos
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    setShowRecorder(true);
-  };
-
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    setShowRecorder(false);
-  };
-
-  const handleStepRecorded = (step: PlaywrightStep) => {
-    setCurrentScript(prev => ({
-      ...prev,
-      steps: [...prev.steps, step]
-    }));
-  };
-
-  const handleRecordingComplete = () => {
-    setIsRecording(false);
-    setShowRecorder(false);
-    alert('✅ Grabación completada. Los pasos han sido agregados al script.');
-  };
-
   return (
     <div className="advanced-script-editor">
       <div className="editor-header">
@@ -189,9 +195,6 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
         <div className="header-actions">
           <button onClick={generateCode} className="btn-generate">
             🔧 Generar Código
-          </button>
-          <button onClick={handleStartRecording} className="btn-record" disabled={isRecording}>
-            🎙️ Grabar Eventos
           </button>
           <button onClick={handleSave} className="btn-save">
             💾 Guardar
@@ -327,7 +330,7 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
               <label>Acción:</label>
               <select
                 value={editingStep?.action}
-                onChange={(e) => setEditingStep(prev => prev ? { ...prev, action: e.target.value as any } : null)}
+                onChange={(e) => setEditingStep(prev => prev ? { ...prev, action: e.target.value } : null)}
               >
                 {ACTION_TYPES.map(type => (
                   <option key={type.value} value={type.value}>
@@ -703,37 +706,7 @@ export default function AdvancedScriptEditor({ script, onSave, onExecute }: Adva
         .btn-cancel:hover {
           background: #7f8c8d;
         }
-
-        .btn-record {
-          padding: 10px 16px;
-          background: #e74c3c;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 500;
-          transition: all 0.2s ease;
-        }
-
-        .btn-record:hover:not(:disabled) {
-          background: #c0392b;
-        }
-
-        .btn-record:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
       `}</style>
-
-      {showRecorder && (
-        <EventRecorder
-          onStepRecorded={handleStepRecorded}
-          onRecordingComplete={handleRecordingComplete}
-          isRecording={isRecording}
-          onStartRecording={handleStartRecording}
-          onStopRecording={handleStopRecording}
-        />
-      )}
     </div>
   );
-} 
+}

@@ -1,36 +1,63 @@
-import { useState, useEffect } from 'react';
-import playwrightScriptsService from '../../firebase/playwrightScripts';
-import type { PlaywrightScript } from '../../types/playwrightScript';
+import { useState } from 'react';
 
-interface ScriptsListProps {
-  onScriptSelect?: (script: PlaywrightScript) => void;
-  onScriptEdit?: (script: PlaywrightScript) => void;
-  onScriptExecute?: (script: PlaywrightScript) => void;
+// Tipo simplificado solo para la UI
+interface SimpleScript {
+  id: string;
+  name: string;
+  description?: string;
+  url: string;
+  steps: any[];
+  tags: string[];
+  status: 'draft' | 'active' | 'archived';
+  executionCount: number;
+  lastExecuted?: string;
 }
 
+interface ScriptsListProps {
+  onScriptSelect?: (script: SimpleScript) => void;
+  onScriptEdit?: (script: SimpleScript) => void;
+  onScriptExecute?: (script: SimpleScript) => void;
+}
+
+// Datos mock para mantener la maquetación
+const mockScripts: SimpleScript[] = [
+  {
+    id: '1',
+    name: 'complete.spec',
+    description: 'Test complete.spec',
+    url: '',
+    steps: [{ id: '1', action: 'goto' }, { id: '2', action: 'click' }, { id: '3', action: 'fill' }],
+    tags: [],
+    status: 'active',
+    executionCount: 0
+  },
+  {
+    id: '2',
+    name: 'login.spec',
+    description: 'Test login.spec',
+    url: '',
+    steps: Array(7).fill(null).map((_, i) => ({ id: String(i + 1), action: 'click' })),
+    tags: [],
+    status: 'active',
+    executionCount: 0
+  },
+  {
+    id: '3',
+    name: 'Test de Navegación',
+    description: 'Script de prueba para verificar la ejecución en nueva pestaña',
+    url: '',
+    steps: [{ id: '1', action: 'goto' }, { id: '2', action: 'click' }],
+    tags: ['test', 'demo'],
+    status: 'active',
+    executionCount: 0
+  }
+];
+
 export default function ScriptsList({ onScriptSelect, onScriptEdit, onScriptExecute }: ScriptsListProps) {
-  const [scripts, setScripts] = useState<PlaywrightScript[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadScripts();
-  }, []);
-
-  const loadScripts = async () => {
-    try {
-      setLoading(true);
-      const allScripts = await playwrightScriptsService.getAllScripts();
-      setScripts(allScripts);
-    } catch (error) {
-      console.error('Error cargando scripts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredScripts = scripts.filter(script => {
+  const filteredScripts = mockScripts.filter(script => {
     const matchesSearch = script.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          script.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          script.url.toLowerCase().includes(searchTerm.toLowerCase());
@@ -41,7 +68,7 @@ export default function ScriptsList({ onScriptSelect, onScriptEdit, onScriptExec
     return matchesSearch && matchesTags;
   });
 
-  const allTags = Array.from(new Set(scripts.flatMap(script => script.tags)));
+  const allTags = Array.from(new Set(mockScripts.flatMap(script => script.tags)));
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags(prev => 
@@ -51,7 +78,7 @@ export default function ScriptsList({ onScriptSelect, onScriptEdit, onScriptExec
     );
   };
 
-  const handleScriptAction = (script: PlaywrightScript, action: 'select' | 'edit' | 'execute') => {
+  const handleScriptAction = (script: SimpleScript, action: 'select' | 'edit' | 'execute') => {
     switch (action) {
       case 'select':
         onScriptSelect?.(script);
@@ -64,15 +91,6 @@ export default function ScriptsList({ onScriptSelect, onScriptEdit, onScriptExec
         break;
     }
   };
-
-  if (loading) {
-    return (
-      <div className="scripts-list-loading">
-        <div className="loading-spinner">🔄</div>
-        <p>Cargando scripts...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="scripts-list">
@@ -405,23 +423,7 @@ export default function ScriptsList({ onScriptSelect, onScriptEdit, onScriptExec
         .btn-execute:hover {
           background: #229954;
         }
-
-        .scripts-list-loading {
-          text-align: center;
-          padding: 60px 20px;
-        }
-
-        .loading-spinner {
-          font-size: 48px;
-          margin-bottom: 20px;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
       `}</style>
     </div>
   );
-} 
+}
