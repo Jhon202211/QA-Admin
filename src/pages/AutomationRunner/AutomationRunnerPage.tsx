@@ -17,7 +17,7 @@ const automatedCases = [
   { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad', description: 'Prueba de desactivación de copropiedad.' },
 ];
 
-const API_URL = 'http://localhost:9000/tests/execute';
+const API_URL = '/api/tests/execute';
 const API_TOKEN = 'valid_token'; // Token fijo para pruebas
 
 export const AutomationRunnerPage = () => {
@@ -41,8 +41,40 @@ export const AutomationRunnerPage = () => {
           executionType: 'individual'
         })
       });
-      const data = await response.json();
-      if (response.ok && data.status === 'started') {
+
+      // Verificar si la respuesta es exitosa antes de parsear JSON
+      if (!response.ok) {
+        let errorMessage = `Error del servidor (${response.status})`;
+        try {
+          const errorText = await response.text();
+          if (errorText) {
+            try {
+              const errorJson = JSON.parse(errorText);
+              errorMessage = errorJson.message || errorJson.error || errorMessage;
+            } catch {
+              errorMessage = errorText || errorMessage;
+            }
+          }
+        } catch {
+          errorMessage = `Error del servidor (${response.status} ${response.statusText})`;
+        }
+        setResults(prev => ({ ...prev, [id]: 'error' }));
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        return;
+      }
+
+      // Intentar parsear JSON solo si la respuesta es exitosa
+      const text = await response.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        setResults(prev => ({ ...prev, [id]: 'error' }));
+        setSnackbar({ open: true, message: 'Error: Respuesta inválida del servidor', severity: 'error' });
+        return;
+      }
+
+      if (data.status === 'started') {
         setResults(prev => ({ ...prev, [id]: 'success' }));
         setSnackbar({ open: true, message: 'Ejecución iniciada correctamente', severity: 'success' });
       } else {
@@ -50,8 +82,10 @@ export const AutomationRunnerPage = () => {
         setSnackbar({ open: true, message: data.message || 'Error al iniciar la ejecución', severity: 'error' });
       }
     } catch (error: any) {
+      console.error('Error en handleRun:', error);
       setResults(prev => ({ ...prev, [id]: 'error' }));
-      setSnackbar({ open: true, message: error.message || 'Error de red', severity: 'error' });
+      const errorMessage = error.message || 'Error de conexión. Verifica que el servidor backend esté corriendo en el puerto 9000.';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     } finally {
       setRunningId(null);
     }

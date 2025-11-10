@@ -203,7 +203,7 @@ function TestPlanningCardList() {
     const interval = setInterval(async () => {
       attempts++;
       try {
-        const statusResponse = await fetch(`http://localhost:9000/tests/status/${executionId}`, {
+        const statusResponse = await fetch(`/api/tests/status/${executionId}`, {
           headers: { 'Authorization': 'Bearer valid_token' }
         });
         if (!statusResponse.ok) throw new Error('Error status');
@@ -240,7 +240,7 @@ function TestPlanningCardList() {
         const planId = selectedPlanRun?.id || '';
         // Log para validar cada petición
         console.log('Enviando ejecución desde plan:', { test_file: testId, planId, caseId });
-        const response = await fetch('http://localhost:9000/tests/execute', {
+        const response = await fetch('/api/tests/execute', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
