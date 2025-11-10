@@ -18,7 +18,7 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import { AutomationRunnerPage } from './pages/AutomationRunner/AutomationRunnerPage';
+import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import PlaywrightPage from './pages/AutomationRunner/PlaywrightPage';
 
 const CustomAppBar = (props: any) => {
@@ -134,7 +134,7 @@ function App() {
           <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} icon={FactCheckIcon} />
           <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
-          <Resource name="automation" list={AutomationRunnerPage} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
+          <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
           <Resource name="playwright" list={PlaywrightPage} icon={PlayCircleIcon} options={{ label: 'Playwright' }} />
         </Admin>
         <Footer />
