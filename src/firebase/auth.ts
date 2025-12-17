@@ -25,8 +25,15 @@ export const authProvider = {
     }
     return Promise.resolve();
   },
-  checkAuth: () => {
-    return auth.currentUser ? Promise.resolve() : Promise.reject();
+  checkAuth: async () => {
+    try {
+      // Esperar a que Firebase inicialice completamente
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return auth.currentUser ? Promise.resolve() : Promise.reject();
+    } catch (error) {
+      console.error('Error en checkAuth:', error);
+      return Promise.reject();
+    }
   },
   getPermissions: () => Promise.resolve(),
 }; 
