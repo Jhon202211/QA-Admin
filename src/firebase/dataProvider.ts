@@ -1,21 +1,26 @@
 import { db } from './config';
-import { collection, getDocs, getDoc, doc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, addDoc, updateDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
+
+interface DataItem {
+  id: string;
+  [key: string]: any;
+}
 
 export const dataProvider = {
   getList: async (resource: string, params: any = {}) => {
     const collectionRef = collection(db, resource);
     const snapshot = await getDocs(collectionRef);
-    let data = snapshot.docs.map(doc => ({
+    let data: DataItem[] = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }));
+    } as DataItem));
 
     // Filtrado
     if (params.filter) {
       Object.entries(params.filter).forEach(([key, value]) => {
         if (value) {
           data = data.filter(item =>
-            item[key]?.toString().toLowerCase().includes(value.toString().toLowerCase())
+            (item[key] as any)?.toString().toLowerCase().includes(value.toString().toLowerCase())
           );
         }
       });
@@ -25,20 +30,22 @@ export const dataProvider = {
     if (params.sort && params.sort.field) {
       const { field, order } = params.sort;
       data = data.sort((a, b) => {
-        if (a[field] === undefined || b[field] === undefined) return 0;
-        if (typeof a[field] === 'number' && typeof b[field] === 'number') {
-          return order === 'ASC' ? a[field] - b[field] : b[field] - a[field];
+        const aValue = a[field] as any;
+        const bValue = b[field] as any;
+        if (aValue === undefined || bValue === undefined) return 0;
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return order === 'ASC' ? aValue - bValue : bValue - aValue;
         }
         // Para fechas
         if (field === 'date') {
           return order === 'ASC'
-            ? new Date(a[field]).getTime() - new Date(b[field]).getTime()
-            : new Date(b[field]).getTime() - new Date(a[field]).getTime();
+            ? new Date(aValue).getTime() - new Date(bValue).getTime()
+            : new Date(bValue).getTime() - new Date(aValue).getTime();
         }
         // Para strings
         return order === 'ASC'
-          ? a[field].toString().localeCompare(b[field].toString())
-          : b[field].toString().localeCompare(a[field].toString());
+          ? aValue.toString().localeCompare(bValue.toString())
+          : bValue.toString().localeCompare(aValue.toString());
       });
     }
 
@@ -112,6 +119,30 @@ export const dataProvider = {
     return {
       data,
       total: data.length
+    };
+  },
+
+  updateMany: async (resource: string, params: { ids: string[]; data: any }) => {
+    const batch = writeBatch(db);
+    params.ids.forEach(id => {
+      const docRef = doc(db, resource, id);
+      batch.update(docRef, params.data);
+    });
+    await batch.commit();
+    return {
+      data: params.ids.map(id => ({ id, ...params.data }))
+    };
+  },
+
+  deleteMany: async (resource: string, params: { ids: string[] }) => {
+    const batch = writeBatch(db);
+    params.ids.forEach(id => {
+      const docRef = doc(db, resource, id);
+      batch.delete(docRef);
+    });
+    await batch.commit();
+    return {
+      data: params.ids.map(id => ({ id }))
     };
   }
 }; 

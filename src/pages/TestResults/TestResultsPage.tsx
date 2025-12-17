@@ -3,8 +3,6 @@ import {
   Datagrid,
   TextField,
   DateField,
-  BooleanField,
-  ReferenceField,
   ShowButton,
   EditButton,
   DeleteButton,

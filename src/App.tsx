@@ -1,5 +1,5 @@
-import { Admin, Resource, Layout, AppBar, TitlePortal } from 'react-admin';
-import { BrowserRouter, useLocation } from 'react-router-dom';
+import { Admin, Resource, Layout, AppBar } from 'react-admin';
+import { BrowserRouter } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestResults/TestResultsPage';
 import { authProvider } from './firebase/auth';
@@ -36,7 +36,7 @@ function App() {
     <BrowserRouter>
       <Admin
         authProvider={authProvider}
-        dataProvider={dataProvider}
+        dataProvider={dataProvider as any}
         dashboard={Dashboard}
         layout={CustomLayout}
         loginPage={LoginPage}

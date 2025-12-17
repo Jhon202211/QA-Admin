@@ -1,4 +1,4 @@
-import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button, TextField } from '@mui/material';
+import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button } from '@mui/material';
 import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import jsPDF from 'jspdf';
@@ -7,8 +7,8 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
-import React, { useState } from 'react';
-import { differenceInCalendarDays, startOfDay, endOfDay, startOfWeek, endOfWeek, format } from 'date-fns';
+import { useState } from 'react';
+import { differenceInCalendarDays, startOfDay, endOfDay, format } from 'date-fns';
 
 const COLORS = ['#3CCF91', '#e53935'];
 
@@ -45,8 +45,7 @@ export const Dashboard = () => {
   });
 
   // --- Nueva lógica: solo mostrar días seleccionados, o solo hoy si no hay selección ---
-  let chartData = [];
-  let xAxisKey = 'día';
+  let chartData: any[] = [];
 
   if (startDate && endDate) {
     const days = differenceInCalendarDays(endOfDay(endDate), startOfDay(startDate)) + 1;
@@ -94,7 +93,6 @@ export const Dashboard = () => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
             const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
             const imgProps = pdf.getImageProperties(imgData);
             const pdfWidth = pageWidth;
             const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
@@ -107,7 +105,7 @@ export const Dashboard = () => {
       </Box>
       <Grid container spacing={3}>
         {/* Fila 1: Gráfica de pastel y gráfica de línea */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: 400, height: 400, mx: 'auto' }}>
             <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
               <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
@@ -124,9 +122,9 @@ export const Dashboard = () => {
                       cy="50%" 
                       outerRadius={100}
                       labelLine={{ stroke: '#2B2D42', strokeWidth: 1 }}
-                      label={({ name, value, percent }) => `${value} (${(percent * 100).toFixed(0)}%)`}
+                      label={({ value, percent }: any) => `${value} (${(percent * 100).toFixed(0)}%)`}
                     >
-                      {pieData.map((entry, index) => (
+                      {pieData.map((_entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -143,7 +141,7 @@ export const Dashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: 400, height: 400, mx: 'auto' }}>
             <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
               <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
@@ -156,13 +154,13 @@ export const Dashboard = () => {
                       label="Fecha inicio"
                       value={startDate}
                       onChange={setStartDate}
-                      renderInput={(params) => <TextField {...params} size="small" />}
+                      slotProps={{ textField: { size: 'small' } }}
                     />
                     <DatePicker
                       label="Fecha fin"
                       value={endDate}
                       onChange={setEndDate}
-                      renderInput={(params) => <TextField {...params} size="small" />}
+                      slotProps={{ textField: { size: 'small' } }}
                     />
                   </LocalizationProvider>
                 </Box>
