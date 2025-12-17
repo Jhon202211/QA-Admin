@@ -1,0 +1,123 @@
+# Cursor Rules for QA Admin Dashboard
+
+## Project Context
+This is an administration dashboard for quality assurance (QA) test management built with React, TypeScript, Firebase, and Material-UI. The project uses React Admin as the base framework and focuses on managing test results, test cases, test planning, and automation.
+
+## General Development Rules
+
+### 1. File Structure and Organization
+- Maintain folder structure by functionality: `/pages`, `/components`, `/firebase`, `/types`
+- Each page should have its own folder with related components
+- Reusable components go in `/components` organized by domain
+- TypeScript types should be centralized in `/types/index.ts`
+- Use descriptive names for files and folders in English
+
+### 2. Naming Conventions
+- **Components**: PascalCase (e.g., `TestResultsPage`, `CustomAppBar`)
+- **Files**: PascalCase for React components, camelCase for utilities
+- **Variables and functions**: camelCase
+- **Constants**: UPPER_SNAKE_CASE
+- **Interfaces**: PascalCase with descriptive prefix (e.g., `TestResult`, `TestStep`)
+
+### 3. React/TypeScript Code Standards
+- Use strict TypeScript for all files
+- Define interfaces for all component props
+- Use React Admin hooks when possible (`useSidebarState`, etc.)
+- Implement ErrorBoundary for error handling
+- Use Material-UI for consistent UI components
+
+### 4. Component Structure
+- Each component should have its own file
+- Use functional components with hooks
+- Implement PropTypes or TypeScript interfaces for props
+- Separate business logic from presentation components
+- Use custom hooks for reusable logic
+
+### 5. Firebase and State
+- Centralize Firebase configuration in `/firebase/config.ts`
+- Use environment variables for sensitive credentials
+- Implement authentication and data providers in `/firebase/`
+- Handle loading and error states in all Firebase operations
+
+### 6. Styles and UI
+- Use Material-UI as the main design system
+- Implement custom theme with brand colors (#4B3C9D)
+- Use sx prop for component-specific styles
+- Maintain visual consistency throughout the application
+- Implement responsive design for different screen sizes
+
+### 7. Data Management
+- Use React Admin dataProvider for CRUD operations
+- Implement data validation in forms
+- Handle loading, success, and error states
+- Use TypeScript types for data structures
+- Implement pagination and filters when necessary
+
+### 8. Testing and QA
+- Write unit tests for critical components
+- Implement integration tests for main flows
+- Use automated testing tools (Playwright)
+- Document test cases in the system
+- Maintain adequate test coverage
+
+### 9. Security
+- Implement mandatory authentication (`requireAuth`)
+- Validate user permissions for sensitive operations
+- Sanitize user inputs
+- Use HTTPS in production
+- Keep Firebase credentials secure
+
+### 10. Performance and Optimization
+- Use React.memo for components that don't change frequently
+- Implement lazy loading for routes and heavy components
+- Optimize images and assets
+- Use Vite for efficient bundling
+- Implement appropriate caching
+
+### 11. Documentation and Comments
+- Document APIs and complex functions
+- Use JSDoc comments for public functions
+- Keep README updated with installation instructions
+- Document important architectural decisions
+- Comment complex or non-obvious code
+
+### 12. Git and Versioning
+- Use conventional commits for descriptive messages
+- Create feature branches for new functionality
+- Make small and frequent commits
+- Use pull requests for code review
+- Keep git history clean
+
+### 13. QA Domain-Specific Features
+- Implement quality metrics in the dashboard
+- Create detailed test result reports
+- Integrate with automated testing tools
+- Implement notifications for critical failures
+- Maintain test execution history
+
+### 14. Accessibility
+- Use semantic HTML
+- Implement appropriate ARIA labels
+- Ensure keyboard navigation
+- Maintain adequate color contrast
+- Test with screen readers
+
+### 15. Internationalization (i18n)
+- Prepare structure for multiple languages
+- Use consistent translation keys
+- Implement localized date and number formatting
+- Keep UI texts separate from logic
+
+## React Admin Specific Rules
+- Use React Admin resources for CRUD operations
+- Implement custom layouts when necessary
+- Use React Admin authentication and data providers
+- Maintain consistency with React Admin patterns
+- Customize UI components while maintaining base functionality
+
+## Deployment Rules
+- Use environment variables for configuration
+- Implement CI/CD for automated testing
+- Configure Firebase Hosting for deployment
+- Maintain different configurations for dev/prod
+- Implement monitoring and logging in production

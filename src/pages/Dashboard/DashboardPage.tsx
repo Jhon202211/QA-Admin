@@ -14,7 +14,7 @@ const COLORS = ['#3CCF91', '#e53935'];
 
 export const Dashboard = () => {
   const { data: testResults = [], total } = useGetList('test_results', {
-    pagination: { page: 1, perPage: 100 },
+    pagination: { page: 1, perPage: 1000 },
     sort: { field: 'date', order: 'DESC' }
   });
 
@@ -77,8 +77,8 @@ export const Dashboard = () => {
   }
 
   return (
-    <div style={{ padding: '20px' }} id="dashboard-pdf-export">
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+    <Box sx={{ padding: '20px' }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} width="100%">
         <Typography variant="h4" gutterBottom sx={{ color: '#2B2D42' }}>
           Dashboard
         </Typography>
@@ -103,10 +103,10 @@ export const Dashboard = () => {
           Exportar a PDF
         </Button>
       </Box>
-      <Grid container spacing={3}>
+      <Grid container spacing={3} width="100%">
         {/* Fila 1: Gráfica de pastel y gráfica de línea */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: 400, height: 400, mx: 'auto' }}>
+          <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
               <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
                 Éxito vs Fallos
@@ -142,7 +142,7 @@ export const Dashboard = () => {
           </Card>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ minHeight: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: 400, height: 400, mx: 'auto' }}>
+          <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
               <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', mt: 2 }}>
                 Ejecuciones por rango de fecha
@@ -280,6 +280,6 @@ export const Dashboard = () => {
           ))}
         </List>
       </Box>
-    </div>
+    </Box>
   );
 }; 

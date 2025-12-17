@@ -1,5 +1,5 @@
 import { Admin, Resource, Layout, AppBar } from 'react-admin';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestResults/TestResultsPage';
 import { authProvider } from './firebase/auth';
@@ -7,43 +7,139 @@ import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import isotype from './assets/isotype white small.svg';
+import { TestCasesPage, TestCaseCreate, TestCaseEdit } from './pages/TestCases/TestCasesPage';
+import { TestPlanningPage, TestPlanningCreate, TestPlanningEdit } from './pages/TestPlanning/TestPlanningPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import './App.css';
+
+import { useSidebarState } from 'react-admin';
+
+import FactCheckIcon from '@mui/icons-material/FactCheck';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import EventNoteIcon from '@mui/icons-material/EventNote';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
+import PlaywrightPage from './pages/AutomationRunner/PlaywrightPage';
 
 const CustomAppBar = (props: any) => {
-  // const location = useLocation();
-  // const sectionTitle = getSectionTitle(location.pathname);
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
+
+  if (isLoginPage) {
+    return null;
+  }
+
   return (
     <AppBar {...props} color="primary" sx={{ backgroundColor: '#4B3C9D', color: '#FFFFFF' }}>
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-        <img src={isotype} alt="QAScope Logo" style={{ width: 36, height: 36, marginRight: 12 }} />
-        <Typography
-          variant="h6"
-          color="inherit"
-          sx={{ fontWeight: 'bold', ml: 0, color: '#FFFFFF' }}
-          component="span"
-        >
-          QAScope
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <img src={isotype} alt="QAScope Logo" style={{ height: '32px' }} />
+          <Typography
+            variant="h6"
+            color="inherit"
+            sx={{ 
+              fontWeight: 500,
+              fontSize: '1.25rem',
+              ml: 1.5
+            }}
+          >
+            QAScope
+          </Typography>
+        </Box>
       </Box>
-      {/* <TitlePortal /> */}
     </AppBar>
   );
 };
 
-const CustomLayout = (props: any) => <Layout {...props} appBar={CustomAppBar} />;
+const CustomLayout = (props: any) => {
+  const [open] = useSidebarState();
+  return (
+    <Layout
+      {...props}
+      appBar={CustomAppBar}
+      sx={{
+        '& .RaSidebar-fixed': {
+          position: 'fixed',
+          height: 'calc(100vh - 64px)',
+          backgroundColor: '#f5f5f5',
+          borderRight: 'none',
+          left: 0,
+          top: '64px',
+          width: open ? '240px' : '0px',
+          minWidth: 0,
+          maxWidth: open ? '240px' : '0px',
+          boxShadow: 'none',
+          overflowX: 'hidden',
+          transition: 'width 0.2s',
+        },
+        '& .RaLayout-appFrame': {
+          marginTop: '64px',
+        },
+        '& .RaLayout-contentWithSidebar': {
+          marginLeft: open ? '240px' : '0px',
+          minHeight: 'calc(100vh - 64px)',
+          width: open ? 'calc(100vw - 240px)' : '100vw',
+          maxWidth: 'none',
+          boxSizing: 'border-box',
+          backgroundColor: '#f5f5f5',
+          transition: 'margin-left 0.2s, width 0.2s',
+        },
+        '& .RaLayout-content': {
+          padding: 0,
+          backgroundColor: 'transparent',
+          width: '100%',
+          maxWidth: 'none',
+          boxSizing: 'border-box',
+        },
+        '& .RaMenu-root': {
+          marginTop: '24px',
+        },
+        '& .RaMenu-item': {
+          padding: '12px 28px',
+        },
+        '& .RaListToolbar-root': {
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px',
+        }
+      }}
+    />
+  );
+};
+
+const Footer = () => {
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
+  if (isLoginPage) return null;
+  return (
+    <Box sx={{ width: '100%', textAlign: 'center', py: 2, color: '#888', fontSize: 14, background: 'transparent' }}>
+      © 2025 QAScope - Gestión de pruebas automatizadas | v0.9
+    </Box>
+  );
+};
 
 function App() {
   return (
-    <BrowserRouter>
-      <Admin
-        authProvider={authProvider}
-        dataProvider={dataProvider as any}
-        dashboard={Dashboard}
-        layout={CustomLayout}
-        loginPage={LoginPage}
-      >
-        <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} />
-      </Admin>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Admin
+          authProvider={authProvider}
+          dataProvider={dataProvider as any}
+          layout={CustomLayout}
+          loginPage={LoginPage}
+          dashboard={Dashboard}
+          requireAuth
+        >
+          <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} icon={FactCheckIcon} />
+          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} />
+          <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
+          <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
+          <Resource name="playwright" list={PlaywrightPage} icon={PlayCircleIcon} options={{ label: 'Playwright' }} />
+        </Admin>
+        <Footer />
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

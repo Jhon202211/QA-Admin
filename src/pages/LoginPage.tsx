@@ -26,7 +26,21 @@ export default function LoginPage() {
   };
 
   return (
-    <Box minHeight="100vh" display="flex" flexDirection="column" alignItems="center" justifyContent="center" sx={{ background: 'radial-gradient(circle at 50% 30%, #23234a 0%, #181a32 100%)' }}>
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'radial-gradient(circle at 50% 30%, #23234a 0%, #181a32 100%)',
+        zIndex: 1
+      }}
+    >
       {/* Logo */}
       <Box 
         position="absolute"
