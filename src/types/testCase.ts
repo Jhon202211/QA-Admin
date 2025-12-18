@@ -1,6 +1,7 @@
 export type TestCaseStatus = 'active' | 'deprecated' | 'draft' | 'archived';
 export type TestCaseType = 'functional' | 'performance' | 'security' | 'integration' | 'e2e' | 'api';
 export type TestCasePriority = 'low' | 'medium' | 'high' | 'critical';
+export type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT';
 
 export interface TestStep {
   id: string;
@@ -18,6 +19,8 @@ export interface TestCase {
   caseKey: string;
   title: string;
   description: string;
+  testProject?: string; // Nuevo campo: Proyecto de prueba
+  category?: TestCaseCategory; // Nuevo campo: Categoría (Smoke, Funcionales, etc.)
   prerequisites?: string[];
   testData?: string;
   expectedResult?: string;

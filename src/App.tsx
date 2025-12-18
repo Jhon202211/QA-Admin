@@ -171,7 +171,7 @@ function App() {
           requireAuth
         >
           <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} icon={FactCheckIcon} />
-          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} />
+          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
           <Resource name="playwright" list={PlaywrightPage} icon={PlayCircleIcon} options={{ label: 'Playwright' }} />

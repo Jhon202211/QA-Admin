@@ -18,13 +18,24 @@ import {
   SimpleFormIterator,
   FileInput,
   FileField,
-  FunctionField
+  FunctionField,
+  useListContext
 } from 'react-admin';
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Typography, Chip, Tabs, Tab } from '@mui/material';
 import { RichTextInput } from 'ra-input-rich-text';
+import { HierarchicalView } from '../../components/TestCases/HierarchicalView';
+import { useState } from 'react';
 
 const caseFilters = [
   <TextInput label="Buscar por nombre" source="name" alwaysOn />,
+  <TextInput label="Buscar por proyecto" source="testProject" alwaysOn />,
+  <SelectInput label="Categoría" source="category" choices={[
+    { id: 'Smoke', name: 'Smoke' },
+    { id: 'Funcionales', name: 'Funcionales' },
+    { id: 'No Funcionales', name: 'No Funcionales' },
+    { id: 'Regresión', name: 'Regresión' },
+    { id: 'UAT', name: 'UAT' }
+  ]} alwaysOn />,
   <SelectInput label="Prioridad" source="priority" choices={[
     { id: 'Alta', name: 'Alta' },
     { id: 'Media', name: 'Media' },
@@ -52,72 +63,96 @@ const ListActions = () => (
   </TopToolbar>
 );
 
-export const TestCasesPage = () => (
-  <Box sx={{ paddingTop: '20px', paddingRight: '20px', paddingBottom: '20px' }}>
-    <Typography variant="h4" gutterBottom>
-      Casos de Prueba
-    </Typography>
-    <List
-      actions={<ListActions />}
-      empty={<Empty />}
-      filters={caseFilters}
-    >
-      <Datagrid>
-        <TextField source="caseKey" label="ID" />
-        <TextField source="name" label="Nombre" />
-        <TextField source="description" label="Descripción" />
-        <FunctionField
-          label="Prioridad"
-          render={record => (
-            <Chip
-              label={record.priority}
-              sx={{
-                backgroundColor:
-                  record.priority === 'Alta' ? '#E53935' :
-                  record.priority === 'Media' ? '#ff9800' :
-                  record.priority === 'Baja' ? '#4caf50' : '#bdbdbd',
-                color: '#fff',
-                fontWeight: 600
-              }}
-            />
-          )}
-        />
-        <FunctionField
-          label="Resultado de ejecución"
-          render={record => (
-            <Chip
-              label={
-                record.executionResult === 'passed' ? 'Aprobado' :
-                record.executionResult === 'failed' ? 'Fallido' :
-                record.executionResult === 'blocked' ? 'Bloqueado' :
-                record.executionResult === 'not_executed' ? 'No ejecutado' : record.executionResult
-              }
-              sx={{
-                backgroundColor:
-                  record.executionResult === 'passed' ? '#4caf50' :
-                  record.executionResult === 'failed' ? '#E53935' :
-                  record.executionResult === 'blocked' ? '#ff9800' :
-                  record.executionResult === 'not_executed' ? '#bdbdbd' : '#bdbdbd',
-                color: '#fff',
-                fontWeight: 600
-              }}
-            />
-          )}
-        />
-        <TextField source="status" label="Estado" />
-        <TextField source="module" label="Módulo" />
-        <TextField source="responsible" label="Responsable" />
-        <DateField source="updatedAt" label="Última actualización" />
-        <EditButton />
-        <DeleteButton />
-      </Datagrid>
-    </List>
-  </Box>
+const TestCasesList = () => (
+  <List
+    actions={<ListActions />}
+    empty={<Empty />}
+    filters={caseFilters}
+  >
+    <Datagrid>
+      <TextField source="caseKey" label="ID" />
+      <TextField source="name" label="Nombre" />
+      <TextField source="testProject" label="Proyecto" />
+      <TextField source="category" label="Categoría" />
+      <TextField source="description" label="Descripción" />
+      <FunctionField
+        label="Prioridad"
+        render={record => (
+          <Chip
+            label={record.priority}
+            sx={{
+              backgroundColor:
+                record.priority === 'Alta' ? '#E53935' :
+                record.priority === 'Media' ? '#ff9800' :
+                record.priority === 'Baja' ? '#4caf50' : '#bdbdbd',
+              color: '#fff',
+              fontWeight: 600
+            }}
+          />
+        )}
+      />
+      <FunctionField
+        label="Resultado de ejecución"
+        render={record => (
+          <Chip
+            label={
+              record.executionResult === 'passed' ? 'Aprobado' :
+              record.executionResult === 'failed' ? 'Fallido' :
+              record.executionResult === 'blocked' ? 'Bloqueado' :
+              record.executionResult === 'not_executed' ? 'No ejecutado' : record.executionResult
+            }
+            sx={{
+              backgroundColor:
+                record.executionResult === 'passed' ? '#4caf50' :
+                record.executionResult === 'failed' ? '#E53935' :
+                record.executionResult === 'blocked' ? '#ff9800' :
+                record.executionResult === 'not_executed' ? '#bdbdbd' : '#bdbdbd',
+              color: '#fff',
+              fontWeight: 600
+            }}
+          />
+        )}
+      />
+      <TextField source="status" label="Estado" />
+      <TextField source="module" label="Módulo" />
+      <TextField source="responsible" label="Responsable" />
+      <DateField source="updatedAt" label="Última actualización" />
+      <EditButton />
+      <DeleteButton />
+    </Datagrid>
+  </List>
 );
+
+export const TestCasesPage = () => {
+  const [tabValue, setTabValue] = useState(0);
+
+  return (
+    <Box sx={{ paddingTop: '20px', paddingRight: '20px', paddingBottom: '20px' }}>
+      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
+        Pruebas Manuales
+      </Typography>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+          <Tab label="Vista Jerárquica" />
+          <Tab label="Vista de Lista" />
+        </Tabs>
+      </Box>
+      {tabValue === 0 ? <HierarchicalView /> : <TestCasesList />}
+    </Box>
+  );
+};
 
 export const TestCaseCreate = (props: any) => (
   <Create {...props} title="Nuevo Caso de Prueba" redirect="list">
     <SimpleForm defaultValues={{ executionResult: 'not_executed' }}>
+      <TextInput source="testProject" label="Proyecto de Prueba" fullWidth required />
+      <SelectInput source="category" label="Categoría" choices={[
+        { id: 'Smoke', name: 'Smoke' },
+        { id: 'Funcionales', name: 'Funcionales' },
+        { id: 'No Funcionales', name: 'No Funcionales' },
+        { id: 'Regresión', name: 'Regresión' },
+        { id: 'UAT', name: 'UAT' }
+      ]} fullWidth required />
       <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth />
       <TextInput source="name" label="Nombre" fullWidth required />
       <TextInput source="description" label="Descripción" multiline fullWidth />
@@ -156,6 +191,14 @@ export const TestCaseCreate = (props: any) => (
 export const TestCaseEdit = (props: any) => (
   <Edit {...props} title="Editar Caso de Prueba">
     <SimpleForm>
+      <TextInput source="testProject" label="Proyecto de Prueba" fullWidth required />
+      <SelectInput source="category" label="Categoría" choices={[
+        { id: 'Smoke', name: 'Smoke' },
+        { id: 'Funcionales', name: 'Funcionales' },
+        { id: 'No Funcionales', name: 'No Funcionales' },
+        { id: 'Regresión', name: 'Regresión' },
+        { id: 'UAT', name: 'UAT' }
+      ]} fullWidth required />
       <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth />
       <TextInput source="name" label="Nombre" fullWidth required />
       <TextInput source="description" label="Descripción" multiline fullWidth />
