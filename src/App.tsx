@@ -1,7 +1,7 @@
 import { Admin, Resource, Layout, AppBar } from 'react-admin';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
-import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestResults/TestResultsPage';
+import { ResultsViewPage } from './pages/TestResults/ResultsViewPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box, IconButton, useTheme } from '@mui/material';
@@ -14,14 +14,16 @@ import './App.css';
 
 import { useSidebarState } from 'react-admin';
 
-import FactCheckIcon from '@mui/icons-material/FactCheck';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import SettingsIcon from '@mui/icons-material/Settings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
-import PlaywrightPage from './pages/AutomationRunner/PlaywrightPage';
+import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
 import { useThemeMode } from './contexts/ThemeContext';
 
 const CustomAppBar = (props: any) => {
@@ -170,11 +172,11 @@ function App() {
           dashboard={Dashboard}
           requireAuth
         >
-          <Resource name="test_results" list={TestResultsList} show={TestResultShow} edit={TestResultEdit} icon={FactCheckIcon} />
           <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
-          <Resource name="playwright" list={PlaywrightPage} icon={PlayCircleIcon} options={{ label: 'Playwright' }} />
+          <Resource name="test_results" list={ResultsViewPage} icon={AssessmentIcon} options={{ label: 'Vista de resultados' }} />
+          <Resource name="configuration" list={ConfigurationPage} icon={SettingsIcon} options={{ label: 'Configuración' }} />
         </Admin>
         <Footer />
       </BrowserRouter>
