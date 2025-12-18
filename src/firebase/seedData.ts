@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, Timestamp, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from './config';
 
 const testResults = [

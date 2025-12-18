@@ -2,7 +2,6 @@ import {
   List,
   Datagrid,
   TextField,
-  ChipField,
   TopToolbar,
   CreateButton,
   ExportButton,

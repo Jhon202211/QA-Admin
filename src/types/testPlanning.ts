@@ -1,4 +1,4 @@
-import { TestCase } from './testCase';
+import type { TestCase } from './testCase';
 
 export type TestPlanStatus = 'draft' | 'active' | 'in_progress' | 'completed' | 'cancelled';
 export type TestEnvironment = 'development' | 'qa' | 'staging' | 'production';

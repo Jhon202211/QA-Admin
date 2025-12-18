@@ -17,7 +17,7 @@ import {
   SelectArrayInput,
   useGetList
 } from 'react-admin';
-import { Box, Typography, Card, CardContent, Chip, Grid, IconButton, Modal, Paper, Divider, Button, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Box, Typography, Card, CardContent, Chip, Grid, Modal, Paper, Divider, Button, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
 import { useState, useEffect, useRef } from 'react';
 import { dataProvider } from '../../firebase/dataProvider';
@@ -190,14 +190,8 @@ function TestPlanningCardList() {
     return last.status;
   };
 
-  // Función para obtener el estado de un test manual
-  const getManualTestStatus = (testId: string) => {
-    const test = manualCases.find((t: any) => t.id === testId);
-    return test?.executionResult || null;
-  };
-
   // Polling para cada test automatizado
-  const startPolling = (executionId: string, testId: string, planId: string) => {
+  const startPolling = (executionId: string, testId: string, _planId: string) => {
     let attempts = 0;
     const maxAttempts = 60; // 5 minutos
     const interval = setInterval(async () => {

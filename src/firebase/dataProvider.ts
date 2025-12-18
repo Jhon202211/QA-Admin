@@ -8,15 +8,10 @@ import {
   doc,
   query,
   where,
-  orderBy,
-  limit,
-  startAfter,
   Timestamp,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { TestCase } from '../types/testCase';
-import type { TestPlan } from '../types/testPlanning';
 
 interface DataItem {
   id: string;
