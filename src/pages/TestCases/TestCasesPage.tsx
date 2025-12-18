@@ -145,7 +145,9 @@ export const TestCaseCreate = (props: any) => (
   <Create {...props} title="Nuevo Caso de Prueba" redirect="list">
     <SimpleForm defaultValues={{ executionResult: 'not_executed' }}>
       <TextInput source="testProject" label="Proyecto de Prueba" fullWidth required />
-      <SelectInput source="category" label="Categoría" choices={[
+      <TextInput source="module" label="Módulo / Feature" fullWidth />
+      <TextInput source="submodule" label="Submódulo / Flujo" fullWidth />
+      <SelectInput source="category" label="Tipo de Prueba" choices={[
         { id: 'Smoke', name: 'Smoke' },
         { id: 'Funcionales', name: 'Funcionales' },
         { id: 'No Funcionales', name: 'No Funcionales' },
@@ -191,7 +193,9 @@ export const TestCaseEdit = (props: any) => (
   <Edit {...props} title="Editar Caso de Prueba">
     <SimpleForm>
       <TextInput source="testProject" label="Proyecto de Prueba" fullWidth required />
-      <SelectInput source="category" label="Categoría" choices={[
+      <TextInput source="module" label="Módulo / Feature" fullWidth />
+      <TextInput source="submodule" label="Submódulo / Flujo" fullWidth />
+      <SelectInput source="category" label="Tipo de Prueba" choices={[
         { id: 'Smoke', name: 'Smoke' },
         { id: 'Funcionales', name: 'Funcionales' },
         { id: 'No Funcionales', name: 'No Funcionales' },

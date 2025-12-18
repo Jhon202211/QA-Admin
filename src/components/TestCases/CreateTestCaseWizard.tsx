@@ -53,14 +53,14 @@ const Step1Project = ({ formData, setFormData, isReadOnly }: WizardStepProps & {
 const Step2Category = ({ formData, setFormData, isReadOnly }: WizardStepProps & { isReadOnly?: boolean }) => (
   <Box sx={{ mt: 3 }}>
     <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 3 }}>
-      Paso 2: Seleccionar Categoría
+      Paso 4: Tipo de Prueba
     </Typography>
     <FormControl fullWidth sx={{ mb: 2 }} disabled={isReadOnly}>
-      <InputLabel>Categoría</InputLabel>
+      <InputLabel>Tipo de Prueba</InputLabel>
       <Select
         value={formData.category || ''}
         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-        label="Categoría"
+        label="Tipo de Prueba"
         required
       >
         <MenuItem value="Smoke">Smoke</MenuItem>
@@ -71,7 +71,7 @@ const Step2Category = ({ formData, setFormData, isReadOnly }: WizardStepProps & 
       </Select>
     </FormControl>
     <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
-      Selecciona la categoría a la que pertenece este caso de prueba.
+      Selecciona el tipo de prueba que mejor describe este caso.
     </Typography>
   </Box>
 );
@@ -81,6 +81,22 @@ const Step3TestCase = ({ formData, setFormData }: WizardStepProps) => (
     <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 3 }}>
       Paso 3: Detalles del Caso de Prueba
     </Typography>
+    <TextField
+      fullWidth
+      label="Módulo / Feature (Opcional)"
+      value={formData.module || ''}
+      onChange={(e) => setFormData({ ...formData, module: e.target.value })}
+      sx={{ mb: 2 }}
+      placeholder="Ej: Accesos, Reservas, Pagos"
+    />
+    <TextField
+      fullWidth
+      label="Submódulo / Flujo (Opcional)"
+      value={formData.submodule || ''}
+      onChange={(e) => setFormData({ ...formData, submodule: e.target.value })}
+      sx={{ mb: 2 }}
+      placeholder="Ej: Acceso QR, Reserva de sala"
+    />
     <TextField
       fullWidth
       label="ID del Caso (ej: CP001)"
@@ -151,6 +167,8 @@ export const CreateTestCaseWizard = ({
   const [activeStep, setActiveStep] = useState(getInitialStep());
   const [formData, setFormData] = useState({
     testProject: initialProject || '',
+    module: '',
+    submodule: '',
     category: initialCategory || '',
     caseKey: '',
     name: '',
@@ -169,6 +187,8 @@ export const CreateTestCaseWizard = ({
       setActiveStep(step);
       setFormData({
         testProject: initialProject || '',
+        module: '',
+        submodule: '',
         category: initialCategory || '',
         caseKey: '',
         name: '',
@@ -211,6 +231,8 @@ export const CreateTestCaseWizard = ({
       setActiveStep(0);
       setFormData({
         testProject: initialProject || '',
+        module: '',
+        submodule: '',
         category: initialCategory || '',
         caseKey: '',
         name: '',
@@ -227,15 +249,17 @@ export const CreateTestCaseWizard = ({
   const handleClose = () => {
     setActiveStep(0);
     setFormData({
-      testProject: initialProject || '',
-      category: initialCategory || '',
-      caseKey: '',
-      name: '',
-      description: '',
-      priority: 'Media',
-      executionResult: 'not_executed',
-      status: 'Activo',
-    });
+        testProject: initialProject || '',
+        module: '',
+        submodule: '',
+        category: initialCategory || '',
+        caseKey: '',
+        name: '',
+        description: '',
+        priority: 'Media',
+        executionResult: 'not_executed',
+        status: 'Activo',
+      });
     onClose();
   };
 

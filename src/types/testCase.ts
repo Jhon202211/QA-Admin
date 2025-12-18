@@ -17,15 +17,17 @@ export interface TestStep {
 export interface TestCase {
   id: string;
   caseKey: string;
-  title: string;
+  name: string; // Nombre del caso de prueba
+  title?: string; // Alias para compatibilidad
   description: string;
-  testProject?: string; // Nuevo campo: Proyecto de prueba
-  category?: TestCaseCategory; // Nuevo campo: Categoría (Smoke, Funcionales, etc.)
+  testProject?: string; // Proyecto de prueba
+  module?: string; // Módulo / Feature
+  submodule?: string; // Submódulo / Flujo
+  category?: TestCaseCategory; // Categoría (Smoke, Funcionales, etc.) - ahora mapea a "Tipo de prueba"
   prerequisites?: string[];
   testData?: string;
   expectedResult?: string;
   actualResult?: string;
-  module?: string;
   responsible?: string;
   executionResult?: 'passed' | 'failed' | 'blocked' | 'not_executed';
   notes?: string;
@@ -44,4 +46,17 @@ export interface TestCase {
   attachments?: string[];
   automated: boolean;
   automationScript?: string;
+}
+
+// Interfaz para la respuesta del agente IA
+export interface AITestCaseSuggestion {
+  module: string;
+  submodule: string;
+  test_type: string; // Mapea a category
+  test_cases: Array<{
+    title: string;
+    preconditions: string[];
+    steps: string[];
+    expected_result: string;
+  }>;
 } 

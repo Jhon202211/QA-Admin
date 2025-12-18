@@ -4,10 +4,12 @@ import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useNavigate } from 'react-router-dom';
 import { useGetList, useRefresh } from 'react-admin';
 import { useState } from 'react';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
+import { AIAgent } from './AIAgent';
 
 type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT';
 
@@ -26,6 +28,7 @@ export const HierarchicalView = () => {
   const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [aiAgentOpen, setAiAgentOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<TestCaseCategory | undefined>();
   
@@ -35,7 +38,7 @@ export const HierarchicalView = () => {
     sort: { field: 'testProject', order: 'ASC' }
   });
 
-  // Agrupar casos de prueba por proyecto y categoría
+  // Agrupar casos de prueba por proyecto y categoría (jerarquía original)
   const groupedData = testCases.reduce((acc: any, testCase: TestCase) => {
     const project = testCase.testProject || 'Sin proyecto';
     const category = testCase.category || 'Sin categoría';
@@ -93,26 +96,45 @@ export const HierarchicalView = () => {
         <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
           Pruebas Manuales
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setSelectedProject(undefined);
-            setSelectedCategory(undefined);
-            setWizardOpen(true);
-          }}
-          sx={{
-            backgroundColor: '#FF6B35',
-            color: '#FFFFFF',
-            textTransform: 'none',
-            fontWeight: 600,
-            '&:hover': {
-              backgroundColor: '#E55A2B'
-            }
-          }}
-        >
-          Nuevo Caso de Prueba
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={() => setAiAgentOpen(true)}
+            sx={{
+              borderColor: '#FF6B35',
+              color: '#FF6B35',
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': {
+                borderColor: '#E55A2B',
+                backgroundColor: 'rgba(255, 107, 53, 0.05)'
+              }
+            }}
+          >
+            Agente IA
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setSelectedProject(undefined);
+              setSelectedCategory(undefined);
+              setWizardOpen(true);
+            }}
+            sx={{
+              backgroundColor: '#FF6B35',
+              color: '#FFFFFF',
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': {
+                backgroundColor: '#E55A2B'
+              }
+            }}
+          >
+            Nuevo Caso de Prueba
+          </Button>
+        </Box>
       </Box>
 
       {Object.keys(groupedData).length === 0 ? (
@@ -245,6 +267,13 @@ export const HierarchicalView = () => {
                               <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }}>
                                 {testCase.caseKey} - {testCase.name}
                               </Typography>
+                              {(testCase.module || testCase.submodule) && (
+                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                                  {testCase.module && testCase.submodule 
+                                    ? `${testCase.module} > ${testCase.submodule}`
+                                    : testCase.module || testCase.submodule}
+                                </Typography>
+                              )}
                             </Box>
                             <Chip
                               label={testCase.priority || 'Sin prioridad'}
@@ -296,6 +325,14 @@ export const HierarchicalView = () => {
         }}
         initialProject={selectedProject}
         initialCategory={selectedCategory}
+      />
+      <AIAgent
+        open={aiAgentOpen}
+        onClose={() => {
+          setAiAgentOpen(false);
+          refresh();
+        }}
+        onCasesCreated={refresh}
       />
     </Box>
   );

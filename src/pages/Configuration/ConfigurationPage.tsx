@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Box,
   Typography,
@@ -66,12 +67,30 @@ export const ConfigurationPage = () => {
     jiraProjectKey: '',
     githubIntegration: false,
     githubRepo: '',
+    
+    // IA / ChatGPT
+    openaiEnabled: false,
+    openaiApiKey: '',
+    openaiModel: 'gpt-4o-mini',
   });
 
   const handleSave = () => {
-    // Aquí se guardaría la configuración en Firebase o el backend
+    // Guardar configuración en localStorage
+    localStorage.setItem('qaScopeConfig', JSON.stringify(config));
     notify('Configuración guardada exitosamente', { type: 'success' });
   };
+
+  // Cargar configuración al iniciar
+  React.useEffect(() => {
+    const savedConfig = localStorage.getItem('qaScopeConfig');
+    if (savedConfig) {
+      try {
+        setConfig(JSON.parse(savedConfig));
+      } catch (e) {
+        console.error('Error al cargar configuración:', e);
+      }
+    }
+  }, []);
 
   const GeneralSettings = () => (
     <Grid container spacing={3}>
@@ -336,6 +355,52 @@ export const ConfigurationPage = () => {
               disabled={!config.jiraIntegration}
               placeholder="PROJ"
             />
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
+              Integración con ChatGPT (OpenAI)
+            </Typography>
+            <Divider sx={{ my: 2 }} />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={config.openaiEnabled}
+                  onChange={(e) => setConfig({ ...config, openaiEnabled: e.target.checked })}
+                />
+              }
+              label="Activar Agente IA con ChatGPT"
+              sx={{ mb: 2, display: 'block' }}
+            />
+            <TextField
+              fullWidth
+              type="password"
+              label="API Key de OpenAI"
+              value={config.openaiApiKey}
+              onChange={(e) => setConfig({ ...config, openaiApiKey: e.target.value })}
+              disabled={!config.openaiEnabled}
+              sx={{ mb: 2 }}
+              placeholder="sk-..."
+              helperText="Tu API key se guarda localmente y nunca se comparte"
+            />
+            <FormControl fullWidth>
+              <InputLabel>Modelo de OpenAI</InputLabel>
+              <Select
+                value={config.openaiModel}
+                onChange={(e) => setConfig({ ...config, openaiModel: e.target.value })}
+                label="Modelo de OpenAI"
+                disabled={!config.openaiEnabled}
+              >
+                <MenuItem value="gpt-4o-mini">GPT-4o Mini (Recomendado)</MenuItem>
+                <MenuItem value="gpt-4o">GPT-4o</MenuItem>
+                <MenuItem value="gpt-4-turbo">GPT-4 Turbo</MenuItem>
+                <MenuItem value="gpt-3.5-turbo">GPT-3.5 Turbo</MenuItem>
+              </Select>
+            </FormControl>
           </CardContent>
         </Card>
       </Grid>
