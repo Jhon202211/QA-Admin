@@ -73,7 +73,7 @@ export const TestCasesPage = () => (
               label={record.priority}
               sx={{
                 backgroundColor:
-                  record.priority === 'Alta' ? '#e53935' :
+                  record.priority === 'Alta' ? '#E53935' :
                   record.priority === 'Media' ? '#ff9800' :
                   record.priority === 'Baja' ? '#4caf50' : '#bdbdbd',
                 color: '#fff',
@@ -95,7 +95,7 @@ export const TestCasesPage = () => (
               sx={{
                 backgroundColor:
                   record.executionResult === 'passed' ? '#4caf50' :
-                  record.executionResult === 'failed' ? '#e53935' :
+                  record.executionResult === 'failed' ? '#E53935' :
                   record.executionResult === 'blocked' ? '#ff9800' :
                   record.executionResult === 'not_executed' ? '#bdbdbd' : '#bdbdbd',
                 color: '#fff',

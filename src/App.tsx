@@ -4,7 +4,7 @@ import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { TestResultsList, TestResultShow, TestResultEdit } from './pages/TestResults/TestResultsPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
-import { Typography, Box } from '@mui/material';
+import { Typography, Box, IconButton, useTheme } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import isotype from './assets/isotype white small.svg';
 import { TestCasesPage, TestCaseCreate, TestCaseEdit } from './pages/TestCases/TestCasesPage';
@@ -18,34 +18,47 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import PlaywrightPage from './pages/AutomationRunner/PlaywrightPage';
+import { useThemeMode } from './contexts/ThemeContext';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
+  const { mode, toggleMode } = useThemeMode();
+  const theme = useTheme();
 
   if (isLoginPage) {
     return null;
   }
 
   return (
-    <AppBar {...props} color="primary" sx={{ backgroundColor: '#4B3C9D', color: '#FFFFFF' }}>
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+    <AppBar {...props} color="primary" sx={{ backgroundColor: '#2B2D42', color: '#FFFFFF', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <img src={isotype} alt="QAScope Logo" style={{ height: '32px' }} />
           <Typography
             variant="h6"
             color="inherit"
             sx={{ 
-              fontWeight: 500,
+              fontWeight: 600,
               fontSize: '1.25rem',
-              ml: 1.5
+              ml: 1.5,
+              fontFamily: 'Inter, sans-serif'
             }}
           >
             QAScope
           </Typography>
         </Box>
+        <IconButton
+          onClick={toggleMode}
+          sx={{ color: '#FFFFFF' }}
+          aria-label="toggle theme"
+        >
+          {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+        </IconButton>
       </Box>
     </AppBar>
   );
@@ -53,6 +66,9 @@ const CustomAppBar = (props: any) => {
 
 const CustomLayout = (props: any) => {
   const [open] = useSidebarState();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  
   return (
     <Layout
       {...props}
@@ -61,7 +77,7 @@ const CustomLayout = (props: any) => {
         '& .RaSidebar-fixed': {
           position: 'fixed',
           height: 'calc(100vh - 64px)',
-          backgroundColor: '#f5f5f5',
+          backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5',
           borderRight: 'none',
           left: 0,
           top: '64px',
@@ -81,7 +97,7 @@ const CustomLayout = (props: any) => {
           width: open ? 'calc(100vw - 240px)' : '100vw',
           maxWidth: 'none',
           boxSizing: 'border-box',
-          backgroundColor: '#f5f5f5',
+          backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5',
           transition: 'margin-left 0.2s, width 0.2s',
         },
         '& .RaLayout-content': {
@@ -96,6 +112,18 @@ const CustomLayout = (props: any) => {
         },
         '& .RaMenu-item': {
           padding: '12px 28px',
+          color: isDark ? '#FFFFFF' : '#2B2D42',
+          fontWeight: 500,
+          '&:hover': {
+            backgroundColor: 'rgba(255, 107, 53, 0.1)',
+            color: '#FF6B35',
+          },
+          '&[aria-current="page"]': {
+            color: '#FF6B35',
+            fontWeight: 600,
+            borderLeft: '3px solid #FF6B35',
+            backgroundColor: 'rgba(255, 107, 53, 0.05)',
+          },
         },
         '& .RaListToolbar-root': {
           display: 'flex',
@@ -111,10 +139,21 @@ const CustomLayout = (props: any) => {
 const Footer = () => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  
   if (isLoginPage) return null;
   return (
-    <Box sx={{ width: '100%', textAlign: 'center', py: 2, color: '#888', fontSize: 14, background: 'transparent' }}>
-      © 2025 QAScope - Gestión de pruebas automatizadas | v0.9
+    <Box sx={{ 
+      width: '100%', 
+      textAlign: 'center', 
+      py: 2, 
+      color: isDark ? '#B0B0B0' : '#6B6B6B', 
+      fontSize: 14, 
+      background: 'transparent', 
+      fontFamily: 'Inter, sans-serif' 
+    }}>
+      © 2025 QAScope - Suite de pruebas | v0.9
     </Box>
   );
 };

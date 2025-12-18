@@ -329,22 +329,22 @@ function TestPlanningCardList() {
                 </Box>
                 <Box display="flex" alignItems="center" gap={2} mb={2} sx={{ background: '#fff' }}>
                   <Box display="flex" alignItems="center" gap={0.5} sx={{ background: '#fff' }}>
-                    <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D', background: '#fff' }} />
+                    <CalendarIcon fontSize="small" sx={{ color: '#FF6B35', background: '#fff' }} />
                     <Typography variant="caption" color="text.secondary" sx={{ background: '#fff' }}>
                       Inicio: <DateField source="startDate" record={plan} showTime={false} />
                     </Typography>
                   </Box>
                   <Box display="flex" alignItems="center" gap={0.5} sx={{ background: '#fff' }}>
-                    <CalendarIcon fontSize="small" sx={{ color: '#4B3C9D', background: '#fff' }} />
+                    <CalendarIcon fontSize="small" sx={{ color: '#FF6B35', background: '#fff' }} />
                     <Typography variant="caption" color="text.secondary" sx={{ background: '#fff' }}>
                       Fin: <DateField source="endDate" record={plan} showTime={false} />
                     </Typography>
                   </Box>
                 </Box>
                 <Box display="flex" gap={2} mt={2} sx={{ background: '#fff' }}>
-                  <EditButton record={plan} label="Editar" sx={{ color: '#4B3C9D', fontWeight: 600, background: '#fff' }} />
-                  <DeleteButton record={plan} label="Eliminar" sx={{ color: '#e53935', fontWeight: 600, background: '#fff' }} />
-                  <Button variant="contained" color="primary" sx={{ ml: 'auto', fontWeight: 600 }} onClick={e => { e.stopPropagation(); handleOpenRun(plan); }}>Ejecutar plan</Button>
+                  <EditButton record={plan} label="Editar" sx={{ color: '#FF6B35', fontWeight: 600, background: '#fff' }} />
+                  <DeleteButton record={plan} label="Eliminar" sx={{ color: '#E53935', fontWeight: 600, background: '#fff' }} />
+                  <Button variant="contained" color="primary" sx={{ ml: 'auto', fontWeight: 600, backgroundColor: '#FF6B35', '&:hover': { backgroundColor: '#E55A2B' } }} onClick={e => { e.stopPropagation(); handleOpenRun(plan); }}>Ejecutar plan</Button>
                 </Box>
               </CardContent>
             </Card>
@@ -369,7 +369,7 @@ function TestPlanningCardList() {
                         <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === 'failed' && (
-                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />
+                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === null && (
                         <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
@@ -391,7 +391,7 @@ function TestPlanningCardList() {
                           label={status === 'passed' ? 'Pasó' : status === 'failed' ? 'Falló' : status}
                           sx={{
                             ml: 2,
-                            backgroundColor: status === 'passed' ? '#4caf50' : status === 'failed' ? '#e53935' : '#bdbdbd',
+                            backgroundColor: status === 'passed' ? '#4caf50' : status === 'failed' ? '#E53935' : '#bdbdbd',
                             color: '#fff',
                             fontWeight: 600
                           }}
@@ -432,7 +432,7 @@ function TestPlanningCardList() {
                         <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === 'failed' && (
-                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />
+                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === null && (
                         <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
@@ -462,7 +462,7 @@ function TestPlanningCardList() {
                         size="small"
                       >
                         <ToggleButton value="passed" sx={{ color: '#4caf50', borderColor: '#4caf50' }}>Pasó</ToggleButton>
-                        <ToggleButton value="failed" sx={{ color: '#e53935', borderColor: '#e53935' }}>Falló</ToggleButton>
+                        <ToggleButton value="failed" sx={{ color: '#E53935', borderColor: '#E53935' }}>Falló</ToggleButton>
                       </ToggleButtonGroup>
                       {status === 'passed' && <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />}
                       {status === 'failed' && <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />}

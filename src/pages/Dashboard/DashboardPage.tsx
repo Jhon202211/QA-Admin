@@ -1,4 +1,4 @@
-import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button } from '@mui/material';
+import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText, Button, useTheme } from '@mui/material';
 import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import jsPDF from 'jspdf';
@@ -10,9 +10,12 @@ import { es } from 'date-fns/locale';
 import { useState } from 'react';
 import { differenceInCalendarDays, startOfDay, endOfDay, format } from 'date-fns';
 
-const COLORS = ['#3CCF91', '#e53935'];
+const COLORS = ['#FF6B35', '#4A90E2'];
 
 export const Dashboard = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  
   const { data: testResults = [], total } = useGetList('test_results', {
     pagination: { page: 1, perPage: 1000 },
     sort: { field: 'date', order: 'DESC' }
@@ -77,15 +80,22 @@ export const Dashboard = () => {
   }
 
   return (
-    <Box sx={{ padding: '20px' }}>
+    <Box sx={{ padding: '20px', backgroundColor: 'transparent' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} width="100%">
-        <Typography variant="h4" gutterBottom sx={{ color: '#2B2D42' }}>
+        <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
           Dashboard
         </Typography>
         <Button 
           variant="contained" 
           color="primary" 
-          sx={{ backgroundColor: '#4B3C9D', color: '#fff', '&:hover': { backgroundColor: '#3a2e7a' } }}
+          sx={{ 
+            backgroundColor: '#FF6B35', 
+            color: '#fff', 
+            textTransform: 'none',
+            fontWeight: 600,
+            borderRadius: '8px',
+            '&:hover': { backgroundColor: '#E55A2B' } 
+          }}
           onClick={async () => {
             const input = document.getElementById('dashboard-pdf-export');
             if (!input) return;
@@ -186,10 +196,10 @@ export const Dashboard = () => {
                       type="monotone" 
                       dataKey="ejecuciones" 
                       name="Ejecuciones" 
-                      stroke="#4B3C9D" 
+                      stroke="#FF6B35" 
                       strokeWidth={2} 
-                      dot={{ r: 4 }}
-                      activeDot={{ r: 6, stroke: '#4B3C9D', strokeWidth: 2 }}
+                      dot={{ r: 4, fill: '#FF6B35' }}
+                      activeDot={{ r: 6, stroke: '#FF6B35', strokeWidth: 2, fill: '#FFFFFF' }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -202,50 +212,50 @@ export const Dashboard = () => {
       <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
               % Éxito
             </Typography>
-            <Typography variant="h5" sx={{ color: '#3CCF91' }}>
+            <Typography variant="h5" sx={{ color: '#3CCF91', fontWeight: 600 }}>
               {successRate}%
             </Typography>
           </CardContent>
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
               Prom. Duración (s)
             </Typography>
-            <Typography variant="h5">
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {avgDuration}
             </Typography>
           </CardContent>
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
               Total de Pruebas
             </Typography>
-            <Typography variant="h5">
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {total}
             </Typography>
           </CardContent>
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
               Exitosas
             </Typography>
-            <Typography variant="h5" sx={{ color: '#3CCF91' }}>
+            <Typography variant="h5" sx={{ color: '#3CCF91', fontWeight: 600 }}>
               {passedTests}
             </Typography>
           </CardContent>
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: '#2B2D42', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
               Fallidas
             </Typography>
-            <Typography variant="h5" sx={{ color: '#e53935' }}>
+            <Typography variant="h5" sx={{ color: '#E53935', fontWeight: 600 }}>
               {failedTests}
             </Typography>
           </CardContent>
@@ -253,7 +263,7 @@ export const Dashboard = () => {
       </Box>
       {/* Lista de pruebas recientes */}
       <Box mt={4}>
-        <Typography variant="h6" sx={{ color: '#2B2D42' }}>Pruebas Recientes</Typography>
+        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>Pruebas Recientes</Typography>
         <List>
           {recentTests.map((test, idx) => (
             <ListItem key={idx} divider>
@@ -267,7 +277,7 @@ export const Dashboard = () => {
       </Box>
       {/* Lista de errores recientes */}
       <Box mt={4}>
-        <Typography variant="h6" sx={{ color: '#e53935' }}>Errores Recientes</Typography>
+        <Typography variant="h6" sx={{ color: '#E53935', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>Errores Recientes</Typography>
         <List>
           {recentErrors.length === 0 && <ListItem><ListItemText primary="Sin errores recientes" /></ListItem>}
           {recentErrors.map((test, idx) => (
