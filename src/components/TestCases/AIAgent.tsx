@@ -111,7 +111,6 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     setUserStory('');
     setSuggestion(null);
     setError(null);
-    setEditingCase(null);
     onClose();
   };
 

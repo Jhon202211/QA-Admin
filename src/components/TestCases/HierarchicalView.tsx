@@ -10,18 +10,7 @@ import { useGetList, useRefresh } from 'react-admin';
 import { useState } from 'react';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
 import { AIAgent } from './AIAgent';
-
-type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT';
-
-interface TestCase {
-  id: string;
-  caseKey: string;
-  name: string;
-  testProject?: string;
-  category?: TestCaseCategory;
-  priority?: string;
-  executionResult?: string;
-}
+import type { TestCase, TestCaseCategory } from '../../types/testCase';
 
 export const HierarchicalView = () => {
   const theme = useTheme();
@@ -280,9 +269,9 @@ export const HierarchicalView = () => {
                               size="small"
                               sx={{
                                 backgroundColor:
-                                  testCase.priority === 'Alta' ? '#E53935' :
-                                  testCase.priority === 'Media' ? '#ff9800' :
-                                  testCase.priority === 'Baja' ? '#4caf50' : '#bdbdbd',
+                                  testCase.priority === 'high' || testCase.priority === 'critical' ? '#E53935' :
+                                  testCase.priority === 'medium' ? '#ff9800' :
+                                  testCase.priority === 'low' ? '#4caf50' : '#bdbdbd',
                                 color: '#fff',
                                 fontWeight: 600,
                               }}

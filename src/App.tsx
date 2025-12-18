@@ -4,7 +4,7 @@ import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { ResultsViewPage } from './pages/TestResults/ResultsViewPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
-import { Typography, Box, IconButton, useTheme } from '@mui/material';
+import { Typography, Box, useTheme } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import isotype from './assets/isotype white small.svg';
 import { TestCasesPage, TestCaseCreate, TestCaseEdit } from './pages/TestCases/TestCasesPage';
@@ -21,7 +21,6 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
-import { useThemeMode } from './contexts/ThemeContext';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();

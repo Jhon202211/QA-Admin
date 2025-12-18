@@ -30,12 +30,12 @@ export const authProvider = {
       // Configurar persistencia antes de verificar
       await setPersistence(auth, browserLocalPersistence);
       
-      // Esperar a que Firebase inicialice completamente y verificar estado de autenticación
-      return new Promise((resolve, reject) => {
+      // Esperar a que Firebase inicialize completamente y verificar estado de autenticación
+      return new Promise<void>((resolve, reject) => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
           unsubscribe();
           if (user) {
-            resolve(undefined);
+            resolve();
           } else {
             reject();
           }
@@ -45,7 +45,7 @@ export const authProvider = {
         setTimeout(() => {
           unsubscribe();
           if (auth.currentUser) {
-            resolve(undefined);
+            resolve();
           } else {
             reject();
           }
