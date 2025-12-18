@@ -12,16 +12,20 @@ import {
   CardContent,
   CircularProgress,
   Alert,
-  Chip,
   useTheme,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useCreate, useNotify } from 'react-admin';
+import EditIcon from '@mui/icons-material/Edit';
+import { useCreate, useNotify, useGetList } from 'react-admin';
 import { generateTestCasesFromUserStory } from '../../services/aiService';
 import type { AITestCaseSuggestion } from '../../services/aiService';
 
@@ -41,6 +45,21 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<AITestCaseSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Estados para campos editables de ubicación
+  const [editableProject, setEditableProject] = useState<string>('QAScope');
+  const [editableModule, setEditableModule] = useState<string>('');
+  const [editableSubmodule, setEditableSubmodule] = useState<string>('');
+  const [editableTestType, setEditableTestType] = useState<string>('Funcionales');
+  
+  // Obtener proyectos existentes para autocomplete
+  const { data: existingTestCases = [] } = useGetList('test_cases', {
+    pagination: { page: 1, perPage: 1000 },
+  });
+  
+  const existingProjects = Array.from(
+    new Set(existingTestCases.map((tc: any) => tc.testProject).filter(Boolean))
+  ).sort();
 
   const handleGenerate = async () => {
     if (!userStory.trim()) {
@@ -55,6 +74,11 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     try {
       const result = await generateTestCasesFromUserStory(userStory);
       setSuggestion(result);
+      // Inicializar campos editables con valores sugeridos
+      setEditableProject('QAScope');
+      setEditableModule(result.module);
+      setEditableSubmodule(result.submodule);
+      setEditableTestType(result.test_type);
       notify('Casos de prueba generados exitosamente', { type: 'success' });
     } catch (err: any) {
       const errorMessage = err.message || 'Error al generar casos de prueba';
@@ -68,6 +92,24 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
 
   const handleCreateCases = async () => {
     if (!suggestion) return;
+    
+    // Validar campos requeridos
+    if (!editableProject.trim()) {
+      notify('Por favor ingresa un nombre de proyecto', { type: 'warning' });
+      return;
+    }
+    if (!editableModule.trim()) {
+      notify('Por favor ingresa un módulo', { type: 'warning' });
+      return;
+    }
+    if (!editableSubmodule.trim()) {
+      notify('Por favor ingresa un submódulo', { type: 'warning' });
+      return;
+    }
+    if (!editableTestType) {
+      notify('Por favor selecciona un tipo de prueba', { type: 'warning' });
+      return;
+    }
 
     try {
       for (const testCase of suggestion.test_cases) {
@@ -75,10 +117,10 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
           data: {
             name: testCase.title,
             description: `Caso generado automáticamente desde historia de usuario`,
-            testProject: 'QAScope', // Proyecto por defecto
-            module: suggestion.module,
-            submodule: suggestion.submodule,
-            category: suggestion.test_type as any,
+            testProject: editableProject.trim(),
+            module: editableModule.trim(),
+            submodule: editableSubmodule.trim(),
+            category: editableTestType as any,
             prerequisites: testCase.preconditions,
             steps: testCase.steps.map((step, index) => ({
               id: `step-${index}`,
@@ -114,19 +156,13 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     setUserStory('');
     setSuggestion(null);
     setError(null);
+    setEditableProject('QAScope');
+    setEditableModule('');
+    setEditableSubmodule('');
+    setEditableTestType('Funcionales');
     onClose();
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      'Smoke': '#FF6B35',
-      'Funcionales': '#3CCF91',
-      'No Funcionales': '#2196F3',
-      'Regresión': '#FF9800',
-      'UAT': '#9C27B0',
-    };
-    return colors[category] || '#6B6B6B';
-  };
 
   return (
     <Dialog
@@ -193,48 +229,86 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
 
           {suggestion && (
             <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, mb: 2 }}>
-                📁 Ubicación Propuesta
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                  📁 Ubicación Propuesta
+                </Typography>
+                <EditIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
+              </Box>
               <Card sx={{ backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5', mb: 3 }}>
                 <CardContent>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                        Proyecto:
-                      </Typography>
-                      <Chip label="QAScope" size="small" sx={{ backgroundColor: '#FF6B35', color: '#FFFFFF' }} />
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                        Módulo:
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
-                        {suggestion.module}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                        Submódulo:
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: 'text.primary' }}>
-                        {suggestion.submodule}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                        Tipo de Prueba:
-                      </Typography>
-                      <Chip
-                        label={suggestion.test_type}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box>
+                      <TextField
+                        fullWidth
+                        label="Proyecto"
+                        value={editableProject}
+                        onChange={(e) => setEditableProject(e.target.value)}
                         size="small"
+                        required
+                        helperText="Puedes seleccionar un proyecto existente o crear uno nuevo"
                         sx={{
-                          backgroundColor: getCategoryColor(suggestion.test_type),
-                          color: '#FFFFFF',
-                          fontWeight: 600
+                          '& .MuiOutlinedInput-root': {
+                            backgroundColor: isDark ? '#2B2D42' : '#FFFFFF',
+                          }
+                        }}
+                        inputProps={{
+                          list: 'projects-list'
                         }}
                       />
+                      {existingProjects.length > 0 && (
+                        <datalist id="projects-list">
+                          {existingProjects.map((project: string) => (
+                            <option key={project} value={project} />
+                          ))}
+                        </datalist>
+                      )}
                     </Box>
+                    <TextField
+                      fullWidth
+                      label="Módulo / Feature"
+                      value={editableModule}
+                      onChange={(e) => setEditableModule(e.target.value)}
+                      size="small"
+                      required
+                      placeholder={suggestion.module}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: isDark ? '#2B2D42' : '#FFFFFF',
+                        }
+                      }}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Submódulo / Flujo"
+                      value={editableSubmodule}
+                      onChange={(e) => setEditableSubmodule(e.target.value)}
+                      size="small"
+                      required
+                      placeholder={suggestion.submodule}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: isDark ? '#2B2D42' : '#FFFFFF',
+                        }
+                      }}
+                    />
+                    <FormControl fullWidth size="small" required>
+                      <InputLabel>Tipo de Prueba</InputLabel>
+                      <Select
+                        value={editableTestType}
+                        onChange={(e) => setEditableTestType(e.target.value)}
+                        label="Tipo de Prueba"
+                        sx={{
+                          backgroundColor: isDark ? '#2B2D42' : '#FFFFFF',
+                        }}
+                      >
+                        <MenuItem value="Smoke">Smoke</MenuItem>
+                        <MenuItem value="Funcionales">Funcionales</MenuItem>
+                        <MenuItem value="No Funcionales">No Funcionales</MenuItem>
+                        <MenuItem value="Regresión">Regresión</MenuItem>
+                        <MenuItem value="UAT">UAT</MenuItem>
+                      </Select>
+                    </FormControl>
                   </Box>
                 </CardContent>
               </Card>
