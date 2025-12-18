@@ -1,5 +1,5 @@
 import { auth } from './config';
-import { signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged } from 'firebase/auth';
 
 export const authProvider = {
   login: async ({ username, password }: { username: string; password: string }) => {
@@ -27,9 +27,30 @@ export const authProvider = {
   },
   checkAuth: async () => {
     try {
-      // Esperar a que Firebase inicialice completamente
-      await new Promise(resolve => setTimeout(resolve, 100));
-      return auth.currentUser ? Promise.resolve() : Promise.reject();
+      // Configurar persistencia antes de verificar
+      await setPersistence(auth, browserLocalPersistence);
+      
+      // Esperar a que Firebase inicialice completamente y verificar estado de autenticación
+      return new Promise((resolve, reject) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          unsubscribe();
+          if (user) {
+            resolve(undefined);
+          } else {
+            reject();
+          }
+        });
+        
+        // Timeout de seguridad
+        setTimeout(() => {
+          unsubscribe();
+          if (auth.currentUser) {
+            resolve(undefined);
+          } else {
+            reject();
+          }
+        }, 2000);
+      });
     } catch (error) {
       console.error('Error en checkAuth:', error);
       return Promise.reject();

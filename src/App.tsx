@@ -19,8 +19,6 @@ import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
 import { useThemeMode } from './contexts/ThemeContext';
@@ -28,7 +26,6 @@ import { useThemeMode } from './contexts/ThemeContext';
 const CustomAppBar = (props: any) => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
-  const { mode, toggleMode } = useThemeMode();
 
   if (isLoginPage) {
     return null;
@@ -52,13 +49,6 @@ const CustomAppBar = (props: any) => {
             QAScope
           </Typography>
         </Box>
-        <IconButton
-          onClick={toggleMode}
-          sx={{ color: '#FFFFFF' }}
-          aria-label="toggle theme"
-        >
-          {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-        </IconButton>
       </Box>
     </AppBar>
   );
@@ -153,7 +143,7 @@ const Footer = () => {
       background: 'transparent', 
       fontFamily: 'Inter, sans-serif' 
     }}>
-      © 2025 QAScope - Suite de pruebas | v0.9
+      © 2025 QAScope - Suite de pruebas | v1.0Cloud
     </Box>
   );
 };
