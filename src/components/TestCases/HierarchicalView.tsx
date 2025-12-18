@@ -1,12 +1,13 @@
-import { Box, Typography, Accordion, AccordionSummary, AccordionDetails, Chip, IconButton, useTheme, Button, Tooltip } from '@mui/material';
+import { Box, Typography, Accordion, AccordionSummary, AccordionDetails, Chip, IconButton, useTheme, Button, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useNavigate } from 'react-router-dom';
-import { useGetList, useRefresh } from 'react-admin';
+import { useGetList, useRefresh, useUpdateMany, useDeleteMany, useNotify } from 'react-admin';
 import { useState } from 'react';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
 import { AIAgent } from './AIAgent';
@@ -16,10 +17,19 @@ export const HierarchicalView = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
+  const notify = useNotify();
+  const [updateMany] = useUpdateMany();
+  const [deleteMany] = useDeleteMany();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [aiAgentOpen, setAiAgentOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<TestCaseCategory | undefined>();
+  
+  // Estados para editar/borrar
+  const [editProjectDialog, setEditProjectDialog] = useState<{ open: boolean; project: string; newName: string }>({ open: false, project: '', newName: '' });
+  const [editCategoryDialog, setEditCategoryDialog] = useState<{ open: boolean; project: string; category: string; newCategory: string }>({ open: false, project: '', category: '', newCategory: '' });
+  const [deleteProjectDialog, setDeleteProjectDialog] = useState<{ open: boolean; project: string; count: number }>({ open: false, project: '', count: 0 });
+  const [deleteCategoryDialog, setDeleteCategoryDialog] = useState<{ open: boolean; project: string; category: string; count: number }>({ open: false, project: '', category: '', count: 0 });
   
   const refresh = useRefresh();
   const { data: testCases = [], isLoading } = useGetList('test_cases', {
@@ -73,6 +83,111 @@ export const HierarchicalView = () => {
       'not_executed': 'No ejecutado',
     };
     return labels[result || 'not_executed'] || 'No ejecutado';
+  };
+
+  // Funciones para editar proyecto
+  const handleEditProject = (project: string) => {
+    setEditProjectDialog({ open: true, project, newName: project });
+  };
+
+  const handleSaveProjectEdit = async () => {
+    if (!editProjectDialog.newName.trim()) {
+      notify('El nombre del proyecto no puede estar vacío', { type: 'warning' });
+      return;
+    }
+
+    const casesToUpdate = testCases.filter(tc => tc.testProject === editProjectDialog.project);
+    if (casesToUpdate.length === 0) {
+      setEditProjectDialog({ open: false, project: '', newName: '' });
+      return;
+    }
+
+    try {
+      await updateMany('test_cases', {
+        ids: casesToUpdate.map(tc => tc.id),
+        data: { testProject: editProjectDialog.newName.trim() }
+      });
+      notify(`Proyecto "${editProjectDialog.project}" renombrado a "${editProjectDialog.newName}"`, { type: 'success' });
+      setEditProjectDialog({ open: false, project: '', newName: '' });
+      refresh();
+    } catch (error) {
+      notify('Error al renombrar el proyecto', { type: 'error' });
+    }
+  };
+
+  // Funciones para borrar proyecto
+  const handleDeleteProject = (project: string) => {
+    const casesInProject = testCases.filter(tc => tc.testProject === project);
+    setDeleteProjectDialog({ open: true, project, count: casesInProject.length });
+  };
+
+  const handleConfirmDeleteProject = async () => {
+    const casesToDelete = testCases.filter(tc => tc.testProject === deleteProjectDialog.project);
+    
+    try {
+      await deleteMany('test_cases', { ids: casesToDelete.map(tc => tc.id) });
+      notify(`Proyecto "${deleteProjectDialog.project}" y ${deleteProjectDialog.count} caso(s) eliminado(s)`, { type: 'success' });
+      setDeleteProjectDialog({ open: false, project: '', count: 0 });
+      refresh();
+    } catch (error) {
+      notify('Error al eliminar el proyecto', { type: 'error' });
+    }
+  };
+
+  // Funciones para editar categoría
+  const handleEditCategory = (project: string, category: string) => {
+    setEditCategoryDialog({ open: true, project, category, newCategory: category });
+  };
+
+  const handleSaveCategoryEdit = async () => {
+    if (!editCategoryDialog.newCategory.trim()) {
+      notify('El nombre de la categoría no puede estar vacío', { type: 'warning' });
+      return;
+    }
+
+    const casesToUpdate = testCases.filter(
+      tc => tc.testProject === editCategoryDialog.project && tc.category === editCategoryDialog.category
+    );
+    
+    if (casesToUpdate.length === 0) {
+      setEditCategoryDialog({ open: false, project: '', category: '', newCategory: '' });
+      return;
+    }
+
+    try {
+      await updateMany('test_cases', {
+        ids: casesToUpdate.map(tc => tc.id),
+        data: { category: editCategoryDialog.newCategory.trim() as TestCaseCategory }
+      });
+      notify(`Categoría "${editCategoryDialog.category}" renombrada a "${editCategoryDialog.newCategory}"`, { type: 'success' });
+      setEditCategoryDialog({ open: false, project: '', category: '', newCategory: '' });
+      refresh();
+    } catch (error) {
+      notify('Error al renombrar la categoría', { type: 'error' });
+    }
+  };
+
+  // Funciones para borrar categoría
+  const handleDeleteCategory = (project: string, category: string) => {
+    const casesInCategory = testCases.filter(
+      tc => tc.testProject === project && tc.category === category
+    );
+    setDeleteCategoryDialog({ open: true, project, category, count: casesInCategory.length });
+  };
+
+  const handleConfirmDeleteCategory = async () => {
+    const casesToDelete = testCases.filter(
+      tc => tc.testProject === deleteCategoryDialog.project && tc.category === deleteCategoryDialog.category
+    );
+    
+    try {
+      await deleteMany('test_cases', { ids: casesToDelete.map(tc => tc.id) });
+      notify(`Categoría "${deleteCategoryDialog.category}" y ${deleteCategoryDialog.count} caso(s) eliminado(s)`, { type: 'success' });
+      setDeleteCategoryDialog({ open: false, project: '', category: '', count: 0 });
+      refresh();
+    } catch (error) {
+      notify('Error al eliminar la categoría', { type: 'error' });
+    }
   };
 
   if (isLoading) {
@@ -164,6 +279,30 @@ export const HierarchicalView = () => {
                   size="small"
                   sx={{ backgroundColor: '#FF6B35', color: '#FFFFFF', fontWeight: 600 }}
                 />
+                <Tooltip title="Editar proyecto">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditProject(project);
+                    }}
+                    sx={{ color: '#2196F3' }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Eliminar proyecto">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteProject(project);
+                    }}
+                    sx={{ color: '#E53935' }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title="Agregar caso de prueba a este proyecto">
                   <IconButton
                     size="small"
@@ -215,6 +354,30 @@ export const HierarchicalView = () => {
                             fontWeight: 600,
                           }}
                         />
+                        <Tooltip title="Editar categoría">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditCategory(project, category);
+                            }}
+                            sx={{ color: '#2196F3' }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar categoría">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCategory(project, category);
+                            }}
+                            sx={{ color: '#E53935' }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Agregar caso de prueba a esta categoría">
                           <IconButton
                             size="small"
@@ -323,6 +486,106 @@ export const HierarchicalView = () => {
         }}
         onCasesCreated={refresh}
       />
+
+      {/* Diálogo para editar proyecto */}
+      <Dialog open={editProjectDialog.open} onClose={() => setEditProjectDialog({ open: false, project: '', newName: '' })}>
+        <DialogTitle>Editar Proyecto</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Nombre del Proyecto"
+            fullWidth
+            variant="outlined"
+            value={editProjectDialog.newName}
+            onChange={(e) => setEditProjectDialog({ ...editProjectDialog, newName: e.target.value })}
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditProjectDialog({ open: false, project: '', newName: '' })}>Cancelar</Button>
+          <Button onClick={handleSaveProjectEdit} variant="contained" sx={{ backgroundColor: '#FF6B35', '&:hover': { backgroundColor: '#E55A2B' } }}>
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para borrar proyecto */}
+      <Dialog open={deleteProjectDialog.open} onClose={() => setDeleteProjectDialog({ open: false, project: '', count: 0 })}>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            ¿Estás seguro de que deseas eliminar el proyecto <strong>"{deleteProjectDialog.project}"</strong>?
+          </Alert>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Esta acción eliminará <strong>{deleteProjectDialog.count} caso(s) de prueba</strong> asociado(s) a este proyecto.
+            <br />
+            <strong>Esta acción no se puede deshacer.</strong>
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteProjectDialog({ open: false, project: '', count: 0 })}>Cancelar</Button>
+          <Button 
+            onClick={handleConfirmDeleteProject} 
+            variant="contained" 
+            color="error"
+            sx={{ '&:hover': { backgroundColor: '#C62828' } }}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para editar categoría */}
+      <Dialog open={editCategoryDialog.open} onClose={() => setEditCategoryDialog({ open: false, project: '', category: '', newCategory: '' })}>
+        <DialogTitle>Editar Categoría</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Nueva Categoría</InputLabel>
+            <Select
+              value={editCategoryDialog.newCategory}
+              onChange={(e) => setEditCategoryDialog({ ...editCategoryDialog, newCategory: e.target.value })}
+              label="Nueva Categoría"
+            >
+              {categories.map((cat) => (
+                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditCategoryDialog({ open: false, project: '', category: '', newCategory: '' })}>Cancelar</Button>
+          <Button onClick={handleSaveCategoryEdit} variant="contained" sx={{ backgroundColor: '#FF6B35', '&:hover': { backgroundColor: '#E55A2B' } }}>
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para borrar categoría */}
+      <Dialog open={deleteCategoryDialog.open} onClose={() => setDeleteCategoryDialog({ open: false, project: '', category: '', count: 0 })}>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            ¿Estás seguro de que deseas eliminar la categoría <strong>"{deleteCategoryDialog.category}"</strong> del proyecto <strong>"{deleteCategoryDialog.project}"</strong>?
+          </Alert>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Esta acción eliminará <strong>{deleteCategoryDialog.count} caso(s) de prueba</strong> asociado(s) a esta categoría.
+            <br />
+            <strong>Esta acción no se puede deshacer.</strong>
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteCategoryDialog({ open: false, project: '', category: '', count: 0 })}>Cancelar</Button>
+          <Button 
+            onClick={handleConfirmDeleteCategory} 
+            variant="contained" 
+            color="error"
+            sx={{ '&:hover': { backgroundColor: '#C62828' } }}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
