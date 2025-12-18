@@ -55,9 +55,12 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     try {
       const result = await generateTestCasesFromUserStory(userStory);
       setSuggestion(result);
+      notify('Casos de prueba generados exitosamente', { type: 'success' });
     } catch (err: any) {
-      setError(err.message || 'Error al generar casos de prueba');
-      notify('Error al generar casos de prueba', { type: 'error' });
+      const errorMessage = err.message || 'Error al generar casos de prueba';
+      setError(errorMessage);
+      notify(errorMessage, { type: 'error' });
+      console.error('Error en generateTestCasesFromUserStory:', err);
     } finally {
       setLoading(false);
     }

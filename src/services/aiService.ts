@@ -55,9 +55,11 @@ const getOpenAIConfig = () => {
     const config = localStorage.getItem('qaScopeConfig');
     if (config) {
       const parsed = JSON.parse(config);
-      if (parsed.openaiEnabled && parsed.openaiApiKey) {
+      // Verificar que esté habilitado y tenga API key
+      if (parsed.openaiEnabled === true && parsed.openaiApiKey && parsed.openaiApiKey.trim() !== '') {
         return {
-          apiKey: parsed.openaiApiKey,
+          openaiEnabled: true,
+          apiKey: parsed.openaiApiKey.trim(),
           model: parsed.openaiModel || 'gpt-4o-mini'
         };
       }
@@ -75,17 +77,24 @@ export const generateTestCasesFromUserStory = async (
   // Intentar usar OpenAI si está configurado
   const openAIConfig = getOpenAIConfig();
   const apiKeyToUse = apiKey || openAIConfig?.apiKey;
+  const modelToUse = openAIConfig?.model || 'gpt-4o-mini';
   
-  if (apiKeyToUse && openAIConfig) {
+  // Si hay API key configurada, usar OpenAI
+  if (apiKeyToUse && openAIConfig?.openaiEnabled !== false) {
+    console.log('Usando OpenAI API con modelo:', modelToUse);
     try {
-      return await callOpenAI(userStory, apiKeyToUse, openAIConfig.model);
-    } catch (error) {
-      console.error('Error al llamar a OpenAI, usando simulación:', error);
-      // Continuar con simulación si falla la API
+      const result = await callOpenAI(userStory, apiKeyToUse, modelToUse);
+      console.log('Respuesta de OpenAI recibida:', result);
+      return result;
+    } catch (error: any) {
+      console.error('Error al llamar a OpenAI:', error);
+      // Si hay un error, lanzarlo para que el componente lo maneje
+      throw new Error(error?.message || 'Error al generar casos de prueba con ChatGPT. Verifica tu API key.');
     }
   }
   
-  // Simulación temporal para desarrollo o cuando no hay API key configurada
+  // Simulación solo si no hay API key configurada
+  console.log('Usando modo simulación (no hay API key configurada)');
   // Ejemplo con OpenAI:
   // const response = await fetch('https://api.openai.com/v1/chat/completions', {
   //   method: 'POST',
@@ -196,6 +205,8 @@ export const callOpenAI = async (
   model: string = 'gpt-4o-mini'
 ): Promise<AITestCaseSuggestion> => {
   try {
+    console.log('Llamando a OpenAI API...', { model, userStoryLength: userStory.length });
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -214,7 +225,9 @@ export const callOpenAI = async (
     });
 
     if (!response.ok) {
-      throw new Error(`Error de API: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error?.message || response.statusText;
+      throw new Error(`Error de API (${response.status}): ${errorMessage}`);
     }
 
     const data = await response.json();
@@ -224,10 +237,24 @@ export const callOpenAI = async (
       throw new Error('No se recibió respuesta de la IA');
     }
 
+    console.log('Respuesta recibida de OpenAI:', content);
+
     // Parsear JSON de la respuesta
-    const parsed = JSON.parse(content);
-    return parsed as AITestCaseSuggestion;
-  } catch (error) {
+    let parsed: AITestCaseSuggestion;
+    try {
+      parsed = JSON.parse(content);
+    } catch (parseError) {
+      console.error('Error al parsear JSON:', parseError, 'Contenido:', content);
+      throw new Error('La respuesta de la IA no es un JSON válido');
+    }
+
+    // Validar estructura básica
+    if (!parsed.module || !parsed.submodule || !parsed.test_type || !parsed.test_cases) {
+      throw new Error('La respuesta de la IA no tiene la estructura esperada');
+    }
+
+    return parsed;
+  } catch (error: any) {
     console.error('Error al llamar a OpenAI:', error);
     throw error;
   }
