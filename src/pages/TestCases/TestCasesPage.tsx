@@ -18,8 +18,7 @@ import {
   SimpleFormIterator,
   FileInput,
   FileField,
-  FunctionField,
-  useListContext
+  FunctionField
 } from 'react-admin';
 import { Box, Typography, Chip, Tabs, Tab } from '@mui/material';
 import { RichTextInput } from 'ra-input-rich-text';

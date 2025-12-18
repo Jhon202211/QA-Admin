@@ -16,8 +16,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  useTheme,
-  Paper
+  useTheme
 } from '@mui/material';
 import { useCreate, useNotify } from 'react-admin';
 
@@ -30,7 +29,7 @@ interface WizardStepProps {
   theme: any;
 }
 
-const Step1Project = ({ formData, setFormData, theme, isReadOnly }: WizardStepProps & { isReadOnly?: boolean }) => (
+const Step1Project = ({ formData, setFormData, isReadOnly }: WizardStepProps & { isReadOnly?: boolean }) => (
   <Box sx={{ mt: 3 }}>
     <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 3 }}>
       Paso 1: Crear o Seleccionar Proyecto
@@ -51,7 +50,7 @@ const Step1Project = ({ formData, setFormData, theme, isReadOnly }: WizardStepPr
   </Box>
 );
 
-const Step2Category = ({ formData, setFormData, theme, isReadOnly }: WizardStepProps & { isReadOnly?: boolean }) => (
+const Step2Category = ({ formData, setFormData, isReadOnly }: WizardStepProps & { isReadOnly?: boolean }) => (
   <Box sx={{ mt: 3 }}>
     <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 3 }}>
       Paso 2: Seleccionar Categoría
@@ -77,7 +76,7 @@ const Step2Category = ({ formData, setFormData, theme, isReadOnly }: WizardStepP
   </Box>
 );
 
-const Step3TestCase = ({ formData, setFormData, theme }: WizardStepProps) => (
+const Step3TestCase = ({ formData, setFormData }: WizardStepProps) => (
   <Box sx={{ mt: 3 }}>
     <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 3 }}>
       Paso 3: Detalles del Caso de Prueba

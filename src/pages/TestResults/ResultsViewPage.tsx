@@ -11,7 +11,7 @@ const TabPanel = ({ children, value, index }: { children: React.ReactNode; value
   );
 };
 
-export const ResultsViewPage = (props: any) => {
+export const ResultsViewPage = () => {
   const [tabValue, setTabValue] = useState(0);
 
   return (

@@ -11,8 +11,6 @@ const TabPanel = ({ children, value, index }: { children: React.ReactNode; value
   );
 };
 
-const COLORS = ['#FF6B35', '#4A90E2'];
-
 export const Dashboard = () => {
   const [tabValue, setTabValue] = useState(0);
 

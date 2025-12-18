@@ -4,19 +4,15 @@ import {
   TextField,
   DateField,
   FunctionField,
-  useGetList,
   SelectInput,
   TextInput,
   ExportButton,
   TopToolbar,
   FilterButton,
 } from 'react-admin';
-import { Typography, Chip } from '@mui/material';
+import { Chip } from '@mui/material';
 
 export const ManualTestResultsList = () => {
-  const { data: testCases = [] } = useGetList('test_cases', {
-    pagination: { page: 1, perPage: 1000 },
-  });
 
   // Filtros
   const filters = [

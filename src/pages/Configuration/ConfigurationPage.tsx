@@ -29,7 +29,7 @@ const TabPanel = ({ children, value, index }: { children: React.ReactNode; value
   );
 };
 
-export const ConfigurationPage = (props: any) => {
+export const ConfigurationPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const notify = useNotify();
@@ -75,7 +75,7 @@ export const ConfigurationPage = (props: any) => {
 
   const GeneralSettings = () => (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -129,7 +129,7 @@ export const ConfigurationPage = (props: any) => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -187,7 +187,7 @@ export const ConfigurationPage = (props: any) => {
 
   const NotificationSettings = () => (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -230,7 +230,7 @@ export const ConfigurationPage = (props: any) => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -255,7 +255,7 @@ export const ConfigurationPage = (props: any) => {
 
   const ReportSettings = () => (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -302,7 +302,7 @@ export const ConfigurationPage = (props: any) => {
 
   const IntegrationSettings = () => (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -340,7 +340,7 @@ export const ConfigurationPage = (props: any) => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>

@@ -28,7 +28,7 @@ const colors = {
 // Tema claro
 const lightThemeOptions = {
   palette: {
-    mode: 'light',
+    mode: 'light' as const,
     primary: colors.primary,
     secondary: colors.secondary,
     success: colors.success,
@@ -76,7 +76,7 @@ const lightThemeOptions = {
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none',
+          textTransform: 'none' as const,
           fontWeight: 600,
           borderRadius: '8px',
         },
@@ -96,7 +96,7 @@ const lightThemeOptions = {
 // Tema oscuro
 const darkThemeOptions = {
   palette: {
-    mode: 'dark',
+    mode: 'dark' as const,
     primary: colors.primary,
     secondary: colors.secondary,
     success: colors.success,
@@ -144,7 +144,7 @@ const darkThemeOptions = {
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none',
+          textTransform: 'none' as const,
           fontWeight: 600,
           borderRadius: '8px',
         },

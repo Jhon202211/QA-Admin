@@ -14,7 +14,6 @@ import './App.css';
 
 import { useSidebarState } from 'react-admin';
 
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
@@ -30,7 +29,6 @@ const CustomAppBar = (props: any) => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
   const { mode, toggleMode } = useThemeMode();
-  const theme = useTheme();
 
   if (isLoginPage) {
     return null;
