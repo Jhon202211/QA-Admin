@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGetOne, useUpdate, useNotify } from 'react-admin';
+import { useGetOne, useUpdate, useCreate, useNotify, useRefresh } from 'react-admin';
+import { auth } from '../../firebase/config';
 import {
   Box,
   Typography,
@@ -96,7 +97,9 @@ export const TestCaseExecutionPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const notify = useNotify();
+  const refresh = useRefresh();
   const [update] = useUpdate();
+  const [create] = useCreate();
 
   const { data: testCase, isLoading } = useGetOne<TestCase>('test_cases', { id: id || '' });
   
@@ -165,36 +168,133 @@ export const TestCaseExecutionPage = () => {
     return 'not_executed';
   };
 
+  // Función para eliminar campos undefined de un objeto
+  const removeUndefinedFields = (obj: any): any => {
+    if (obj === null || obj === undefined) return obj;
+    if (Array.isArray(obj)) {
+      return obj.map(item => removeUndefinedFields(item));
+    }
+    if (typeof obj === 'object') {
+      const cleaned: any = {};
+      Object.keys(obj).forEach(key => {
+        if (obj[key] !== undefined) {
+          cleaned[key] = removeUndefinedFields(obj[key]);
+        }
+      });
+      return cleaned;
+    }
+    return obj;
+  };
+
   const handleSave = async () => {
     if (!testCase) return;
 
     setIsExecuting(true);
     try {
-      // Actualizar pasos con sus estados y notas
-      const updatedSteps: TestStep[] = steps.map((step, index) => ({
-        ...step,
-        status: stepStatuses[index] || 'not_executed',
-        actualResult: stepNotes[index] || step.actualResult,
-      }));
+      // Obtener usuario actual
+      const currentUser = auth.currentUser;
+      const executedBy = currentUser?.email || currentUser?.uid || 'unknown';
+
+      // Actualizar pasos con sus estados y notas, eliminando campos undefined
+      const updatedSteps: TestStep[] = steps.map((step, index) => {
+        const stepData: any = {
+          ...step,
+          status: stepStatuses[index] || 'not_executed',
+        };
+        
+        // Solo agregar actualResult si tiene valor
+        const actualResultValue = stepNotes[index] || step.actualResult;
+        if (actualResultValue) {
+          stepData.actualResult = actualResultValue;
+        }
+        
+        // Eliminar campos undefined del paso
+        return removeUndefinedFields(stepData);
+      });
 
       const finalResult = executionResult !== 'not_executed' ? executionResult : calculateOverallResult();
 
+      console.log('Guardando ejecución con resultado:', finalResult);
+      console.log('Estado de pasos:', stepStatuses);
+
+      // Preparar datos para el registro de ejecución, eliminando undefined
+      const executionData: any = {
+        testCaseId: testCase.id,
+        testCaseKey: testCase.caseKey || '',
+        testCaseName: testCase.name || '',
+        executionResult: finalResult,
+        steps: updatedSteps,
+        executedBy: executedBy,
+        executedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Solo agregar campos opcionales si tienen valores
+      if (testCase.testProject) {
+        executionData.testProject = testCase.testProject;
+      }
+      if (testCase.category) {
+        executionData.category = testCase.category;
+      }
+      if (responsible || executedBy) {
+        executionData.responsible = responsible || executedBy;
+      }
+      if (notes) {
+        executionData.notes = notes;
+      }
+
+      // Eliminar campos undefined antes de crear
+      const cleanedExecutionData = removeUndefinedFields(executionData);
+
+      // Crear registro de ejecución
+      try {
+        await create('manual_test_executions', {
+          data: cleanedExecutionData,
+        });
+        console.log('Registro de ejecución creado exitosamente');
+      } catch (createError) {
+        console.error('Error al crear registro de ejecución:', createError);
+        // Continuar aunque falle la creación del registro de ejecución
+      }
+
+      // Preparar datos para actualizar el caso de prueba, eliminando undefined
+      const updateData: any = {
+        steps: updatedSteps,
+        executionResult: finalResult,
+        updatedAt: new Date(),
+      };
+
+      // Solo agregar notes y responsible si tienen valores
+      if (notes) {
+        updateData.notes = notes;
+      }
+      if (responsible || executedBy) {
+        updateData.responsible = responsible || executedBy;
+      }
+
+      // Eliminar campos undefined antes de actualizar
+      const cleanedUpdateData = removeUndefinedFields(updateData);
+
+      console.log('Actualizando caso de prueba con:', cleanedUpdateData);
+
       await update('test_cases', {
         id: testCase.id,
-        data: {
-          ...testCase,
-          steps: updatedSteps,
-          executionResult: finalResult,
-          notes: notes,
-          responsible: responsible,
-          updatedAt: new Date(),
-        },
+        data: cleanedUpdateData,
       });
+
+      console.log('Caso de prueba actualizado exitosamente');
 
       notify('Ejecución guardada exitosamente', { type: 'success' });
       setSaveDialogOpen(false);
-      navigate('/test_cases');
+      
+      // Esperar un momento para que Firebase actualice los datos
+      setTimeout(() => {
+        refresh(); // Refrescar datos antes de navegar
+        navigate('/test_cases');
+      }, 500);
     } catch (error) {
+      console.error('Error al guardar la ejecución:', error);
       notify('Error al guardar la ejecución', { type: 'error' });
     } finally {
       setIsExecuting(false);

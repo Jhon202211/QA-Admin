@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useNavigate } from 'react-router-dom';
 import { useGetList, useRefresh, useUpdateMany, useDeleteMany, useNotify } from 'react-admin';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
 import { AIAgent } from './AIAgent';
 import type { TestCase, TestCaseCategory } from '../../types/testCase';
@@ -36,6 +36,20 @@ export const HierarchicalView = () => {
     pagination: { page: 1, perPage: 1000 },
     sort: { field: 'testProject', order: 'ASC' }
   });
+
+  // Debug: verificar valores de executionResult
+  useEffect(() => {
+    if (testCases.length > 0) {
+      const casesWithResults = testCases.filter((tc: TestCase) => tc.executionResult && tc.executionResult !== 'not_executed');
+      if (casesWithResults.length > 0) {
+        console.log('Casos con resultados de ejecución:', casesWithResults.map((tc: TestCase) => ({
+          id: tc.id,
+          caseKey: tc.caseKey,
+          executionResult: tc.executionResult
+        })));
+      }
+    }
+  }, [testCases]);
 
   // Agrupar casos de prueba por proyecto y categoría (jerarquía original)
   const groupedData = testCases.reduce((acc: any, testCase: TestCase) => {
