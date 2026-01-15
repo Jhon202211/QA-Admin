@@ -37,10 +37,7 @@ import {
   Save,
   Edit,
   ArrowBack,
-  CheckCircleOutline,
   RadioButtonUnchecked,
-  AddPhotoAlternate,
-  Note,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import type { TestCase, TestStep } from '../../types/testCase';
@@ -471,7 +468,7 @@ export const TestCaseExecutionPage = () => {
 
       <Grid container spacing={3}>
         {/* Stepper y Pasos */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper
             elevation={2}
             sx={{
@@ -634,7 +631,7 @@ export const TestCaseExecutionPage = () => {
         </Grid>
 
         {/* Panel lateral de información y resultados */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper
             elevation={2}
             sx={{
