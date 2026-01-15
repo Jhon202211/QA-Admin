@@ -413,7 +413,7 @@ export const HierarchicalView = () => {
                                 cursor: 'pointer',
                               },
                             }}
-                            onClick={() => navigate(`/test_cases/${testCase.id}`)}
+                            onClick={() => navigate(`/test_cases/${testCase.id}/execute`)}
                           >
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }}>

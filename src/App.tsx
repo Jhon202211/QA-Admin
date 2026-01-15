@@ -1,5 +1,5 @@
-import { Admin, Resource, Layout, AppBar } from 'react-admin';
-import { BrowserRouter, useLocation } from 'react-router-dom';
+import { Admin, Resource, Layout, AppBar, CustomRoutes } from 'react-admin';
+import { BrowserRouter, useLocation, Route } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { ResultsViewPage } from './pages/TestResults/ResultsViewPage';
 import { authProvider } from './firebase/auth';
@@ -8,6 +8,7 @@ import { Typography, Box, useTheme } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import isotype from './assets/isotype white small.svg';
 import { TestCasesPage, TestCaseCreate, TestCaseEdit } from './pages/TestCases/TestCasesPage';
+import { TestCaseExecutionPage } from './pages/TestCases/TestCaseExecutionPage';
 import { TestPlanningPage, TestPlanningCreate, TestPlanningEdit } from './pages/TestPlanning/TestPlanningPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
@@ -164,6 +165,9 @@ function App() {
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
           <Resource name="test_results" list={ResultsViewPage} icon={AssessmentIcon} options={{ label: 'Vista de resultados' }} />
           <Resource name="configuration" list={ConfigurationPage} icon={SettingsIcon} options={{ label: 'Configuración' }} />
+          <CustomRoutes>
+            <Route path="/test_cases/:id/execute" element={<TestCaseExecutionPage />} />
+          </CustomRoutes>
         </Admin>
         <Footer />
       </BrowserRouter>
