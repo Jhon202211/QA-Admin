@@ -221,7 +221,7 @@ export default function LoginPage() {
             opacity: 0.9
           }}
         >
-          © 2025 QAScope - Suite de pruebas
+          © 2026 QAScope - Suite de pruebas
         </Typography>
       </Box>
     </Box>

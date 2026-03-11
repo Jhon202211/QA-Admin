@@ -148,7 +148,7 @@ const Footer = () => {
       background: 'transparent', 
       fontFamily: 'Inter, sans-serif' 
     }}>
-      © 2025 QAScope - Suite de pruebas | v1.0Cloud
+      © 2026 QAScope - Suite de pruebas | v1.1
     </Box>
   );
 };
