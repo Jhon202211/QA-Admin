@@ -1,5 +1,5 @@
-import { Admin, Resource, Layout, AppBar } from 'react-admin';
-import { BrowserRouter, useLocation } from 'react-router-dom';
+import { Admin, Resource, Layout, AppBar, CustomRoutes } from 'react-admin';
+import { BrowserRouter, Route, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { ResultsViewPage } from './pages/TestResults/ResultsViewPage';
 import { authProvider } from './firebase/auth';
@@ -21,6 +21,11 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import { AppMenu } from './components/navigation/AppMenu';
+import { ReliabilityDashboardPage } from './pages/Reliability/ReliabilityDashboardPage';
+import { ReliabilityAnalysisPage } from './pages/Reliability/ReliabilityAnalysisPage';
+import { SystemIncidentCreate, SystemIncidentEdit, SystemIncidentsPage } from './pages/Reliability/SystemIncidentsPage';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
@@ -62,6 +67,7 @@ const CustomLayout = (props: any) => {
     <Layout
       {...props}
       appBar={CustomAppBar}
+      menu={AppMenu}
       sx={{
         '& .RaSidebar-fixed': {
           position: 'fixed',
@@ -159,10 +165,22 @@ function App() {
           dashboard={Dashboard}
           requireAuth
         >
+          <CustomRoutes>
+            <Route path="/reliability/dashboard" element={<ReliabilityDashboardPage />} />
+            <Route path="/reliability/analysis" element={<ReliabilityAnalysisPage />} />
+          </CustomRoutes>
           <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
           <Resource name="test_results" list={ResultsViewPage} icon={AssessmentIcon} options={{ label: 'Vista de resultados' }} />
+          <Resource
+            name="system_incidents"
+            list={SystemIncidentsPage}
+            create={SystemIncidentCreate}
+            edit={SystemIncidentEdit}
+            icon={MonitorHeartIcon}
+            options={{ label: 'Incidentes' }}
+          />
           <Resource name="configuration" list={ConfigurationPage} icon={SettingsIcon} options={{ label: 'Configuración' }} />
         </Admin>
         <Footer />
