@@ -61,7 +61,7 @@ export const ManualMetrics = () => {
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ minHeight: 400, width: '100%' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>
                 Estado de Casos de Prueba
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
@@ -89,7 +89,7 @@ export const ManualMetrics = () => {
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ minHeight: 400, width: '100%' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>
                 Casos por Categoría
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
@@ -112,7 +112,7 @@ export const ManualMetrics = () => {
       <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               Total de Casos
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
@@ -122,7 +122,7 @@ export const ManualMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               % Éxito
             </Typography>
             <Typography variant="h5" sx={{ color: '#3CCF91', fontWeight: 600 }}>
@@ -132,7 +132,7 @@ export const ManualMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               Aprobados
             </Typography>
             <Typography variant="h5" sx={{ color: '#3CCF91', fontWeight: 600 }}>
@@ -142,7 +142,7 @@ export const ManualMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               Fallidos
             </Typography>
             <Typography variant="h5" sx={{ color: '#E53935', fontWeight: 600 }}>
@@ -152,7 +152,7 @@ export const ManualMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               En progreso
             </Typography>
             <Typography variant="h5" sx={{ color: '#1E88E5', fontWeight: 600 }}>
@@ -162,7 +162,7 @@ export const ManualMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               No Ejecutados
             </Typography>
             <Typography variant="h5" sx={{ color: '#6B6B6B', fontWeight: 600 }}>
@@ -176,7 +176,7 @@ export const ManualMetrics = () => {
         <Box mt={4}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>
                 Casos por Proyecto
               </Typography>
               <ResponsiveContainer width="100%" height={300}>

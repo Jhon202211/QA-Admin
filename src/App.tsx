@@ -47,7 +47,7 @@ const CustomAppBar = (props: any) => {
               fontWeight: 600,
               fontSize: '1.25rem',
               ml: 1.5,
-              fontFamily: 'Inter, sans-serif'
+              fontFamily: "'Ubuntu Sans', sans-serif"
             }}
           >
             QAScope
@@ -146,7 +146,7 @@ const Footer = () => {
       color: isDark ? '#B0B0B0' : '#6B6B6B', 
       fontSize: 14, 
       background: 'transparent', 
-      fontFamily: 'Inter, sans-serif' 
+      fontFamily: "'Ubuntu Sans', sans-serif" 
     }}>
       © 2026 QAScope - Suite de pruebas | v1.1
     </Box>

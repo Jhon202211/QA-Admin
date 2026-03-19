@@ -45,7 +45,7 @@ const lightThemeOptions = {
     },
   },
   typography: {
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+    fontFamily: "'Ubuntu Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     h4: {
       fontWeight: 700,
     },
@@ -113,7 +113,7 @@ const darkThemeOptions = {
     },
   },
   typography: {
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+    fontFamily: "'Ubuntu Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     h4: {
       fontWeight: 700,
     },

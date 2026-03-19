@@ -36,7 +36,7 @@ export default function LoginPage() {
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1,
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: "'Ubuntu Sans', sans-serif",
         background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
       }}
     >
@@ -59,7 +59,7 @@ export default function LoginPage() {
               color: '#FFFFFF',
               fontWeight: 600,
               fontSize: '1.25rem',
-              fontFamily: 'Inter, sans-serif'
+              fontFamily: "'Ubuntu Sans', sans-serif"
             }}
           >
             QAScope
@@ -96,7 +96,7 @@ export default function LoginPage() {
               fontWeight: 700,
               mb: 4,
               fontSize: '2rem',
-              fontFamily: 'Inter, sans-serif',
+              fontFamily: "'Ubuntu Sans', sans-serif",
               textAlign: 'center'
             }}
           >
@@ -217,7 +217,7 @@ export default function LoginPage() {
           sx={{
             color: '#FFFFFF',
             fontSize: '0.875rem',
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: "'Ubuntu Sans', sans-serif",
             opacity: 0.9
           }}
         >

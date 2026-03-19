@@ -77,7 +77,7 @@ export const AutomatedMetrics = () => {
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
-              <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', mt: 2, fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+              <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', mt: 2, fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>
                 Éxito vs Fallos
               </Typography>
               <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
@@ -113,7 +113,7 @@ export const AutomatedMetrics = () => {
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
-              <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', mt: 2, fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+              <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', mt: 2, fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>
                 Ejecuciones por rango de fecha
               </Typography>
               <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
@@ -170,7 +170,7 @@ export const AutomatedMetrics = () => {
       <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               % Éxito
             </Typography>
             <Typography variant="h5" sx={{ color: '#3CCF91', fontWeight: 600 }}>
@@ -180,7 +180,7 @@ export const AutomatedMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               Prom. Duración (s)
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
@@ -190,7 +190,7 @@ export const AutomatedMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               Total de Pruebas
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
@@ -200,7 +200,7 @@ export const AutomatedMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               Exitosas
             </Typography>
             <Typography variant="h5" sx={{ color: '#3CCF91', fontWeight: 600 }}>
@@ -210,7 +210,7 @@ export const AutomatedMetrics = () => {
         </Card>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
               Fallidas
             </Typography>
             <Typography variant="h5" sx={{ color: '#E53935', fontWeight: 600 }}>
@@ -220,7 +220,7 @@ export const AutomatedMetrics = () => {
         </Card>
       </Box>
       <Box mt={4}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>Pruebas Recientes</Typography>
+        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>Pruebas Recientes</Typography>
         <List>
           {recentTests.map((test, idx) => (
             <ListItem key={idx} divider>
@@ -233,7 +233,7 @@ export const AutomatedMetrics = () => {
         </List>
       </Box>
       <Box mt={4}>
-        <Typography variant="h6" sx={{ color: '#E53935', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>Errores Recientes</Typography>
+        <Typography variant="h6" sx={{ color: '#E53935', fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>Errores Recientes</Typography>
         <List>
           {recentErrors.length === 0 && <ListItem><ListItemText primary="Sin errores recientes" /></ListItem>}
           {recentErrors.map((test, idx) => (

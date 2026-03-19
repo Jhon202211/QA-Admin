@@ -59,7 +59,7 @@ export const ReliabilityDashboardPage = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
+        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
           Reliability Dashboard
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>

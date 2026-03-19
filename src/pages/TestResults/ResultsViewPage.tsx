@@ -16,7 +16,7 @@ export const ResultsViewPage = () => {
 
   return (
     <Box sx={{ paddingTop: '20px', paddingRight: '20px', paddingBottom: '20px' }}>
-      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
+      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
         Vista de Resultados
       </Typography>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>

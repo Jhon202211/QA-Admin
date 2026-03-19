@@ -44,7 +44,7 @@ export const Dashboard = () => {
   return (
     <Box sx={{ padding: '20px', backgroundColor: 'transparent' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} width="100%">
-        <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
+        <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
           Dashboard
         </Typography>
         <Button
