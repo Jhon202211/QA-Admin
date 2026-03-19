@@ -70,18 +70,30 @@ const uploadToS3 = async (
 
   const arrayBuffer = await file.arrayBuffer();
 
-  // S3 SDK v3 no expone progreso nativo en PutObjectCommand para binarios pequeños;
-  // simulamos progreso en la lectura del buffer antes del envío.
+  // S3 SDK v3 no expone progreso nativo en PutObjectCommand;
+  // simulamos progreso antes del envío.
   onProgress(10);
 
-  await client.send(
-    new PutObjectCommand({
-      Bucket: s3.bucket,
-      Key: key,
-      Body: new Uint8Array(arrayBuffer),
-      ContentType: file.type,
-    })
-  );
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: s3.bucket,
+        Key: key,
+        Body: new Uint8Array(arrayBuffer),
+        ContentType: file.type,
+      })
+    );
+  } catch (err) {
+    // Detectar error CORS (TypeError: Failed to fetch)
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
+      throw new Error(
+        'Error CORS: el bucket S3 no permite peticiones desde el navegador. ' +
+        'Ve a Configuración → Integraciones → AWS S3 y aplica la política CORS requerida en tu bucket.'
+      );
+    }
+    throw err;
+  }
 
   onProgress(100);
 

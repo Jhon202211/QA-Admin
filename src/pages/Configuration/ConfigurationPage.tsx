@@ -15,6 +15,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Stack,
   useTheme,
   Tabs,
   Tab
@@ -22,12 +23,33 @@ import {
 import SaveIcon from '@mui/icons-material/Save';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloudIcon from '@mui/icons-material/Cloud';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Chip from '@mui/material/Chip';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import Alert from '@mui/material/Alert';
+import Tooltip from '@mui/material/Tooltip';
 import { useNotify } from 'react-admin';
+
+const S3_CORS_POLICY = `[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "https://TU_DOMINIO_DE_PRODUCCION.com"
+    ],
+    "ExposeHeaders": ["ETag", "x-amz-request-id"],
+    "MaxAgeSeconds": 3000
+  }
+]`;
 
 const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
   return (
@@ -661,6 +683,94 @@ export const ConfigurationPage = () => {
                 <Typography variant="caption" sx={{ color: '#FF9900' }}>
                   ⚠ Completa los campos Access Key ID, Secret Access Key y Bucket Name para activar S3 como destino de evidencias.
                 </Typography>
+              </Box>
+            )}
+
+            {/* ── Instrucciones CORS ── */}
+            {config.awsS3Enabled && (
+              <Box sx={{ mt: 3 }}>
+                <Alert
+                  severity="warning"
+                  icon={<InfoOutlinedIcon />}
+                  sx={{ mb: 2, borderRadius: 2 }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Paso obligatorio: configura la política CORS en tu bucket S3
+                  </Typography>
+                  <Typography variant="body2">
+                    Para que el navegador pueda subir archivos directamente a S3, debes añadir
+                    la siguiente política CORS en tu bucket. Sin esto, todas las subidas
+                    fallarán con error <strong>Access-Control-Allow-Origin</strong>.
+                  </Typography>
+                </Alert>
+
+                <Accordion
+                  disableGutters
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '8px !important',
+                    '&:before': { display: 'none' },
+                  }}
+                >
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    component="div"
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CloudIcon sx={{ color: '#FF9900', fontSize: 18 }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        Ver política CORS requerida para el bucket
+                      </Typography>
+                    </Stack>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ p: 0 }}>
+                    <Box
+                      sx={{
+                        position: 'relative',
+                        backgroundColor: isDark ? '#0d1117' : '#f6f8fa',
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: '0 0 8px 8px',
+                        p: 2,
+                      }}
+                    >
+                      <Tooltip title="Copiar política CORS">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            navigator.clipboard.writeText(S3_CORS_POLICY);
+                            notify('Política CORS copiada al portapapeles', { type: 'success' });
+                          }}
+                          sx={{ position: 'absolute', top: 8, right: 8, bgcolor: isDark ? '#2B2D42' : '#fff' }}
+                        >
+                          <ContentCopyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Typography
+                        component="pre"
+                        sx={{
+                          fontFamily: "'Courier New', monospace",
+                          fontSize: '0.75rem',
+                          whiteSpace: 'pre',
+                          overflowX: 'auto',
+                          m: 0,
+                          color: isDark ? '#e6edf3' : '#24292f',
+                        }}
+                      >
+                        {S3_CORS_POLICY}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        <strong>Cómo aplicarla:</strong> Ve a AWS Console → S3 → tu bucket →
+                        pestaña <em>Permissions</em> → sección <em>Cross-origin resource sharing (CORS)</em>
+                        → haz clic en <em>Edit</em> y pega el JSON anterior.
+                      </Typography>
+                    </Box>
+                  </AccordionDetails>
+                </Accordion>
               </Box>
             )}
           </CardContent>
