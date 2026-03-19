@@ -20,6 +20,8 @@ import {
   Tab
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import Chip from '@mui/material/Chip';
 import { useNotify } from 'react-admin';
 
 const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
@@ -68,10 +70,21 @@ export const ConfigurationPage = () => {
     githubIntegration: false,
     githubRepo: '',
     
-    // IA / ChatGPT
-    openaiEnabled: false,
+    // IA / LLM (multi-proveedor)
+    llmEnabled: false,
+    llmProvider: 'openai' as 'openai' | 'ollama_cloud' | 'deepseek',
+    // OpenAI
+    openaiEnabled: false,    // mantenido por compatibilidad
     openaiApiKey: '',
     openaiModel: 'gpt-4o-mini',
+    // Ollama Cloud
+    ollamaApiKey: '',
+    ollamaModel: 'llama3.2',
+    ollamaBaseUrl: 'https://ollama.com/v1',
+    // DeepSeek
+    deepseekApiKey: '',
+    deepseekModel: 'deepseek-chat',
+    deepseekBaseUrl: 'https://api.deepseek.com/v1',
   });
 
   const handleSave = () => {
@@ -359,48 +372,174 @@ export const ConfigurationPage = () => {
         </Card>
       </Grid>
 
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid size={{ xs: 12 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
-              Integración con ChatGPT (OpenAI)
+            {/* Header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <AutoAwesomeIcon sx={{ color: '#FF6B35' }} />
+              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                Agente IA — QA Test Case Architect
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+              Selecciona el proveedor LLM para la generación de casos de prueba con RAG (BM25).
+              Las API keys se guardan localmente y nunca se comparten.
             </Typography>
-            <Divider sx={{ my: 2 }} />
+            <Divider sx={{ mb: 3 }} />
+
+            {/* Activar agente */}
             <FormControlLabel
               control={
                 <Switch
-                  checked={config.openaiEnabled}
-                  onChange={(e) => setConfig({ ...config, openaiEnabled: e.target.checked })}
+                  checked={config.llmEnabled}
+                  onChange={(e) =>
+                    setConfig({ ...config, llmEnabled: e.target.checked, openaiEnabled: e.target.checked })
+                  }
                 />
               }
-              label="Activar Agente IA con ChatGPT"
-              sx={{ mb: 2, display: 'block' }}
+              label="Activar Agente IA"
+              sx={{ mb: 3, display: 'block' }}
             />
-            <TextField
-              fullWidth
-              type="password"
-              label="API Key de OpenAI"
-              value={config.openaiApiKey}
-              onChange={(e) => setConfig({ ...config, openaiApiKey: e.target.value })}
-              disabled={!config.openaiEnabled}
-              sx={{ mb: 2 }}
-              placeholder="sk-..."
-              helperText="Tu API key se guarda localmente y nunca se comparte"
-            />
-            <FormControl fullWidth>
-              <InputLabel>Modelo de OpenAI</InputLabel>
-              <Select
-                value={config.openaiModel}
-                onChange={(e) => setConfig({ ...config, openaiModel: e.target.value })}
-                label="Modelo de OpenAI"
-                disabled={!config.openaiEnabled}
-              >
-                <MenuItem value="gpt-4o-mini">GPT-4o Mini (Recomendado)</MenuItem>
-                <MenuItem value="gpt-4o">GPT-4o</MenuItem>
-                <MenuItem value="gpt-4-turbo">GPT-4 Turbo</MenuItem>
-                <MenuItem value="gpt-3.5-turbo">GPT-3.5 Turbo</MenuItem>
-              </Select>
-            </FormControl>
+
+            {/* Selector de proveedor */}
+            <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
+              {(
+                [
+                  { value: 'openai',       label: 'OpenAI',       color: '#10A37F', desc: 'GPT-4o · GPT-4o Mini' },
+                  { value: 'ollama_cloud', label: 'Ollama Cloud',  color: '#FF6B35', desc: 'LLaMA · Qwen · Mistral' },
+                  { value: 'deepseek',     label: 'DeepSeek',      color: '#4F94EF', desc: 'DeepSeek Chat · Reasoner' },
+                ] as const
+              ).map((p) => (
+                <Card
+                  key={p.value}
+                  onClick={() => config.llmEnabled && setConfig({ ...config, llmProvider: p.value })}
+                  sx={{
+                    flex: '1 1 160px',
+                    cursor: config.llmEnabled ? 'pointer' : 'default',
+                    border: `2px solid ${config.llmProvider === p.value && config.llmEnabled ? p.color : 'transparent'}`,
+                    backgroundColor:
+                      config.llmProvider === p.value && config.llmEnabled
+                        ? isDark ? '#1A1C2E' : '#F5F5F5'
+                        : isDark ? '#1A1C2E' : '#FAFAFA',
+                    opacity: config.llmEnabled ? 1 : 0.5,
+                    transition: 'border-color 0.15s',
+                    '&:hover': config.llmEnabled ? { borderColor: p.color } : {},
+                  }}
+                >
+                  <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                        {p.label}
+                      </Typography>
+                      {config.llmProvider === p.value && config.llmEnabled && (
+                        <Chip label="activo" size="small" sx={{ backgroundColor: p.color, color: '#fff', height: 18, fontSize: '0.65rem' }} />
+                      )}
+                    </Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {p.desc}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+
+            {/* Campos dinámicos por proveedor */}
+            {config.llmEnabled && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+                {/* ── OpenAI ── */}
+                {config.llmProvider === 'openai' && (
+                  <>
+                    <TextField
+                      fullWidth
+                      type="password"
+                      label="API Key de OpenAI"
+                      value={config.openaiApiKey}
+                      onChange={(e) => setConfig({ ...config, openaiApiKey: e.target.value })}
+                      placeholder="sk-..."
+                      helperText="Obtén tu API key en platform.openai.com/api-keys"
+                    />
+                    <FormControl fullWidth>
+                      <InputLabel>Modelo</InputLabel>
+                      <Select
+                        value={config.openaiModel}
+                        onChange={(e) => setConfig({ ...config, openaiModel: e.target.value })}
+                        label="Modelo"
+                      >
+                        <MenuItem value="gpt-4o-mini">GPT-4o Mini — rápido y económico (recomendado)</MenuItem>
+                        <MenuItem value="gpt-4o">GPT-4o — máxima capacidad</MenuItem>
+                        <MenuItem value="gpt-4-turbo">GPT-4 Turbo</MenuItem>
+                        <MenuItem value="gpt-3.5-turbo">GPT-3.5 Turbo — más económico</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </>
+                )}
+
+                {/* ── Ollama Cloud ── */}
+                {config.llmProvider === 'ollama_cloud' && (
+                  <>
+                    <TextField
+                      fullWidth
+                      type="password"
+                      label="API Key de Ollama"
+                      value={config.ollamaApiKey}
+                      onChange={(e) => setConfig({ ...config, ollamaApiKey: e.target.value })}
+                      placeholder="ollama_..."
+                      helperText="Obtén tu API key en ollama.com/settings/keys"
+                    />
+                    <TextField
+                      fullWidth
+                      label="Modelo"
+                      value={config.ollamaModel}
+                      onChange={(e) => setConfig({ ...config, ollamaModel: e.target.value })}
+                      placeholder="llama3.2"
+                      helperText="Escribe el nombre exacto del modelo. Ej: llama3.2, llama3.1, qwen2.5, mistral"
+                    />
+                    <TextField
+                      fullWidth
+                      label="URL base (opcional)"
+                      value={config.ollamaBaseUrl}
+                      onChange={(e) => setConfig({ ...config, ollamaBaseUrl: e.target.value })}
+                      helperText="Por defecto: https://ollama.com/v1"
+                    />
+                  </>
+                )}
+
+                {/* ── DeepSeek ── */}
+                {config.llmProvider === 'deepseek' && (
+                  <>
+                    <TextField
+                      fullWidth
+                      type="password"
+                      label="API Key de DeepSeek"
+                      value={config.deepseekApiKey}
+                      onChange={(e) => setConfig({ ...config, deepseekApiKey: e.target.value })}
+                      placeholder="sk-..."
+                      helperText="Obtén tu API key en platform.deepseek.com"
+                    />
+                    <FormControl fullWidth>
+                      <InputLabel>Modelo</InputLabel>
+                      <Select
+                        value={config.deepseekModel}
+                        onChange={(e) => setConfig({ ...config, deepseekModel: e.target.value })}
+                        label="Modelo"
+                      >
+                        <MenuItem value="deepseek-chat">DeepSeek Chat — generación estándar (recomendado)</MenuItem>
+                        <MenuItem value="deepseek-reasoner">DeepSeek Reasoner — razonamiento avanzado (R1)</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <TextField
+                      fullWidth
+                      label="URL base (opcional)"
+                      value={config.deepseekBaseUrl}
+                      onChange={(e) => setConfig({ ...config, deepseekBaseUrl: e.target.value })}
+                      helperText="Por defecto: https://api.deepseek.com/v1"
+                    />
+                  </>
+                )}
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Grid>
@@ -438,27 +577,9 @@ export const ConfigurationPage = () => {
 
   return (
     <Box sx={{ padding: '20px' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
-          Configuración
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<SaveIcon />}
-          onClick={handleSave}
-          sx={{
-            backgroundColor: '#FF6B35',
-            color: '#FFFFFF',
-            textTransform: 'none',
-            fontWeight: 600,
-            '&:hover': {
-              backgroundColor: '#E55A2B'
-            }
-          }}
-        >
-          Guardar Cambios
-        </Button>
-      </Box>
+      <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: 'Inter, sans-serif', mb: 3 }}>
+        Configuración
+      </Typography>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
@@ -481,6 +602,23 @@ export const ConfigurationPage = () => {
       <TabPanel value={tabValue} index={3}>
         <IntegrationSettings />
       </TabPanel>
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
+        <Button
+          variant="contained"
+          startIcon={<SaveIcon />}
+          onClick={handleSave}
+          sx={{
+            backgroundColor: '#FF6B35',
+            color: '#FFFFFF',
+            textTransform: 'none',
+            fontWeight: 600,
+            '&:hover': { backgroundColor: '#E55A2B' },
+          }}
+        >
+          Guardar Cambios
+        </Button>
+      </Box>
     </Box>
   );
 };

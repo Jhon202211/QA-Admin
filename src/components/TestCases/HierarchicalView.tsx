@@ -263,8 +263,10 @@ export const HierarchicalView = () => {
             }}
           >
             <AccordionSummary
+              component="div"
               expandIcon={<ExpandMoreIcon sx={{ color: 'text.primary' }} />}
               sx={{
+                cursor: 'pointer',
                 backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5',
                 '&:hover': { backgroundColor: isDark ? '#2B2D42' : '#E0E0E0' },
               }}
@@ -334,8 +336,10 @@ export const HierarchicalView = () => {
                     }}
                   >
                     <AccordionSummary
+                      component="div"
                       expandIcon={<ExpandMoreIcon sx={{ color: 'text.primary' }} />}
                       sx={{
+                        cursor: 'pointer',
                         backgroundColor: isDark ? '#2B2D42' : '#F5F5F5',
                         '&:hover': { backgroundColor: isDark ? '#1A1C2E' : '#E0E0E0' },
                       }}
