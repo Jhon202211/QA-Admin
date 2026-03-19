@@ -121,7 +121,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
   const [businessRules, setBusinessRules] = useState('');
   const [historicalBugs, setHistoricalBugs] = useState('');
-  const [topK, setTopK] = useState(5);
+  const [topK, setTopK] = useState(3);
 
   // Estado de la generación
   const [loading, setLoading] = useState(false);
@@ -252,7 +252,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     setAcceptanceCriteria('');
     setBusinessRules('');
     setHistoricalBugs('');
-    setTopK(5);
+    setTopK(3);
     setSuggestion(null);
     setError(null);
     setEditableProject('QAScope');

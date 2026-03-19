@@ -116,18 +116,27 @@ export const HierarchicalView = () => {
   };
 
   // Funciones para borrar proyecto
+  const matchProject = (tc: TestCase, project: string) =>
+    project === 'Sin proyecto' ? !tc.testProject : tc.testProject === project;
+
   const handleDeleteProject = (project: string) => {
-    const casesInProject = testCases.filter(tc => tc.testProject === project);
+    const casesInProject = testCases.filter(tc => matchProject(tc, project));
     setDeleteProjectDialog({ open: true, project, count: casesInProject.length });
   };
 
   const handleConfirmDeleteProject = async () => {
-    const casesToDelete = testCases.filter(tc => tc.testProject === deleteProjectDialog.project);
-    
+    const casesToDelete = testCases.filter(tc => matchProject(tc, deleteProjectDialog.project));
+    const close = () => setDeleteProjectDialog({ open: false, project: '', count: 0 });
+
     try {
-      await deleteMany('test_cases', { ids: casesToDelete.map(tc => tc.id) });
-      notify(`Proyecto "${deleteProjectDialog.project}" y ${deleteProjectDialog.count} caso(s) eliminado(s)`, { type: 'success' });
-      setDeleteProjectDialog({ open: false, project: '', count: 0 });
+      if (casesToDelete.length > 0) {
+        await deleteMany('test_cases', { ids: casesToDelete.map(tc => tc.id) });
+      }
+      notify(
+        `Proyecto "${deleteProjectDialog.project}" y ${casesToDelete.length} caso(s) eliminado(s)`,
+        { type: 'success' }
+      );
+      close();
       refresh();
     } catch (error) {
       notify('Error al eliminar el proyecto', { type: 'error' });
