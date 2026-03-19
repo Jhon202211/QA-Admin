@@ -21,7 +21,12 @@ import {
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import CloudIcon from '@mui/icons-material/Cloud';
 import Chip from '@mui/material/Chip';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useNotify } from 'react-admin';
 
 const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
@@ -37,6 +42,7 @@ export const ConfigurationPage = () => {
   const isDark = theme.palette.mode === 'dark';
   const notify = useNotify();
   const [tabValue, setTabValue] = useState(0);
+  const [showSecretKey, setShowSecretKey] = useState(false);
 
   // Estado de configuración (en producción esto vendría de un store o API)
   const [config, setConfig] = useState({
@@ -69,6 +75,12 @@ export const ConfigurationPage = () => {
     jiraProjectKey: '',
     githubIntegration: false,
     githubRepo: '',
+    // AWS S3
+    awsS3Enabled: false,
+    awsAccessKeyId: '',
+    awsSecretAccessKey: '',
+    awsRegion: 'us-east-1',
+    awsS3Bucket: '',
     
     // IA / LLM (multi-proveedor)
     llmEnabled: false,
@@ -538,6 +550,117 @@ export const ConfigurationPage = () => {
                     />
                   </>
                 )}
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+
+      {/* ── AWS S3 ── */}
+      <Grid size={{ xs: 12 }}>
+        <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <CloudIcon sx={{ color: '#FF9900' }} />
+              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                Almacenamiento de Evidencias — AWS S3
+              </Typography>
+              {config.awsS3Enabled && (
+                <Chip label="activo" size="small" sx={{ backgroundColor: '#FF9900', color: '#fff', height: 20, fontSize: '0.65rem', ml: 1 }} />
+              )}
+            </Box>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+              Conecta un bucket de Amazon S3 para almacenar las imágenes y videos de evidencias de tus pruebas.
+              Las credenciales se guardan localmente en el navegador.
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={config.awsS3Enabled}
+                  onChange={(e) => setConfig({ ...config, awsS3Enabled: e.target.checked })}
+                />
+              }
+              label="Activar almacenamiento en AWS S3"
+              sx={{ mb: 3, display: 'block' }}
+            />
+
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                gap: 2,
+                opacity: config.awsS3Enabled ? 1 : 0.45,
+                pointerEvents: config.awsS3Enabled ? 'auto' : 'none',
+              }}
+            >
+              <TextField
+                fullWidth
+                label="Access Key ID"
+                value={config.awsAccessKeyId}
+                onChange={(e) => setConfig({ ...config, awsAccessKeyId: e.target.value })}
+                placeholder="AKIAIOSFODNN7EXAMPLE"
+                helperText="Clave de acceso de tu usuario IAM"
+                InputLabelProps={{ shrink: true }}
+              />
+
+              <TextField
+                fullWidth
+                label="Secret Access Key"
+                type={showSecretKey ? 'text' : 'password'}
+                value={config.awsSecretAccessKey}
+                onChange={(e) => setConfig({ ...config, awsSecretAccessKey: e.target.value })}
+                placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                helperText="Clave secreta de tu usuario IAM"
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setShowSecretKey((v) => !v)} edge="end">
+                        {showSecretKey ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <TextField
+                fullWidth
+                label="Bucket Name"
+                value={config.awsS3Bucket}
+                onChange={(e) => setConfig({ ...config, awsS3Bucket: e.target.value })}
+                placeholder="mi-bucket-de-evidencias"
+                helperText="Nombre exacto del bucket S3"
+                InputLabelProps={{ shrink: true }}
+              />
+
+              <FormControl fullWidth>
+                <InputLabel shrink>Región</InputLabel>
+                <Select
+                  value={config.awsRegion}
+                  onChange={(e) => setConfig({ ...config, awsRegion: e.target.value })}
+                  label="Región"
+                  notched
+                >
+                  <MenuItem value="us-east-1">us-east-1 — EE.UU. Este (Norte de Virginia)</MenuItem>
+                  <MenuItem value="us-east-2">us-east-2 — EE.UU. Este (Ohio)</MenuItem>
+                  <MenuItem value="us-west-1">us-west-1 — EE.UU. Oeste (Norte de California)</MenuItem>
+                  <MenuItem value="us-west-2">us-west-2 — EE.UU. Oeste (Oregón)</MenuItem>
+                  <MenuItem value="sa-east-1">sa-east-1 — Sudamérica (São Paulo)</MenuItem>
+                  <MenuItem value="eu-west-1">eu-west-1 — Europa (Irlanda)</MenuItem>
+                  <MenuItem value="eu-central-1">eu-central-1 — Europa (Fráncfort)</MenuItem>
+                  <MenuItem value="ap-southeast-1">ap-southeast-1 — Asia Pacífico (Singapur)</MenuItem>
+                  <MenuItem value="ap-northeast-1">ap-northeast-1 — Asia Pacífico (Tokio)</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            {config.awsS3Enabled && (!config.awsAccessKeyId || !config.awsSecretAccessKey || !config.awsS3Bucket) && (
+              <Box sx={{ mt: 2, p: 1.5, borderRadius: 1.5, backgroundColor: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.3)' }}>
+                <Typography variant="caption" sx={{ color: '#FF9900' }}>
+                  ⚠ Completa los campos Access Key ID, Secret Access Key y Bucket Name para activar S3 como destino de evidencias.
+                </Typography>
               </Box>
             )}
           </CardContent>

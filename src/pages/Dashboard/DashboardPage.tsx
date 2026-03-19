@@ -15,7 +15,7 @@ const TabPanel = ({ children, value, index }: { children: React.ReactNode; value
 };
 
 export const Dashboard = () => {
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState(0); // 0 = Pruebas Manuales, 1 = Automatizados
 
   const handleExportPDF = async () => {
     const input = document.getElementById('dashboard-content');
@@ -35,7 +35,7 @@ export const Dashboard = () => {
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`dashboard-${tabValue === 0 ? 'automatizados' : 'manuales'}-${new Date().toISOString().split('T')[0]}.pdf`);
+      pdf.save(`dashboard-${tabValue === 0 ? 'manuales' : 'automatizados'}-${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error al exportar PDF:', error);
     }
@@ -67,16 +67,16 @@ export const Dashboard = () => {
       </Box>
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
-          <Tab label="Automatizados" />
           <Tab label="Pruebas Manuales" />
+          <Tab label="Automatizados" />
         </Tabs>
       </Box>
       <Box id="dashboard-content">
         <TabPanel value={tabValue} index={0}>
-          <AutomatedMetrics />
+          <ManualMetrics />
         </TabPanel>
         <TabPanel value={tabValue} index={1}>
-          <ManualMetrics />
+          <AutomatedMetrics />
         </TabPanel>
       </Box>
     </Box>

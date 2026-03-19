@@ -154,7 +154,7 @@ export const TestExecutionModal = ({
   const handleDeleteEvidence = async (evidence: EvidenceFile) => {
     setDeletingPath(evidence.path);
     try {
-      await deleteEvidence(evidence.path);
+      await deleteEvidence(evidence);
       const updated = (activeStep.evidences || []).filter((ev) => ev.path !== evidence.path);
       setStepValue('evidences', updated);
       notify('Evidencia eliminada', { type: 'success' });
