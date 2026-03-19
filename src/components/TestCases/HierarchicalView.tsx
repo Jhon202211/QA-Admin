@@ -6,11 +6,14 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useNavigate } from 'react-router-dom';
 import { useGetList, useRefresh, useUpdateMany, useDeleteMany, useNotify } from 'react-admin';
 import { useState } from 'react';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
 import { AIAgent } from './AIAgent';
+import { TestExecutionModal } from './TestExecutionModal';
+import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from './testCaseUi';
 import type { TestCase, TestCaseCategory } from '../../types/testCase';
 
 export const HierarchicalView = () => {
@@ -24,6 +27,7 @@ export const HierarchicalView = () => {
   const [aiAgentOpen, setAiAgentOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<TestCaseCategory | undefined>();
+  const [executionCase, setExecutionCase] = useState<TestCase | null>(null);
   
   // Estados para editar/borrar
   const [editProjectDialog, setEditProjectDialog] = useState<{ open: boolean; project: string; newName: string }>({ open: false, project: '', newName: '' });
@@ -63,26 +67,6 @@ export const HierarchicalView = () => {
       'UAT': '#9C27B0',
     };
     return colors[category] || '#6B6B6B';
-  };
-
-  const getExecutionResultColor = (result?: string) => {
-    const colors: Record<string, string> = {
-      'passed': '#4caf50',
-      'failed': '#E53935',
-      'blocked': '#ff9800',
-      'not_executed': '#bdbdbd',
-    };
-    return colors[result || 'not_executed'] || '#bdbdbd';
-  };
-
-  const getExecutionResultLabel = (result?: string) => {
-    const labels: Record<string, string> = {
-      'passed': 'Aprobado',
-      'failed': 'Fallido',
-      'blocked': 'Bloqueado',
-      'not_executed': 'No ejecutado',
-    };
-    return labels[result || 'not_executed'] || 'No ejecutado';
   };
 
   // Funciones para editar proyecto
@@ -441,26 +425,35 @@ export const HierarchicalView = () => {
                               )}
                             </Box>
                             <Chip
-                              label={testCase.priority || 'Sin prioridad'}
+                              label={getPriorityLabel(testCase.priority)}
                               size="small"
                               sx={{
-                                backgroundColor:
-                                  testCase.priority === 'high' || testCase.priority === 'critical' ? '#E53935' :
-                                  testCase.priority === 'medium' ? '#ff9800' :
-                                  testCase.priority === 'low' ? '#4caf50' : '#bdbdbd',
+                                backgroundColor: getPriorityColor(testCase.priority),
                                 color: '#fff',
                                 fontWeight: 600,
                               }}
                             />
                             <Chip
-                              label={getExecutionResultLabel(testCase.executionResult)}
+                              label={getExecutionLabel(testCase.executionResult)}
                               size="small"
                               sx={{
-                                backgroundColor: getExecutionResultColor(testCase.executionResult),
+                                backgroundColor: getExecutionColor(testCase.executionResult),
                                 color: '#fff',
                                 fontWeight: 600,
                               }}
                             />
+                            <Tooltip title="Ejecutar caso de prueba">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExecutionCase(testCase);
+                                }}
+                                sx={{ color: '#43A047' }}
+                              >
+                                <PlayArrowIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                             <IconButton
                               size="small"
                               onClick={(e) => {
@@ -498,6 +491,12 @@ export const HierarchicalView = () => {
           refresh();
         }}
         onCasesCreated={refresh}
+      />
+      <TestExecutionModal
+        open={Boolean(executionCase)}
+        testCase={executionCase}
+        onClose={() => setExecutionCase(null)}
+        onExecuted={refresh}
       />
 
       {/* Diálogo para editar proyecto */}

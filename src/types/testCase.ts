@@ -1,4 +1,11 @@
 export type TestCaseStatus = 'active' | 'deprecated' | 'draft' | 'archived';
+
+export interface EvidenceFile {
+  url: string;
+  path: string;
+  name: string;
+  mimeType: string;
+}
 export type TestCaseType = 'functional' | 'performance' | 'security' | 'integration' | 'e2e' | 'api';
 export type TestCasePriority = 'low' | 'medium' | 'high' | 'critical';
 export type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT';
@@ -10,8 +17,8 @@ export interface TestStep {
   expectedResult: string;
   actualResult?: string;
   attachments?: string[];
-  evidences?: string[];
-  status?: 'passed' | 'failed' | 'blocked' | 'not_executed';
+  evidences?: EvidenceFile[];
+  status?: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'not_executed';
 }
 
 export interface TestCase {
@@ -29,7 +36,7 @@ export interface TestCase {
   expectedResult?: string;
   actualResult?: string;
   responsible?: string;
-  executionResult?: 'passed' | 'failed' | 'blocked' | 'not_executed';
+  executionResult?: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'not_executed';
   notes?: string;
   type: TestCaseType;
   status: TestCaseStatus;

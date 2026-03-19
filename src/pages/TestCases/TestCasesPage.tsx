@@ -24,6 +24,7 @@ import { Box, Typography, Chip, Tabs, Tab } from '@mui/material';
 import { RichTextInput } from 'ra-input-rich-text';
 import { HierarchicalView } from '../../components/TestCases/HierarchicalView';
 import { useState } from 'react';
+import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from '../../components/TestCases/testCaseUi';
 
 const caseFilters = [
   <TextInput label="Buscar por nombre" source="name" alwaysOn />,
@@ -78,12 +79,9 @@ const TestCasesList = () => (
         label="Prioridad"
         render={record => (
           <Chip
-            label={record.priority}
+            label={getPriorityLabel(record.priority)}
             sx={{
-              backgroundColor:
-                record.priority === 'Alta' ? '#E53935' :
-                record.priority === 'Media' ? '#ff9800' :
-                record.priority === 'Baja' ? '#4caf50' : '#bdbdbd',
+              backgroundColor: getPriorityColor(record.priority),
               color: '#fff',
               fontWeight: 600
             }}
@@ -94,18 +92,9 @@ const TestCasesList = () => (
         label="Resultado de ejecución"
         render={record => (
           <Chip
-            label={
-              record.executionResult === 'passed' ? 'Aprobado' :
-              record.executionResult === 'failed' ? 'Fallido' :
-              record.executionResult === 'blocked' ? 'Bloqueado' :
-              record.executionResult === 'not_executed' ? 'No ejecutado' : record.executionResult
-            }
+            label={getExecutionLabel(record.executionResult)}
             sx={{
-              backgroundColor:
-                record.executionResult === 'passed' ? '#4caf50' :
-                record.executionResult === 'failed' ? '#E53935' :
-                record.executionResult === 'blocked' ? '#ff9800' :
-                record.executionResult === 'not_executed' ? '#bdbdbd' : '#bdbdbd',
+              backgroundColor: getExecutionColor(record.executionResult),
               color: '#fff',
               fontWeight: 600
             }}
@@ -165,6 +154,7 @@ export const TestCaseCreate = (props: any) => (
         { id: 'passed', name: 'Aprobado' },
         { id: 'failed', name: 'Fallido' },
         { id: 'blocked', name: 'Bloqueado' },
+        { id: 'in_progress', name: 'En progreso' },
         { id: 'not_executed', name: 'No ejecutado' },
       ]} />
       <TextInput source="notes" label="Notas adicionales" multiline fullWidth />
@@ -213,6 +203,7 @@ export const TestCaseEdit = (props: any) => (
         { id: 'passed', name: 'Aprobado' },
         { id: 'failed', name: 'Fallido' },
         { id: 'blocked', name: 'Bloqueado' },
+        { id: 'in_progress', name: 'En progreso' },
         { id: 'not_executed', name: 'No ejecutado' },
       ]} />
       <TextInput source="notes" label="Notas adicionales" multiline fullWidth />

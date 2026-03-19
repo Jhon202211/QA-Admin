@@ -2,7 +2,7 @@ import { Card, CardContent, Typography, Grid, Box } from '@mui/material';
 import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-const COLORS = ['#FF6B35', '#3CCF91', '#2196F3', '#FF9800', '#9C27B0'];
+const COLORS = ['#43A047', '#E53935', '#FB8C00', '#1E88E5', '#9E9E9E'];
 
 export const ManualMetrics = () => {
   const { data: testCases = [] } = useGetList('test_cases', {
@@ -14,6 +14,7 @@ export const ManualMetrics = () => {
   const passedCases = testCases.filter(tc => tc.executionResult === 'passed').length;
   const failedCases = testCases.filter(tc => tc.executionResult === 'failed').length;
   const blockedCases = testCases.filter(tc => tc.executionResult === 'blocked').length;
+  const inProgressCases = testCases.filter(tc => tc.executionResult === 'in_progress').length;
   const notExecutedCases = testCases.filter(tc => !tc.executionResult || tc.executionResult === 'not_executed').length;
   
   const successRate = totalCases > 0 ? ((passedCases / totalCases) * 100).toFixed(2) : '0';
@@ -50,6 +51,7 @@ export const ManualMetrics = () => {
     { name: 'Aprobados', value: passedCases },
     { name: 'Fallidos', value: failedCases },
     { name: 'Bloqueados', value: blockedCases },
+    { name: 'En progreso', value: inProgressCases },
     { name: 'No Ejecutados', value: notExecutedCases },
   ];
 
@@ -145,6 +147,16 @@ export const ManualMetrics = () => {
             </Typography>
             <Typography variant="h5" sx={{ color: '#E53935', fontWeight: 600 }}>
               {failedCases}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+              En progreso
+            </Typography>
+            <Typography variant="h5" sx={{ color: '#1E88E5', fontWeight: 600 }}>
+              {inProgressCases}
             </Typography>
           </CardContent>
         </Card>

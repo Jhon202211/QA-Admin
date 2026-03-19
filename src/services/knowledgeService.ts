@@ -54,11 +54,13 @@ class BM25Index {
   private readonly k1 = 1.5;
   private readonly b = 0.75;
 
+  private readonly chunks: KnowledgeChunk[];
   private readonly tokenized: string[][];
   private readonly idf: Map<string, number>;
   private readonly avgdl: number;
 
-  constructor(private readonly chunks: KnowledgeChunk[]) {
+  constructor(chunks: KnowledgeChunk[]) {
+    this.chunks = chunks;
     this.tokenized = chunks.map((c) => tokenize(c.content));
     this.avgdl =
       this.tokenized.reduce((sum, doc) => sum + doc.length, 0) /
