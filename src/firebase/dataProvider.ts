@@ -18,6 +18,20 @@ interface DataItem {
   [key: string]: any;
 }
 
+const withTimeout = async <T>(promise: Promise<T>, ms = 15000): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Timeout consultando Firestore')), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
 const convertTimestampToDate = (data: any) => {
   if (!data) return data;
   
@@ -47,12 +61,20 @@ const convertDateToTimestamp = (data: any) => {
 
 export const dataProvider = {
   getList: async (resource: string, params: any = {}) => {
-    const collectionRef = collection(db, resource);
-    const snapshot = await getDocs(collectionRef);
-    let data: DataItem[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...convertTimestampToDate(doc.data())
-    } as DataItem));
+    let data: DataItem[] = [];
+    try {
+      const collectionRef = collection(db, resource);
+      const snapshot = await withTimeout(getDocs(collectionRef));
+      data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...convertTimestampToDate(doc.data())
+      } as DataItem));
+    } catch (error: any) {
+      const code = error?.code ? ` (${error.code})` : '';
+      const message = error?.message || 'Error desconocido leyendo Firestore';
+      console.error(`[Firestore] getList ${resource}${code}:`, error);
+      throw new Error(`No se pudo cargar ${resource}${code}: ${message}`);
+    }
 
     // Filtrado
     if (params.filter) {
@@ -89,7 +111,7 @@ export const dataProvider = {
     }
 
     // Paginación
-    let total = data.length;
+    const total = data.length;
     if (params.pagination) {
       const { page, perPage } = params.pagination;
       const start = (page - 1) * perPage;
