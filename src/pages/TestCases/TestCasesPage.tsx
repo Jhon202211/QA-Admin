@@ -23,6 +23,7 @@ import {
 import { Box, Typography, Chip, Tabs, Tab } from '@mui/material';
 import { RichTextInput } from 'ra-input-rich-text';
 import { HierarchicalView } from '../../components/TestCases/HierarchicalView';
+import { ArchivedView } from '../../components/TestCases/ArchivedView';
 import { useState } from 'react';
 import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from '../../components/TestCases/testCaseUi';
 
@@ -123,9 +124,12 @@ export const TestCasesPage = () => {
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
           <Tab label="Vista Jerárquica" />
           <Tab label="Vista de Lista" />
+          <Tab label="Archivados" />
         </Tabs>
       </Box>
-      {tabValue === 0 ? <HierarchicalView /> : <TestCasesList />}
+      {tabValue === 0 && <HierarchicalView />}
+      {tabValue === 1 && <TestCasesList />}
+      {tabValue === 2 && <ArchivedView />}
     </Box>
   );
 };

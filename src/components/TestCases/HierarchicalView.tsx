@@ -7,6 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ArchiveIcon from '@mui/icons-material/Archive';
 import { useNavigate } from 'react-router-dom';
 import { useGetList, useRefresh, useUpdateMany, useDeleteMany, useNotify } from 'react-admin';
 import { useState } from 'react';
@@ -34,6 +35,7 @@ export const HierarchicalView = () => {
   const [editCategoryDialog, setEditCategoryDialog] = useState<{ open: boolean; project: string; category: string; newCategory: string }>({ open: false, project: '', category: '', newCategory: '' });
   const [deleteProjectDialog, setDeleteProjectDialog] = useState<{ open: boolean; project: string; count: number }>({ open: false, project: '', count: 0 });
   const [deleteCategoryDialog, setDeleteCategoryDialog] = useState<{ open: boolean; project: string; category: string; count: number }>({ open: false, project: '', category: '', count: 0 });
+  const [archiveProjectDialog, setArchiveProjectDialog] = useState<{ open: boolean; project: string; count: number }>({ open: false, project: '', count: 0 });
   
   const refresh = useRefresh();
   const { data: testCases = [], isLoading } = useGetList('test_cases', {
@@ -41,8 +43,9 @@ export const HierarchicalView = () => {
     sort: { field: 'testProject', order: 'ASC' }
   });
 
-  // Agrupar casos de prueba por proyecto y categoría (jerarquía original)
-  const groupedData = testCases.reduce((acc: any, testCase: TestCase) => {
+  // Agrupar casos de prueba activos (no archivados) por proyecto y categoría
+  const activeCases = testCases.filter((tc: TestCase) => !tc.projectArchived);
+  const groupedData = activeCases.reduce((acc: any, testCase: TestCase) => {
     const project = testCase.testProject || 'Sin proyecto';
     const category = testCase.category || 'Sin categoría';
     
@@ -55,6 +58,31 @@ export const HierarchicalView = () => {
     acc[project][category].push(testCase);
     return acc;
   }, {});
+
+  // Funciones para archivar proyecto
+  const handleArchiveProject = (project: string) => {
+    const casesInProject = testCases.filter((tc: TestCase) => matchProject(tc, project));
+    setArchiveProjectDialog({ open: true, project, count: casesInProject.length });
+  };
+
+  const handleConfirmArchiveProject = async () => {
+    const casesToArchive = testCases.filter((tc: TestCase) => matchProject(tc, archiveProjectDialog.project));
+    const close = () => setArchiveProjectDialog({ open: false, project: '', count: 0 });
+
+    try {
+      if (casesToArchive.length > 0) {
+        await updateMany('test_cases', {
+          ids: casesToArchive.map((tc: TestCase) => tc.id),
+          data: { projectArchived: true }
+        });
+      }
+      notify(`Proyecto "${archiveProjectDialog.project}" archivado`, { type: 'success' });
+      close();
+      refresh();
+    } catch {
+      notify('Error al archivar el proyecto', { type: 'error' });
+    }
+  };
 
   const categories: TestCaseCategory[] = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión', 'UAT'];
 
@@ -284,6 +312,18 @@ export const HierarchicalView = () => {
                     sx={{ color: '#2196F3' }}
                   >
                     <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Archivar proyecto">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleArchiveProject(project);
+                    }}
+                    sx={{ color: '#FB8C00' }}
+                  >
+                    <ArchiveIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Eliminar proyecto">
@@ -595,6 +635,31 @@ export const HierarchicalView = () => {
             sx={{ '&:hover': { backgroundColor: '#C62828' } }}
           >
             Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para archivar proyecto */}
+      <Dialog open={archiveProjectDialog.open} onClose={() => setArchiveProjectDialog({ open: false, project: '', count: 0 })}>
+        <DialogTitle>Archivar Proyecto</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            ¿Deseas archivar el proyecto <strong>"{archiveProjectDialog.project}"</strong>?
+          </Alert>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            El proyecto y sus <strong>{archiveProjectDialog.count} caso(s) de prueba</strong> se moverán a la pestaña <strong>Archivados</strong>.
+            <br />
+            Puedes desarchivarlo en cualquier momento.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setArchiveProjectDialog({ open: false, project: '', count: 0 })}>Cancelar</Button>
+          <Button
+            onClick={handleConfirmArchiveProject}
+            variant="contained"
+            sx={{ backgroundColor: '#FB8C00', '&:hover': { backgroundColor: '#E65100' } }}
+          >
+            Archivar
           </Button>
         </DialogActions>
       </Dialog>

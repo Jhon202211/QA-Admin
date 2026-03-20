@@ -53,6 +53,7 @@ export interface TestCase {
   attachments?: string[];
   automated: boolean;
   automationScript?: string;
+  projectArchived?: boolean;
 }
 
 // Interfaz para la respuesta del agente IA
