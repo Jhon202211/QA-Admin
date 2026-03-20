@@ -123,13 +123,13 @@ export const TestCasesPage = () => {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
           <Tab label="Vista Jerárquica" />
-          <Tab label="Vista de Lista" />
           <Tab label="Archivados" />
+          <Tab label="Vista de Lista" />
         </Tabs>
       </Box>
       {tabValue === 0 && <HierarchicalView />}
-      {tabValue === 1 && <TestCasesList />}
-      {tabValue === 2 && <ArchivedView />}
+      {tabValue === 1 && <ArchivedView />}
+      {tabValue === 2 && <TestCasesList />}
     </Box>
   );
 };
