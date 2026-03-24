@@ -47,6 +47,7 @@ import {
   uploadEvidence,
   validateEvidence,
 } from '../../services/evidenceService';
+import { EvidencePreview } from './EvidencePreview';
 
 interface TestExecutionModalProps {
   open: boolean;
@@ -414,20 +415,7 @@ export const TestExecutionModal = ({
                               </Typography>
                             </Stack>
                           ) : (
-                            <Box
-                              component="a"
-                              href={ev.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              sx={{ display: 'block', cursor: 'zoom-in' }}
-                            >
-                              <Box
-                                component="img"
-                                src={ev.url}
-                                alt={ev.name}
-                                sx={{ width: '100%', height: 90, objectFit: 'cover', display: 'block' }}
-                              />
-                            </Box>
+                            <EvidencePreview evidence={ev} height={90} />
                           )}
 
                           {/* Overlay de acciones */}

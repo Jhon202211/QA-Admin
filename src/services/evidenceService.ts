@@ -1,5 +1,6 @@
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { storage } from '../firebase/config';
 import type { EvidenceFile } from '../types/testCase';
 
@@ -165,4 +166,26 @@ export const deleteEvidence = async (evidence: EvidenceFile): Promise<void> => {
 
   const storageRef = ref(storage, evidence.path);
   await deleteObject(storageRef);
+};
+
+// ── Presigned URL (lectura temporal sin bucket público) ───────────────────────
+
+export const getPresignedUrl = async (path: string, expiresIn = 3600): Promise<string> => {
+  const s3Config = getS3Config();
+  if (!s3Config) return path;
+
+  const client = new S3Client({
+    region: s3Config.region,
+    credentials: {
+      accessKeyId: s3Config.accessKeyId,
+      secretAccessKey: s3Config.secretAccessKey,
+    },
+  });
+
+  const command = new GetObjectCommand({
+    Bucket: s3Config.bucket,
+    Key: path,
+  });
+
+  return getSignedUrl(client, command, { expiresIn });
 };
