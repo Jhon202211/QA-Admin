@@ -125,9 +125,10 @@ export const TestCaseEditPage = () => {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
+    <Box sx={{ px: { xs: 2, md: 3 }, py: 3, width: '100%', maxWidth: '100%' }}>
+      <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto' }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', mb: 3, gap: 2, flexWrap: 'wrap' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton onClick={() => navigate('/test_cases')} size="small">
             <ArrowBackIcon />
@@ -151,7 +152,7 @@ export const TestCaseEditPage = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           {sectionTitle('Información básica')}
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(280px, 1fr))', xl: 'repeat(3, minmax(220px, 1fr))' }, gap: 2 }}>
             <TextField
               label="Proyecto de Prueba *"
               value={form.testProject || ''}
@@ -309,32 +310,33 @@ export const TestCaseEditPage = () => {
                 </IconButton>
               </Box>
               <Divider sx={{ mb: 1.5 }} />
-              <TextField
-                fullWidth
-                label="Descripción del paso *"
-                value={step.description}
-                onChange={(e) => handleStepChange(step.id, 'description', e.target.value)}
-                multiline
-                rows={2}
-                sx={{ mb: 1.5 }}
-                placeholder="Ej: Navegar a la pantalla de login e ingresar credenciales válidas"
-              />
-              <TextField
-                fullWidth
-                label="Resultado esperado"
-                value={step.expectedResult}
-                onChange={(e) => handleStepChange(step.id, 'expectedResult', e.target.value)}
-                multiline
-                rows={2}
-                placeholder="Ej: El sistema muestra el dashboard del usuario"
-              />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.5 }}>
+                <TextField
+                  fullWidth
+                  label="Descripción del paso *"
+                  value={step.description}
+                  onChange={(e) => handleStepChange(step.id, 'description', e.target.value)}
+                  multiline
+                  rows={3}
+                  placeholder="Ej: Navegar a la pantalla de login e ingresar credenciales válidas"
+                />
+                <TextField
+                  fullWidth
+                  label="Resultado esperado"
+                  value={step.expectedResult}
+                  onChange={(e) => handleStepChange(step.id, 'expectedResult', e.target.value)}
+                  multiline
+                  rows={3}
+                  placeholder="Ej: El sistema muestra el dashboard del usuario"
+                />
+              </Box>
             </Box>
           ))}
         </CardContent>
       </Card>
 
       {/* Footer */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2, flexWrap: 'wrap' }}>
         <Button onClick={() => navigate('/test_cases')} sx={{ textTransform: 'none', color: 'text.secondary' }}>
           Cancelar
         </Button>
@@ -347,6 +349,7 @@ export const TestCaseEditPage = () => {
         >
           Guardar cambios
         </Button>
+      </Box>
       </Box>
     </Box>
   );
