@@ -2,6 +2,7 @@ import {
   collection,
   getDocs,
   getDoc,
+  setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -10,6 +11,7 @@ import {
   where,
   Timestamp,
   writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from './config';
 
@@ -158,17 +160,30 @@ export const dataProvider = {
   create: async (resource: string, params: any) => {
     const collectionRef = collection(db, resource);
     let caseKey = params.data.caseKey;
-    // Si el usuario no proporciona caseKey, generarlo automáticamente
+    // Si el usuario no proporciona caseKey, generarlo con contador atómico
     if (!caseKey) {
-      const snapshot = await getDocs(collectionRef);
-      // Filtrar solo los que tienen caseKey y extraer el número
-      const keys = snapshot.docs
-        .map(doc => (doc.data() as { caseKey?: string }).caseKey)
-        .filter(key => typeof key === 'string' && /^CP\d{3,}$/.test(key as string))
-        .map(key => parseInt((key as string).replace('CP', ''), 10));
-      const max = keys.length > 0 ? Math.max(...keys) : 0;
-      const next = (max + 1).toString().padStart(3, '0');
-      caseKey = `CP${next}`;
+      const counterRef = doc(db, '_counters', 'caseKey');
+
+      // Si el contador no existe, inicializarlo con el máximo actual de los casos
+      const counterSnap = await getDoc(counterRef);
+      if (!counterSnap.exists()) {
+        const snapshot = await getDocs(collectionRef);
+        const existing = snapshot.docs
+          .map(d => (d.data() as { caseKey?: string }).caseKey)
+          .filter((k): k is string => typeof k === 'string' && /^CP\d+$/.test(k))
+          .map(k => parseInt(k.replace('CP', ''), 10));
+        const maxExisting = existing.length > 0 ? Math.max(...existing) : 0;
+        await setDoc(counterRef, { value: maxExisting });
+      }
+
+      const nextNum = await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(counterRef);
+        const current = snap.exists() ? (snap.data()?.value ?? 0) : 0;
+        const next = current + 1;
+        transaction.set(counterRef, { value: next });
+        return next;
+      });
+      caseKey = `CP${nextNum.toString().padStart(3, '0')}`;
     }
     const data = convertDateToTimestamp({ ...params.data, caseKey });
     const docRef = await addDoc(collectionRef, {
