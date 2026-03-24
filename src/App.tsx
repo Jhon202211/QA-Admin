@@ -7,7 +7,8 @@ import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box, useTheme } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import isotype from './assets/isotype white small.svg';
-import { TestCasesPage, TestCaseCreate, TestCaseEdit } from './pages/TestCases/TestCasesPage';
+import { TestCasesPage, TestCaseCreate } from './pages/TestCases/TestCasesPage';
+import { TestCaseEditPage } from './pages/TestCases/TestCaseEditPage';
 import { TestPlanningPage, TestPlanningCreate, TestPlanningEdit } from './pages/TestPlanning/TestPlanningPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
@@ -169,7 +170,7 @@ function App() {
             <Route path="/reliability/dashboard" element={<ReliabilityDashboardPage />} />
             <Route path="/reliability/analysis" element={<ReliabilityAnalysisPage />} />
           </CustomRoutes>
-          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEdit} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
+          <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEditPage} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
           <Resource name="test_results" list={ResultsViewPage} icon={AssessmentIcon} options={{ label: 'Vista de resultados' }} />
