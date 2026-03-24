@@ -1,70 +1,64 @@
 import { Card, CardContent, Typography, Grid, Box, List, ListItem, ListItemText } from '@mui/material';
 import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { es } from 'date-fns/locale';
-import { useState } from 'react';
 import { differenceInCalendarDays, startOfDay, endOfDay, format } from 'date-fns';
 
 const COLORS = ['#FF6B35', '#4A90E2'];
 
-export const AutomatedMetrics = () => {
-  const { data: testResults = [], total } = useGetList('test_results', {
+interface AutomatedMetricsProps {
+  startDate?: Date | null;
+  endDate?: Date | null;
+}
+
+export const AutomatedMetrics = ({ startDate, endDate }: AutomatedMetricsProps) => {
+  const { data: allResults = [], total } = useGetList('test_results', {
     pagination: { page: 1, perPage: 1000 },
     sort: { field: 'date', order: 'DESC' }
   });
 
-  const passedTests = testResults.filter(test => test.status === 'passed').length;
-  const failedTests = testResults.filter(test => test.status === 'failed').length;
-  const successRate = total ? ((passedTests / total) * 100).toFixed(2) : '0';
-  const avgDuration = testResults.length ? (testResults.reduce((acc, t) => acc + (t.duration || 0), 0) / testResults.length).toFixed(2) : '0';
-  const recentTests = [...testResults]
+  const filteredResults = (startDate && endDate)
+    ? allResults.filter(test => {
+        if (!test.date) return false;
+        const d = new Date(test.date);
+        return d >= startDate && d <= endDate;
+      })
+    : allResults;
+
+  const passedTests = filteredResults.filter(test => test.status === 'passed').length;
+  const failedTests = filteredResults.filter(test => test.status === 'failed').length;
+  const totalFiltered = filteredResults.length;
+  const successRate = totalFiltered ? ((passedTests / totalFiltered) * 100).toFixed(2) : '0';
+  const avgDuration = filteredResults.length
+    ? (filteredResults.reduce((acc, t) => acc + (t.duration || 0), 0) / filteredResults.length).toFixed(2)
+    : '0';
+
+  const recentTests = [...filteredResults]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
-  const recentErrors = testResults.filter(test => test.status === 'failed' && test.error).slice(0, 5);
+  const recentErrors = filteredResults.filter(test => test.status === 'failed' && test.error).slice(0, 5);
 
   const pieData = [
     { name: 'Exitosas', value: passedTests },
     { name: 'Fallidas', value: failedTests }
   ];
 
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
-
-  const filteredResults = testResults.filter(test => {
-    if (!test.date) return false;
-    const d = new Date(test.date);
-    if (startDate && d < startOfDay(startDate)) return false;
-    if (endDate && d > endOfDay(endDate)) return false;
-    return true;
-  });
-
   let chartData: any[] = [];
-
   if (startDate && endDate) {
     const days = differenceInCalendarDays(endOfDay(endDate), startOfDay(startDate)) + 1;
-    const daysArr = Array.from({ length: days }, (_, i) => {
+    chartData = Array.from({ length: days }, (_, i) => {
       const d = new Date(startDate);
       d.setDate(d.getDate() + i);
-      return d;
-    });
-    chartData = daysArr.map(d => {
       const count = filteredResults.filter(test => {
         const tDate = test.date ? new Date(test.date) : null;
         return tDate && tDate >= startOfDay(d) && tDate <= endOfDay(d);
       }).length;
-      return {
-        día: format(d, 'd/M/yyyy'),
-        ejecuciones: count
-      };
+      return { día: format(d, 'd/M/yyyy'), ejecuciones: count };
     });
   } else {
     const today = startOfDay(new Date());
     chartData = [{
       día: format(today, 'd/M/yyyy'),
-      ejecuciones: testResults.filter(test => {
+      ejecuciones: allResults.filter(test => {
         const tDate = test.date ? new Date(test.date) : null;
         return tDate && tDate >= today && tDate <= endOfDay(today);
       }).length
@@ -83,12 +77,12 @@ export const AutomatedMetrics = () => {
               <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
                 <ResponsiveContainer width={350} height={320}>
                   <PieChart margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
-                    <Pie 
-                      data={pieData} 
-                      dataKey="value" 
-                      nameKey="name" 
-                      cx="50%" 
-                      cy="50%" 
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
                       outerRadius={100}
                       labelLine={{ stroke: '#2B2D42', strokeWidth: 1 }}
                       label={({ value, percent }: any) => `${value} (${(percent * 100).toFixed(0)}%)`}
@@ -98,12 +92,12 @@ export const AutomatedMetrics = () => {
                       ))}
                     </Pie>
                     <Tooltip />
-                    <Legend verticalAlign="bottom" height={36}/>
+                    <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
                 <Box mt={2}>
                   <Typography variant="body2" align="center" color="textSecondary">
-                    Total de pruebas: <b>{total}</b> | Exitosas: <b>{passedTests}</b> | Fallidas: <b>{failedTests}</b>
+                    Total: <b>{totalFiltered}</b> | Exitosas: <b>{passedTests}</b> | Fallidas: <b>{failedTests}</b>
                   </Typography>
                 </Box>
               </Box>
@@ -114,49 +108,21 @@ export const AutomatedMetrics = () => {
           <Card sx={{ minHeight: 440, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <CardContent sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 0 }}>
               <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', mt: 2, fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>
-                Ejecuciones por rango de fecha
+                Ejecuciones por fecha
               </Typography>
               <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" flex={1} width="100%" height="100%">
-                <Box display="flex" gap={2} mb={2}>
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-                    <DatePicker
-                      label="Fecha inicio"
-                      value={startDate}
-                      onChange={setStartDate}
-                      slotProps={{ textField: { size: 'small' } }}
-                    />
-                    <DatePicker
-                      label="Fecha fin"
-                      value={endDate}
-                      onChange={setEndDate}
-                      slotProps={{ textField: { size: 'small' } }}
-                    />
-                  </LocalizationProvider>
-                </Box>
                 <ResponsiveContainer width={350} height={320}>
                   <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="día" 
-                      tick={{ fontSize: 11 }}
-                      interval={0}
-                      angle={-45}
-                      textAnchor="end"
-                      height={60}
-                    />
-                    <YAxis 
-                      allowDecimals={false}
-                      tick={{ fontSize: 11 }}
-                      width={40}
-                      domain={[0, 'auto']}
-                    />
+                    <XAxis dataKey="día" tick={{ fontSize: 11 }} interval={0} angle={-45} textAnchor="end" height={60} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={40} domain={[0, 'auto']} />
                     <Tooltip />
-                    <Line 
-                      type="monotone" 
-                      dataKey="ejecuciones" 
-                      name="Ejecuciones" 
-                      stroke="#FF6B35" 
-                      strokeWidth={2} 
+                    <Line
+                      type="monotone"
+                      dataKey="ejecuciones"
+                      name="Ejecuciones"
+                      stroke="#FF6B35"
+                      strokeWidth={2}
                       dot={{ r: 4, fill: '#FF6B35' }}
                       activeDot={{ r: 6, stroke: '#FF6B35', strokeWidth: 2, fill: '#FFFFFF' }}
                     />
@@ -167,6 +133,7 @@ export const AutomatedMetrics = () => {
           </Card>
         </Grid>
       </Grid>
+
       <Box mt={3} display="flex" justifyContent="flex-start" alignItems="stretch" gap={2}>
         <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <CardContent>
@@ -219,9 +186,11 @@ export const AutomatedMetrics = () => {
           </CardContent>
         </Card>
       </Box>
+
       <Box mt={4}>
         <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>Pruebas Recientes</Typography>
         <List>
+          {recentTests.length === 0 && <ListItem><ListItemText primary="Sin pruebas en el rango seleccionado" /></ListItem>}
           {recentTests.map((test, idx) => (
             <ListItem key={idx} divider>
               <ListItemText
@@ -232,16 +201,14 @@ export const AutomatedMetrics = () => {
           ))}
         </List>
       </Box>
+
       <Box mt={4}>
         <Typography variant="h6" sx={{ color: '#E53935', fontWeight: 600, fontFamily: "'Ubuntu Sans', sans-serif" }}>Errores Recientes</Typography>
         <List>
           {recentErrors.length === 0 && <ListItem><ListItemText primary="Sin errores recientes" /></ListItem>}
           {recentErrors.map((test, idx) => (
             <ListItem key={idx} divider>
-              <ListItemText
-                primary={test.name || 'Sin nombre'}
-                secondary={test.error}
-              />
+              <ListItemText primary={test.name || 'Sin nombre'} secondary={test.error} />
             </ListItem>
           ))}
         </List>
@@ -249,4 +216,3 @@ export const AutomatedMetrics = () => {
     </>
   );
 };
-

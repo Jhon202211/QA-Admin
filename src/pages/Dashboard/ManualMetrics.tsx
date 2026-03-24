@@ -4,10 +4,23 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Ba
 
 const COLORS = ['#43A047', '#E53935', '#FB8C00', '#1E88E5', '#9E9E9E'];
 
-export const ManualMetrics = () => {
-  const { data: testCases = [] } = useGetList('test_cases', {
+interface ManualMetricsProps {
+  startDate?: Date | null;
+  endDate?: Date | null;
+}
+
+export const ManualMetrics = ({ startDate, endDate }: ManualMetricsProps) => {
+  const { data: allCases = [] } = useGetList('test_cases', {
     pagination: { page: 1, perPage: 1000 },
   });
+
+  const testCases = (startDate && endDate)
+    ? allCases.filter(tc => {
+        const updated = tc.updatedAt ? new Date(tc.updatedAt) : null;
+        if (!updated) return false;
+        return updated >= startDate && updated <= endDate;
+      })
+    : allCases;
 
   // Calcular métricas
   const totalCases = testCases.length;
