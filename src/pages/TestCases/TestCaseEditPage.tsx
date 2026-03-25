@@ -58,16 +58,19 @@ export const TestCaseEditPage = () => {
   const notify = useNotify();
   const [update, { isPending }] = useUpdate();
 
-  const { data, isLoading } = useGetOne('test_cases', { id: id! });
+  const { data, isLoading } = useGetOne('test_cases', {
+    id: id!,
+  }, { enabled: !!id });
   const [deleteOne, { isPending: isDeleting }] = useDelete();
 
   const [form, setForm] = useState<any>(null);
   const [steps, setSteps] = useState<StepItem[]>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (data) {
+    if (data && !initialized) {
       setForm({ ...data });
       setSteps(
         (data.steps || []).map((s: any, i: number) => ({
@@ -77,8 +80,9 @@ export const TestCaseEditPage = () => {
           expectedResult: s.expectedResult || '',
         }))
       );
+      setInitialized(true);
     }
-  }, [data]);
+  }, [data, initialized]);
 
   const setField = (field: string, value: any) =>
     setForm((prev: any) => ({ ...prev, [field]: value }));
