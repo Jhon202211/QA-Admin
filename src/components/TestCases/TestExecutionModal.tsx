@@ -73,6 +73,12 @@ export const TestExecutionModal = ({
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado para casos sin pasos
+  const [noStepsStatus, setNoStepsStatus] = useState<TestStep['status']>('not_executed');
+  const [noStepsActualResult, setNoStepsActualResult] = useState('');
+  const [noStepsEvidences, setNoStepsEvidences] = useState<EvidenceFile[]>([]);
+  const noStepsFileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!open || !testCase) return;
     setSteps(
@@ -88,12 +94,21 @@ export const TestExecutionModal = ({
     setActiveStepIndex(0);
     setExecutionNotes(testCase.notes || '');
     setUploadProgress(null);
+    setNoStepsStatus((testCase.executionResult as TestStep['status']) || 'not_executed');
+    setNoStepsActualResult(testCase.actualResult || '');
+    setNoStepsEvidences((testCase as any).generalEvidences || []);
   }, [open, testCase]);
 
+  const hasSteps = steps.length > 0;
   const activeStep = steps[activeStepIndex];
   const completedSteps = steps.filter((step) => step.status && step.status !== 'not_executed').length;
-  const progress = steps.length ? (completedSteps / steps.length) * 100 : 0;
-  const executionResult = useMemo(() => summarizeExecutionFromSteps(steps), [steps]);
+  const progress = hasSteps
+    ? (completedSteps / steps.length) * 100
+    : noStepsStatus !== 'not_executed' ? 100 : 0;
+  const executionResult = useMemo(
+    () => hasSteps ? summarizeExecutionFromSteps(steps) : noStepsStatus ?? 'not_executed',
+    [steps, hasSteps, noStepsStatus]
+  );
 
   if (!testCase) return null;
 
@@ -166,25 +181,69 @@ export const TestExecutionModal = ({
     }
   };
 
+  const handleNoStepsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !testCase) return;
+    const validationError = validateEvidence(file);
+    if (validationError) {
+      notify(validationError, { type: 'error' });
+      e.target.value = '';
+      return;
+    }
+    setUploadProgress(0);
+    try {
+      const evidenceFile = await uploadEvidence(file, testCase.id, 'general', (p) => setUploadProgress(p));
+      setNoStepsEvidences((prev) => [...prev, evidenceFile]);
+      notify('Evidencia cargada exitosamente', { type: 'success' });
+    } catch {
+      notify('Error al subir la evidencia. Intenta de nuevo.', { type: 'error' });
+    } finally {
+      setUploadProgress(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleNoStepsDeleteEvidence = async (evidence: EvidenceFile) => {
+    setDeletingPath(evidence.path);
+    try {
+      await deleteEvidence(evidence);
+      setNoStepsEvidences((prev) => prev.filter((ev) => ev.path !== evidence.path));
+      notify('Evidencia eliminada', { type: 'success' });
+    } catch {
+      notify('Error al eliminar la evidencia', { type: 'error' });
+    } finally {
+      setDeletingPath(null);
+    }
+  };
+
   const handleSaveExecution = async () => {
     try {
+      const dataToSave = hasSteps
+        ? {
+            steps,
+            actualResult:
+              executionResult === 'passed'
+                ? 'Todos los pasos fueron aprobados.'
+                : executionResult === 'failed'
+                  ? 'La ejecución contiene uno o más pasos fallidos.'
+                  : executionResult === 'blocked'
+                    ? 'La ejecución quedó bloqueada en uno o más pasos.'
+                    : executionResult === 'in_progress'
+                      ? 'La ejecución fue iniciada y quedó en progreso.'
+                      : '',
+            executionResult,
+            notes: executionNotes,
+          }
+        : {
+            executionResult: noStepsStatus,
+            actualResult: noStepsActualResult,
+            generalEvidences: noStepsEvidences,
+            notes: executionNotes,
+          };
+
       await update('test_cases', {
         id: testCase.id,
-        data: {
-          steps,
-          actualResult:
-            executionResult === 'passed'
-              ? 'Todos los pasos fueron aprobados.'
-              : executionResult === 'failed'
-                ? 'La ejecución contiene uno o más pasos fallidos.'
-                : executionResult === 'blocked'
-                  ? 'La ejecución quedó bloqueada en uno o más pasos.'
-                  : executionResult === 'in_progress'
-                    ? 'La ejecución fue iniciada y quedó en progreso.'
-                  : '',
-          executionResult,
-          notes: executionNotes,
-        },
+        data: dataToSave,
         previousData: testCase,
       });
 
@@ -231,7 +290,9 @@ export const TestExecutionModal = ({
               sx={{ height: 8, borderRadius: 999, mt: 0.5, mb: 2 }}
             />
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-              {completedSteps} de {steps.length} pasos evaluados
+              {hasSteps
+                ? `${completedSteps} de ${steps.length} pasos evaluados`
+                : 'Sin pasos · Resultado general'}
             </Typography>
 
             <Stack spacing={1}>
@@ -269,9 +330,161 @@ export const TestExecutionModal = ({
             </Stack>
           </Box>
 
-          {/* Panel derecho: detalle del paso activo */}
+          {/* Panel derecho: detalle del paso activo o formulario general */}
           <Box sx={{ p: 3, overflowY: 'auto', maxHeight: 640 }}>
-            {activeStep ? (
+            {!hasSteps ? (
+              <Stack spacing={2.5}>
+                <Box>
+                  <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+                    Resultado general del caso
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                    Este caso no tiene pasos definidos. Registra el resultado de la ejecución directamente.
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Estado de la ejecución
+                  </Typography>
+                  <Select
+                    fullWidth
+                    value={noStepsStatus || 'not_executed'}
+                    onChange={(e) => setNoStepsStatus(e.target.value as TestStep['status'])}
+                  >
+                    {STEP_STATUSES.map((status) => (
+                      <MenuItem key={status} value={status}>
+                        {getExecutionLabel(status)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </Box>
+
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={4}
+                  label="Resultado real / hallazgos"
+                  placeholder="Describe el resultado obtenido, hallazgos o bugs encontrados..."
+                  value={noStepsActualResult}
+                  onChange={(e) => setNoStepsActualResult(e.target.value)}
+                />
+
+                {/* Evidencias generales */}
+                <Box>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                    <Typography variant="subtitle2">
+                      Evidencias
+                      {noStepsEvidences.length > 0 && (
+                        <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                          ({noStepsEvidences.length})
+                        </Typography>
+                      )}
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={uploadProgress !== null ? <CircularProgress size={14} /> : <AttachFileIcon />}
+                      onClick={() => noStepsFileInputRef.current?.click()}
+                      disabled={uploadProgress !== null}
+                      sx={{ textTransform: 'none', borderColor: '#FF6B35', color: '#FF6B35', '&:hover': { borderColor: '#E55A2B', color: '#E55A2B' } }}
+                    >
+                      Cargar evidencia
+                    </Button>
+                    <input
+                      ref={noStepsFileInputRef}
+                      type="file"
+                      accept={ALLOWED_EVIDENCE_EXTENSIONS}
+                      style={{ display: 'none' }}
+                      onChange={handleNoStepsFileChange}
+                    />
+                  </Stack>
+
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                    Formatos: JPG, JPEG, PNG, MP4 · Máximo 200 MB
+                  </Typography>
+
+                  {uploadProgress !== null && (
+                    <Box sx={{ mb: 2 }}>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Subiendo archivo...</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700 }}>{Math.round(uploadProgress)}%</Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={uploadProgress}
+                        sx={{ height: 6, borderRadius: 999, bgcolor: 'rgba(255,107,53,0.15)', '& .MuiLinearProgress-bar': { bgcolor: '#FF6B35' } }}
+                      />
+                    </Box>
+                  )}
+
+                  {noStepsEvidences.length > 0 ? (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 1.5 }}>
+                      {noStepsEvidences.map((ev) => (
+                        <Box
+                          key={ev.path}
+                          sx={{
+                            position: 'relative',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1.5,
+                            overflow: 'hidden',
+                            bgcolor: 'background.paper',
+                            '&:hover .evidence-actions': { opacity: 1 },
+                          }}
+                        >
+                          {ev.mimeType === 'video/mp4' ? (
+                            <Stack alignItems="center" justifyContent="center" spacing={0.5} sx={{ p: 1.5, minHeight: 90 }}>
+                              <VideocamIcon sx={{ fontSize: 32, color: '#1E88E5' }} />
+                              <Typography variant="caption" sx={{ wordBreak: 'break-all', textAlign: 'center', fontSize: 10, lineHeight: 1.3 }}>
+                                {ev.name}
+                              </Typography>
+                            </Stack>
+                          ) : (
+                            <EvidencePreview evidence={ev} height={90} />
+                          )}
+                          <Stack
+                            className="evidence-actions"
+                            direction="row"
+                            justifyContent="center"
+                            spacing={0.5}
+                            sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, bgcolor: 'rgba(0,0,0,0.55)', opacity: 0, transition: 'opacity 0.2s', py: 0.5 }}
+                          >
+                            <Tooltip title="Abrir en nueva pestaña">
+                              <IconButton size="small" component="a" href={ev.url} target="_blank" rel="noopener noreferrer" sx={{ color: '#fff', p: 0.4 }}>
+                                <OpenInNewIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Eliminar evidencia">
+                              <IconButton size="small" onClick={() => handleNoStepsDeleteEvidence(ev)} disabled={deletingPath === ev.path} sx={{ color: '#f44336', p: 0.4 }}>
+                                {deletingPath === ev.path ? <CircularProgress size={14} sx={{ color: '#f44336' }} /> : <DeleteOutlineIcon sx={{ fontSize: 16 }} />}
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Box sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 2, p: 3, textAlign: 'center', color: 'text.disabled' }}>
+                      <AttachFileIcon sx={{ fontSize: 28, mb: 0.5, opacity: 0.4 }} />
+                      <Typography variant="caption" display="block">Sin evidencias adjuntas</Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Divider />
+
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  label="Notas generales de la ejecución"
+                  placeholder="Notas generales, observaciones o bloqueos encontrados..."
+                  value={executionNotes}
+                  onChange={(e) => setExecutionNotes(e.target.value)}
+                />
+              </Stack>
+            ) : activeStep ? (
               <Stack spacing={2.5}>
                 <Box>
                   <Typography variant="overline" sx={{ color: 'text.secondary' }}>
@@ -498,7 +711,7 @@ export const TestExecutionModal = ({
               </Stack>
             ) : (
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Este caso no tiene pasos configurados.
+                Selecciona un paso de la lista para evaluarlo.
               </Typography>
             )}
           </Box>
