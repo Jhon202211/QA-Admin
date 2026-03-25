@@ -157,6 +157,32 @@ npm run build
 
 ---
 
+## Visual Testing con Playwright
+
+Se dejó una configuración base para capturar snapshots visuales de la pantalla de login en `/login`, sin depender de BrowserStack ni Percy.
+
+```bash
+# Instalar el navegador usado por Playwright
+npm run test:visual:install
+
+# Generar o actualizar la baseline visual
+npm run test:visual:update
+
+# Ejecutar la comparación visual
+npm run test:visual
+```
+
+Archivos principales:
+
+- `playwright.config.ts`
+- `tests/visual/login.visual.spec.ts`
+
+Playwright guardará las imágenes base dentro de `tests/visual/*-snapshots/`. Debes versionarlas en git para que las comparaciones funcionen en otros entornos.
+
+Puedes agregar más snapshots reutilizando `expect(page).toHaveScreenshot('nombre.png')` en nuevos specs dentro de `tests/visual/`.
+
+---
+
 ## Estructura relevante del proyecto
 
 ```
