@@ -4,6 +4,10 @@ import {
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   IconButton,
@@ -13,12 +17,15 @@ import {
   TextField,
   Typography,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useGetOne, useUpdate, useNotify } from 'react-admin';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { useGetOne, useUpdate, useDelete, useNotify } from 'react-admin';
 import { useParams, useNavigate } from 'react-router-dom';
 
 interface StepItem {
@@ -52,9 +59,12 @@ export const TestCaseEditPage = () => {
   const [update, { isPending }] = useUpdate();
 
   const { data, isLoading } = useGetOne('test_cases', { id: id! });
+  const [deleteOne, { isPending: isDeleting }] = useDelete();
 
   const [form, setForm] = useState<any>(null);
   const [steps, setSteps] = useState<StepItem[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     if (data) {
@@ -116,6 +126,17 @@ export const TestCaseEditPage = () => {
     }
   };
 
+  // ── Eliminar ───────────────────────────────────────────────────────────────
+  const handleDeleteConfirm = async () => {
+    try {
+      await deleteOne('test_cases', { id: id!, previousData: data });
+      notify('Caso de prueba eliminado permanentemente', { type: 'success' });
+      navigate('/test_cases');
+    } catch {
+      notify('Error al eliminar el caso de prueba', { type: 'error' });
+    }
+  };
+
   if (isLoading || !form) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
@@ -137,15 +158,31 @@ export const TestCaseEditPage = () => {
             Editar Caso de Prueba
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={isPending ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-          onClick={handleSave}
-          disabled={isPending}
-          sx={{ backgroundColor: '#FF6B35', color: '#fff', textTransform: 'none', fontWeight: 600, '&:hover': { backgroundColor: '#E55A2B' } }}
-        >
-          Guardar cambios
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            startIcon={<DeleteForeverIcon />}
+            onClick={() => { setDeleteConfirmText(''); setDeleteModalOpen(true); }}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderColor: '#D32F2F',
+              color: '#D32F2F',
+              '&:hover': { borderColor: '#B71C1C', backgroundColor: 'rgba(211,47,47,0.06)' },
+            }}
+          >
+            Eliminar caso
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={isPending ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            onClick={handleSave}
+            disabled={isPending}
+            sx={{ backgroundColor: '#FF6B35', color: '#fff', textTransform: 'none', fontWeight: 600, '&:hover': { backgroundColor: '#E55A2B' } }}
+          >
+            Guardar cambios
+          </Button>
+        </Box>
       </Box>
 
       {/* Sección: Información básica */}
@@ -351,6 +388,92 @@ export const TestCaseEditPage = () => {
         </Button>
       </Box>
       </Box>
+
+      {/* Modal de confirmación de eliminación */}
+      <Dialog
+        open={deleteModalOpen}
+        onClose={() => !isDeleting && setDeleteModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+          <WarningAmberIcon sx={{ color: '#D32F2F', fontSize: 28 }} />
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#D32F2F' }}>
+            Eliminar caso de prueba
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+            Esta acción es <strong>irreversible</strong>. El caso de prueba y todos sus pasos serán eliminados permanentemente.
+          </Alert>
+          {form?.name && (
+            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+              Vas a eliminar: <strong>"{form.name}"</strong>
+            </Typography>
+          )}
+          <Typography variant="body2" sx={{ mb: 1.5, color: 'text.primary', fontWeight: 500 }}>
+            Para confirmar, escribe exactamente:
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              mb: 2,
+              fontFamily: 'monospace',
+              fontWeight: 700,
+              color: '#D32F2F',
+              backgroundColor: 'rgba(211,47,47,0.07)',
+              px: 1.5,
+              py: 0.75,
+              borderRadius: 1,
+              display: 'inline-block',
+              letterSpacing: 0.3,
+            }}
+          >
+            eliminar permanentemente
+          </Typography>
+          <TextField
+            fullWidth
+            placeholder="Escribe la frase de confirmación"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            disabled={isDeleting}
+            autoComplete="off"
+            error={deleteConfirmText.length > 0 && deleteConfirmText !== 'eliminar permanentemente'}
+            helperText={
+              deleteConfirmText.length > 0 && deleteConfirmText !== 'eliminar permanentemente'
+                ? 'La frase no coincide'
+                : ' '
+            }
+            sx={{ mt: 0.5 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setDeleteModalOpen(false)}
+            disabled={isDeleting}
+            sx={{ textTransform: 'none', color: 'text.secondary' }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleDeleteConfirm}
+            disabled={deleteConfirmText !== 'eliminar permanentemente' || isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : <DeleteForeverIcon />}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 700,
+              backgroundColor: '#D32F2F',
+              color: '#fff',
+              '&:hover': { backgroundColor: '#B71C1C' },
+              '&.Mui-disabled': { backgroundColor: 'rgba(211,47,47,0.3)', color: '#fff' },
+            }}
+          >
+            {isDeleting ? 'Eliminando...' : 'Eliminar permanentemente'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
