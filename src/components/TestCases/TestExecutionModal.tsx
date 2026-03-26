@@ -30,7 +30,6 @@ import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import { useNotify, useUpdate } from 'react-admin';
 import type { EvidenceFile, TestCase, TestStep } from '../../types/testCase';
@@ -48,6 +47,7 @@ import {
   validateEvidence,
 } from '../../services/evidenceService';
 import { EvidencePreview } from './EvidencePreview';
+import { EvidenceOpenLink } from './EvidenceOpenLink';
 
 interface TestExecutionModalProps {
   open: boolean;
@@ -451,9 +451,7 @@ export const TestExecutionModal = ({
                             sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, bgcolor: 'rgba(0,0,0,0.55)', opacity: 0, transition: 'opacity 0.2s', py: 0.5 }}
                           >
                             <Tooltip title="Abrir en nueva pestaña">
-                              <IconButton size="small" component="a" href={ev.url} target="_blank" rel="noopener noreferrer" sx={{ color: '#fff', p: 0.4 }}>
-                                <OpenInNewIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
+                              <EvidenceOpenLink evidence={ev} />
                             </Tooltip>
                             <Tooltip title="Eliminar evidencia">
                               <IconButton size="small" onClick={() => handleNoStepsDeleteEvidence(ev)} disabled={deletingPath === ev.path} sx={{ color: '#f44336', p: 0.4 }}>
@@ -649,16 +647,7 @@ export const TestExecutionModal = ({
                             }}
                           >
                             <Tooltip title="Abrir en nueva pestaña">
-                              <IconButton
-                                size="small"
-                                component="a"
-                                href={ev.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                sx={{ color: '#fff', p: 0.4 }}
-                              >
-                                <OpenInNewIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
+                              <EvidenceOpenLink evidence={ev} />
                             </Tooltip>
                             <Tooltip title="Eliminar evidencia">
                               <IconButton
