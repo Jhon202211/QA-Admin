@@ -1,11 +1,26 @@
 import { auth } from './config';
-import { signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  onAuthStateChanged,
+} from 'firebase/auth';
+
+const REMEMBERED_EMAIL_KEY = 'qa_remembered_email';
 
 export const authProvider = {
-  login: async ({ username, password }: { username: string; password: string }) => {
+  login: async ({ username, password, remember }: { username: string; password: string; remember?: boolean }) => {
     try {
-      await setPersistence(auth, browserLocalPersistence);
+      // Persistencia según preferencia: localStorage = sesión permanente, sessionStorage = solo esta pestaña
+      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, username, password);
+      if (remember) {
+        localStorage.setItem(REMEMBERED_EMAIL_KEY, username);
+      } else {
+        localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      }
       return Promise.resolve();
     } catch (error) {
       return Promise.reject(error);
@@ -26,35 +41,29 @@ export const authProvider = {
     return Promise.resolve();
   },
   checkAuth: async () => {
-    try {
-      // Configurar persistencia antes de verificar
-      await setPersistence(auth, browserLocalPersistence);
-      
-      // Esperar a que Firebase inicialize completamente y verificar estado de autenticación
-      return new Promise<void>((resolve, reject) => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          unsubscribe();
-          if (user) {
-            resolve();
-          } else {
-            reject();
-          }
-        });
-        
-        // Timeout de seguridad
-        setTimeout(() => {
-          unsubscribe();
-          if (auth.currentUser) {
-            resolve();
-          } else {
-            reject();
-          }
-        }, 2000);
+    // Respuesta inmediata si Firebase ya restauró la sesión de forma síncrona
+    if (auth.currentUser) return Promise.resolve();
+
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (settled) return;
+        settled = true;
+        unsubscribe();
+        clearTimeout(timer);
+        if (user) resolve();
+        else reject();
       });
-    } catch (error) {
-      console.error('Error en checkAuth:', error);
-      return Promise.reject();
-    }
+
+      // Timeout generoso (10 s) como red de seguridad ante problemas de red
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        unsubscribe();
+        reject();
+      }, 10000);
+    });
   },
   getPermissions: () => Promise.resolve(),
 }; 
