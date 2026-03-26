@@ -72,12 +72,22 @@ export const TestExecutionModal = ({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isNoStepsDragging, setIsNoStepsDragging] = useState(false);
 
   // Estado para casos sin pasos
   const [noStepsStatus, setNoStepsStatus] = useState<TestStep['status']>('not_executed');
   const [noStepsActualResult, setNoStepsActualResult] = useState('');
   const [noStepsEvidences, setNoStepsEvidences] = useState<EvidenceFile[]>([]);
   const noStepsFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Ref con los handlers actuales para el listener de paste (evita closures obsoletos)
+  const uploadHandlerRef = useRef<{
+    forStep: (f: File) => Promise<void>;
+    forNoSteps: (f: File) => Promise<void>;
+    hasSteps: boolean;
+    isUploading: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!open || !testCase) return;
@@ -110,6 +120,27 @@ export const TestExecutionModal = ({
     [steps, hasSteps, noStepsStatus]
   );
 
+  useEffect(() => {
+    if (!open) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const ref = uploadHandlerRef.current;
+      if (!ref || ref.isUploading) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            ref.hasSteps ? ref.forStep(file) : ref.forNoSteps(file);
+          }
+          break;
+        }
+      }
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [open]);
+
   if (!testCase) return null;
 
   const setStepValue = (field: keyof TestStep, value: unknown) => {
@@ -137,17 +168,13 @@ export const TestExecutionModal = ({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeStep || !testCase) return;
-
+  const processFileForActiveStep = async (file: File) => {
+    if (!activeStep || !testCase) return;
     const validationError = validateEvidence(file);
     if (validationError) {
       notify(validationError, { type: 'error' });
-      e.target.value = '';
       return;
     }
-
     setUploadProgress(0);
     try {
       const evidenceFile = await uploadEvidence(
@@ -156,15 +183,20 @@ export const TestExecutionModal = ({
         activeStep.id,
         (percent) => setUploadProgress(percent)
       );
-      const updated = [...(activeStep.evidences || []), evidenceFile];
-      setStepValue('evidences', updated);
+      setStepValue('evidences', [...(activeStep.evidences || []), evidenceFile]);
       notify('Evidencia cargada exitosamente', { type: 'success' });
     } catch {
       notify('Error al subir la evidencia. Intenta de nuevo.', { type: 'error' });
     } finally {
       setUploadProgress(null);
-      e.target.value = '';
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFileForActiveStep(file);
+    e.target.value = '';
   };
 
   const handleDeleteEvidence = async (evidence: EvidenceFile) => {
@@ -181,13 +213,11 @@ export const TestExecutionModal = ({
     }
   };
 
-  const handleNoStepsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !testCase) return;
+  const processFileForNoSteps = async (file: File) => {
+    if (!testCase) return;
     const validationError = validateEvidence(file);
     if (validationError) {
       notify(validationError, { type: 'error' });
-      e.target.value = '';
       return;
     }
     setUploadProgress(0);
@@ -199,8 +229,14 @@ export const TestExecutionModal = ({
       notify('Error al subir la evidencia. Intenta de nuevo.', { type: 'error' });
     } finally {
       setUploadProgress(null);
-      e.target.value = '';
     }
+  };
+
+  const handleNoStepsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFileForNoSteps(file);
+    e.target.value = '';
   };
 
   const handleNoStepsDeleteEvidence = async (evidence: EvidenceFile) => {
@@ -253,6 +289,14 @@ export const TestExecutionModal = ({
     } catch {
       notify('Error al guardar la ejecución del caso de prueba', { type: 'error' });
     }
+  };
+
+  // Mantener el ref sincronizado con los valores más recientes del render
+  uploadHandlerRef.current = {
+    forStep: processFileForActiveStep,
+    forNoSteps: processFileForNoSteps,
+    hasSteps,
+    isUploading: uploadProgress !== null,
   };
 
   return (
@@ -371,7 +415,24 @@ export const TestExecutionModal = ({
                 />
 
                 {/* Evidencias generales */}
-                <Box>
+                <Box
+                  onDragOver={(e) => { e.preventDefault(); if (!isNoStepsDragging) setIsNoStepsDragging(true); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsNoStepsDragging(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsNoStepsDragging(false);
+                    if (uploadProgress !== null) return;
+                    const file = e.dataTransfer.files[0];
+                    if (file) processFileForNoSteps(file);
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    outline: isNoStepsDragging ? '2px dashed #FF6B35' : '2px dashed transparent',
+                    bgcolor: isNoStepsDragging ? 'rgba(255,107,53,0.04)' : 'transparent',
+                    transition: 'outline 0.15s, background-color 0.15s',
+                    p: isNoStepsDragging ? 0.5 : 0,
+                  }}
+                >
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
                     <Typography variant="subtitle2">
                       Evidencias
@@ -465,9 +526,26 @@ export const TestExecutionModal = ({
                       ))}
                     </Box>
                   ) : (
-                    <Box sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 2, p: 3, textAlign: 'center', color: 'text.disabled' }}>
-                      <AttachFileIcon sx={{ fontSize: 28, mb: 0.5, opacity: 0.4 }} />
-                      <Typography variant="caption" display="block">Sin evidencias adjuntas</Typography>
+                    <Box
+                      sx={{
+                        border: '2px dashed',
+                        borderColor: isNoStepsDragging ? '#FF6B35' : 'divider',
+                        borderRadius: 2,
+                        p: 3,
+                        textAlign: 'center',
+                        color: isNoStepsDragging ? '#FF6B35' : 'text.disabled',
+                        transition: 'border-color 0.15s, color 0.15s',
+                      }}
+                    >
+                      <AttachFileIcon sx={{ fontSize: 28, mb: 0.5, opacity: isNoStepsDragging ? 0.8 : 0.4 }} />
+                      <Typography variant="caption" display="block">
+                        {isNoStepsDragging ? 'Suelta aquí para adjuntar' : 'Sin evidencias adjuntas'}
+                      </Typography>
+                      {!isNoStepsDragging && (
+                        <Typography variant="caption" display="block" sx={{ mt: 0.5, opacity: 0.6 }}>
+                          Arrastra, pega (Ctrl+V) o usa el botón
+                        </Typography>
+                      )}
                     </Box>
                   )}
                 </Box>
@@ -534,7 +612,24 @@ export const TestExecutionModal = ({
                 />
 
                 {/* Sección de evidencias */}
-                <Box>
+                <Box
+                  onDragOver={(e) => { e.preventDefault(); if (!isDragging) setIsDragging(true); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    if (uploadProgress !== null) return;
+                    const file = e.dataTransfer.files[0];
+                    if (file) processFileForActiveStep(file);
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    outline: isDragging ? '2px dashed #FF6B35' : '2px dashed transparent',
+                    bgcolor: isDragging ? 'rgba(255,107,53,0.04)' : 'transparent',
+                    transition: 'outline 0.15s, background-color 0.15s',
+                    p: isDragging ? 0.5 : 0,
+                  }}
+                >
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
                     <Typography variant="subtitle2">
                       Evidencias del paso
@@ -682,17 +777,23 @@ export const TestExecutionModal = ({
                     <Box
                       sx={{
                         border: '2px dashed',
-                        borderColor: 'divider',
+                        borderColor: isDragging ? '#FF6B35' : 'divider',
                         borderRadius: 2,
                         p: 3,
                         textAlign: 'center',
-                        color: 'text.disabled',
+                        color: isDragging ? '#FF6B35' : 'text.disabled',
+                        transition: 'border-color 0.15s, color 0.15s',
                       }}
                     >
-                      <AttachFileIcon sx={{ fontSize: 28, mb: 0.5, opacity: 0.4 }} />
+                      <AttachFileIcon sx={{ fontSize: 28, mb: 0.5, opacity: isDragging ? 0.8 : 0.4 }} />
                       <Typography variant="caption" display="block">
-                        Sin evidencias adjuntas
+                        {isDragging ? 'Suelta aquí para adjuntar' : 'Sin evidencias adjuntas'}
                       </Typography>
+                      {!isDragging && (
+                        <Typography variant="caption" display="block" sx={{ mt: 0.5, opacity: 0.6 }}>
+                          Arrastra, pega (Ctrl+V) o usa el botón
+                        </Typography>
+                      )}
                     </Box>
                   )}
                 </Box>
