@@ -8,17 +8,17 @@ import isotype from '../assets/isotype white small.svg';
 export default function LoginPage() {
   const login = useLogin();
   const notify = useNotify();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => localStorage.getItem('qa_remembered_email') || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [rememberUser, setRememberUser] = useState(false);
+  const [rememberUser, setRememberUser] = useState(() => !!localStorage.getItem('qa_remembered_email'));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login({ username, password });
+      await login({ username, password, remember: rememberUser });
     } catch (error) {
       notify('Usuario o contraseña incorrectos', { type: 'error' });
       setLoading(false);
