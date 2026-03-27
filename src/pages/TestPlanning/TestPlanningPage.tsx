@@ -718,7 +718,7 @@ const ListActions = () => (
 export const TestPlanningPage = () => (
   <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: '20px', pl: 0 }}>
     <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
-      Planificaci?n de Pruebas
+      Planificación de Pruebas
     </Typography>
     <List
       actions={<ListActions />}
