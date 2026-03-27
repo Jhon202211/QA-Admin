@@ -1,65 +1,709 @@
 import {
-  List,
-  useListContext,
-  EditButton,
-  DeleteButton,
-  TopToolbar,
-  CreateButton,
-  ExportButton,
-  FilterButton,
-  TextInput,
-  SelectInput,
-  DateField,
-  DateInput,
-  SimpleForm,
-  Create,
-  Edit,
-  SelectArrayInput,
-  useGetList
+  List, useListContext, EditButton, DeleteButton,
+  TopToolbar, CreateButton, ExportButton, FilterButton,
+  TextInput, SelectInput, DateField, useGetList,
+  Create, Edit, useRecordContext, useSaveContext, useRedirect,
 } from 'react-admin';
-import { Box, Typography, Card, CardContent, Chip, Grid, Modal, Paper, Divider, Button, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import {
+  Box, Typography, Card, CardContent, Chip, Grid, Button,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Tab, Tabs, Stepper, Step, StepLabel,
+  TextField, Select, MenuItem, FormControl, InputLabel,
+  Checkbox, IconButton, CircularProgress,
+  ToggleButtonGroup, ToggleButton, Accordion, AccordionSummary,
+  AccordionDetails, LinearProgress, Tooltip,
+} from '@mui/material';
 import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import SaveIcon from '@mui/icons-material/Save';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import CloseIcon from '@mui/icons-material/Close';
+import FolderIcon from '@mui/icons-material/Folder';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useState, useEffect, useRef } from 'react';
 import { dataProvider } from '../../firebase/dataProvider';
+import { HierarchicalCaseSelector } from '../../components/TestPlanning/HierarchicalCaseSelector';
+
+// ??? Constantes ???????????????????????????????????????????????????????????????
+
+const STATUS_CHOICES = [
+  { id: 'draft', name: 'Borrador' },
+  { id: 'active', name: 'Activo' },
+  { id: 'in_progress', name: 'En Progreso' },
+  { id: 'completed', name: 'Completado' },
+  { id: 'cancelled', name: 'Cancelado' },
+];
+
+const STATUS_COLORS: Record<string, string> = {
+  draft: '#9e9e9e', active: '#2196f3', in_progress: '#ff9800',
+  completed: '#4caf50', cancelled: '#f44336',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Borrador', active: 'Activo', in_progress: 'En Progreso',
+  completed: 'Completado', cancelled: 'Cancelado',
+};
+
+const CAT_COLORS: Record<string, string> = {
+  Smoke: '#FF6B35', Funcionales: '#3CCF91', 'No Funcionales': '#2196F3',
+  'Regresión': '#FF9800', UAT: '#9C27B0',
+};
+
+const AUTOMATED_CHOICES = [
+  { id: 'test_create_user.py', name: 'Crear usuario' },
+  { id: 'test_create_visitor.py', name: 'Crear visitante' },
+  { id: 'test_create_company.py', name: 'Crear empresa' },
+  { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
+  { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
+  { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
+  { id: 'test_create_property.py', name: 'Crear Copropiedad' },
+  { id: 'test_edit_property.py', name: 'Editar Copropiedad' },
+  { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad' },
+];
+
+const TEST_TO_CASE_ID: Record<string, string> = {
+  'test_create_user.py': 'TC001', 'test_create_company.py': 'TC002',
+  'test_create_visitor.py': 'TC003', 'test_create_room_reservation.py': 'TC004',
+  'test_deactivate_user_company.py': 'TC005', 'test_restore_user_company.py': 'TC006',
+};
+
+const TEST_ALIASES: Record<string, string[]> = {
+  'test_create_company.py': ['test_create_company', 'pytest'],
+  'test_create_user.py': ['test_create_user', 'pytest'],
+  'test_create_visitor.py': ['test_create_visitor', 'pytest'],
+  'test_create_room_reservation.py': ['test_create_room_reservation', 'pytest'],
+  'test_deactivate_user_company.py': ['test_deactivate_user_company', 'pytest'],
+  'test_restore_user_company.py': ['test_restore_user_company', 'pytest'],
+};
+
+const RESULT_LABELS: Record<string, { label: string; color: string }> = {
+  passed: { label: 'Pas?', color: '#4caf50' },
+  failed: { label: 'Fall?', color: '#e53935' },
+  blocked: { label: 'Bloqueado', color: '#ff9800' },
+};
+
+interface PlanFormData {
+  name: string; description: string; status: string;
+  startDate: string; endDate: string;
+  manualTestCases: string[]; automatedTests: string[];
+}
+
+// ??? Utilidades ???????????????????????????????????????????????????????????????
+
+const getPlanProgress = (plan: any, testCases: any[]) => {
+  const ids: string[] = plan.manualTestCases || [];
+  if (ids.length === 0) return null;
+  const cases = testCases.filter(tc => ids.includes(tc.id));
+  const passed = cases.filter(tc => tc.executionResult === 'passed').length;
+  const failed = cases.filter(tc => tc.executionResult === 'failed').length;
+  const blocked = cases.filter(tc => tc.executionResult === 'blocked').length;
+  const pending = ids.length - passed - failed - blocked;
+  const pct = Math.round(((passed + failed + blocked) / ids.length) * 100);
+  return { total: ids.length, passed, failed, blocked, pending, pct };
+};
+
+const groupCasesByHierarchy = (caseIds: string[], allCases: any[]) => {
+  const g: Record<string, Record<string, any[]>> = {};
+  for (const id of caseIds) {
+    const tc = allCases.find((t: any) => t.id === id);
+    if (!tc) continue;
+    const p = tc.testProject || 'Sin proyecto';
+    const c = tc.category || 'Sin categor?a';
+    if (!g[p]) g[p] = {};
+    if (!g[p][c]) g[p][c] = [];
+    g[p][c].push(tc);
+  }
+  return g;
+};
+
+// ??? ProgressBar ??????????????????????????????????????????????????????????????
+
+const ProgressBar = ({ progress }: { progress: NonNullable<ReturnType<typeof getPlanProgress>> }) => (
+  <Box sx={{ mt: 1.5 }}>
+    <Box sx={{ display: 'flex', height: 7, borderRadius: 4, overflow: 'hidden', bgcolor: '#f0f0f0', mb: 0.75 }}>
+      {progress.passed > 0 && <Box sx={{ flex: progress.passed, bgcolor: '#4caf50', transition: 'flex 0.3s' }} />}
+      {progress.failed > 0 && <Box sx={{ flex: progress.failed, bgcolor: '#e53935', transition: 'flex 0.3s' }} />}
+      {progress.blocked > 0 && <Box sx={{ flex: progress.blocked, bgcolor: '#ff9800', transition: 'flex 0.3s' }} />}
+      {progress.pending > 0 && <Box sx={{ flex: progress.pending, bgcolor: '#e0e0e0' }} />}
+    </Box>
+    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+      <Typography variant="caption" sx={{ color: '#4caf50', fontWeight: 600 }}>? {progress.passed} pasaron</Typography>
+      <Typography variant="caption" sx={{ color: '#e53935', fontWeight: 600 }}>? {progress.failed} fallaron</Typography>
+      {progress.blocked > 0 && <Typography variant="caption" sx={{ color: '#ff9800', fontWeight: 600 }}>? {progress.blocked} bloqueados</Typography>}
+      <Typography variant="caption" sx={{ color: 'text.disabled' }}>? {progress.pending} pendientes</Typography>
+      <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary', fontWeight: 600 }}>{progress.pct}%</Typography>
+    </Box>
+  </Box>
+);
+
+// ??? RunPlanDialog ????????????????????????????????????????????????????????????
+
+function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
+  plan: any; allCases: any[]; testResults: any[];
+  onClose: () => void; onSaved: () => void;
+}) {
+  const [tab, setTab] = useState(0);
+  const [manualResults, setManualResults] = useState<Record<string, string>>({});
+  const [autoStatus, setAutoStatus] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+  const pollingRefs = useRef<Record<string, any>>({});
+
+  const manualGrouped = groupCasesByHierarchy(plan.manualTestCases || [], allCases);
+
+  const getAutoStatus = (testId: string) => {
+    const baseName = testId.replace('.py', '');
+    const caseId = TEST_TO_CASE_ID[testId] || null;
+    const aliases = [baseName, ...(TEST_ALIASES[testId] || [])];
+    let results = testResults.filter((r: any) => {
+      const rName = (r.name || '').replace('.py', '');
+      return r.planId === plan.id && aliases.includes(rName) && (!caseId || r.caseId === caseId);
+    });
+    if (results.length === 0) {
+      results = testResults.filter((r: any) => {
+        const rName = (r.name || '').replace('.py', '');
+        return aliases.includes(rName) && (!caseId || r.caseId === caseId);
+      });
+    }
+    if (results.length === 0) return null;
+    return results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].status;
+  };
+
+  const startPolling = (executionId: string, testId: string) => {
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(`/api/tests/status/${executionId}`, { headers: { Authorization: 'Bearer valid_token' } });
+        if (!res.ok) throw new Error();
+        const s = await res.json();
+        if (['completed', 'failed', 'error'].includes(s.status)) {
+          clearInterval(interval);
+          pollingRefs.current[testId] = null;
+          setTimeout(() => setAutoStatus(prev => ({ ...prev })), 2000);
+        }
+        if (attempts >= 60) { clearInterval(interval); pollingRefs.current[testId] = null; }
+      } catch { clearInterval(interval); pollingRefs.current[testId] = null; }
+    }, 5000);
+    pollingRefs.current[testId] = interval;
+  };
+
+  const handleRunAll = async () => {
+    setRunning(true);
+    for (const testId of plan.automatedTests || []) {
+      setAutoStatus(s => ({ ...s, [testId]: 'running' }));
+      try {
+        const res = await fetch('/api/tests/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid_token' },
+          body: JSON.stringify({ test_file: testId, planId: plan.id, caseId: TEST_TO_CASE_ID[testId] || '' }),
+        });
+        const data = await res.json();
+        if (data.execution_id) startPolling(data.execution_id, testId);
+      } catch { setAutoStatus(s => ({ ...s, [testId]: 'error' })); }
+    }
+    setRunning(false);
+  };
+
+  const handleSaveManuals = async () => {
+    setSaving(true);
+    try {
+      for (const testId of Object.keys(manualResults)) {
+        const tc = allCases.find((t: any) => t.id === testId);
+        if (tc) await dataProvider.update('test_cases', { id: testId, data: { ...tc, executionResult: manualResults[testId] } });
+      }
+      await dataProvider.update('test_planning', {
+        id: plan.id,
+        data: {
+          ...plan,
+          manualTestCases: (plan.manualTestCases || []).filter(Boolean),
+          automatedTests: (plan.automatedTests || []).filter(Boolean),
+        },
+      });
+      onSaved();
+      onClose();
+    } finally { setSaving(false); }
+  };
+
+  const manualTotal = (plan.manualTestCases || []).length;
+  const manualDone = (plan.manualTestCases || []).filter((id: string) => {
+    const r = manualResults[id] || allCases.find((t: any) => t.id === id)?.executionResult;
+    return r && r !== 'not_executed';
+  }).length;
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3, maxHeight: '90vh' } }}>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>{plan.name}</Typography>
+            <Typography variant="body2" color="text.secondary">{plan.description}</Typography>
+          </Box>
+          <IconButton onClick={onClose} size="small" sx={{ mt: -0.5 }}><CloseIcon /></IconButton>
+        </Box>
+
+        {/* Barra de progreso general */}
+        {manualTotal > 0 && (
+          <Box sx={{ mt: 1.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">Progreso manuales</Typography>
+              <Typography variant="caption" sx={{ fontWeight: 700 }}>{manualDone}/{manualTotal}</Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={manualTotal > 0 ? (manualDone / manualTotal) * 100 : 0}
+              sx={{ height: 6, borderRadius: 3, bgcolor: '#e0e0e0', '& .MuiLinearProgress-bar': { bgcolor: '#FF6B35' } }}
+            />
+          </Box>
+        )}
+
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mt: 1.5, borderBottom: '1px solid #e0e0e0' }}>
+          <Tab label={`Manuales (${manualTotal})`} />
+          <Tab label={`Automatizados (${(plan.automatedTests || []).length})`} />
+        </Tabs>
+      </DialogTitle>
+
+      <DialogContent sx={{ px: { xs: 2, sm: 3 }, pt: 2 }}>
+        {/* Tab Manuales */}
+        {tab === 0 && (
+          <Box>
+            {Object.keys(manualGrouped).length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                Este plan no tiene casos manuales asignados.
+              </Typography>
+            ) : Object.entries(manualGrouped).map(([project, cats]) => (
+              <Accordion key={project} defaultExpanded disableGutters elevation={0}
+                sx={{ mb: 1, border: '1px solid #e0e0e0', borderRadius: '8px !important', '&:before': { display: 'none' } }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FolderIcon sx={{ color: '#FF6B35', fontSize: 18 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{project}</Typography>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails sx={{ pt: 0 }}>
+                  {Object.entries(cats as Record<string, any[]>).map(([cat, cases]) => {
+                    const color = CAT_COLORS[cat] || '#777';
+                    return (
+                      <Box key={cat} sx={{ mb: 1.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <FolderIcon sx={{ fontSize: 12 }} />{cat}
+                        </Typography>
+                        {cases.map((tc: any) => {
+                          const result = manualResults[tc.id] || tc.executionResult;
+                          return (
+                            <Box key={tc.id}
+                              sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75, pl: 2,
+                                borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap' }}>
+                              <Typography variant="body2" sx={{ flex: 1, minWidth: 120 }}>{tc.name}</Typography>
+                              <ToggleButtonGroup exclusive size="small"
+                                value={result || ''}
+                                onChange={(_, v) => { if (v) setManualResults(r => ({ ...r, [tc.id]: v })); }}>
+                                <ToggleButton value="passed"
+                                  sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#e8f5e9', color: '#4caf50', borderColor: '#4caf50' } }}>
+                                  Pas?
+                                </ToggleButton>
+                                <ToggleButton value="failed"
+                                  sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#fdecea', color: '#e53935', borderColor: '#e53935' } }}>
+                                  Fall?
+                                </ToggleButton>
+                                <ToggleButton value="blocked"
+                                  sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#fff3e0', color: '#ff9800', borderColor: '#ff9800' } }}>
+                                  Bloq.
+                                </ToggleButton>
+                              </ToggleButtonGroup>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    );
+                  })}
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Box>
+        )}
+
+        {/* Tab Automatizados */}
+        {tab === 1 && (
+          <Box>
+            {(plan.automatedTests || []).length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                Este plan no tiene tests automatizados asignados.
+              </Typography>
+            ) : (
+              <>
+                <Button
+                  variant="contained" startIcon={running ? <CircularProgress size={16} color="inherit" /> : <PlayArrowIcon />}
+                  onClick={handleRunAll} disabled={running}
+                  sx={{ mb: 2, bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' }, textTransform: 'none', fontWeight: 600 }}
+                >
+                  {running ? 'Ejecutando...' : 'Ejecutar todos'}
+                </Button>
+
+                {(plan.automatedTests || []).map((testId: string, idx: number) => {
+                  const status = autoStatus[testId] === 'running' ? 'running' : getAutoStatus(testId);
+                  const info = AUTOMATED_CHOICES.find(c => c.id === testId);
+                  const name = info?.name || testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ');
+                  const resultInfo = status && RESULT_LABELS[status];
+
+                  return (
+                    <Box key={testId} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.25,
+                      borderBottom: '1px solid #f5f5f5' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', minWidth: 24 }}>{idx + 1}.</Typography>
+                      <PlayCircleOutlineIcon sx={{ color: '#FF6B35', fontSize: 20, flexShrink: 0 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{testId}</Typography>
+                      </Box>
+                      {status === 'running' ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CircularProgress size={14} sx={{ color: '#ff9800' }} />
+                          <Typography variant="caption" sx={{ color: '#ff9800', fontWeight: 600 }}>Ejecutando?</Typography>
+                        </Box>
+                      ) : resultInfo ? (
+                        <Chip label={resultInfo.label} size="small"
+                          sx={{ bgcolor: resultInfo.color + '20', color: resultInfo.color, fontWeight: 700, fontSize: 11 }} />
+                      ) : (
+                        <Chip label="Pendiente" size="small" sx={{ bgcolor: '#f5f5f5', color: '#999', fontSize: 11 }} />
+                      )}
+                    </Box>
+                  );
+                })}
+              </>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+
+      {tab === 0 && (
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #f0f0f0' }}>
+          <Button onClick={onClose} sx={{ color: 'text.secondary', textTransform: 'none' }}>Cerrar</Button>
+          <Button variant="contained" onClick={handleSaveManuals} disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            sx={{ bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' }, textTransform: 'none', fontWeight: 600 }}>
+            Guardar resultados
+          </Button>
+        </DialogActions>
+      )}
+    </Dialog>
+  );
+}
+
+// ??? TestPlanningCardList ??????????????????????????????????????????????????????
+
+function TestPlanningCardList() {
+  const { data, isLoading } = useListContext();
+  const { data: allCases = [] } = useGetList('test_cases', { pagination: { page: 1, perPage: 1000 } });
+  const { data: testResults = [], refetch } = useGetList('test_results');
+  const [runPlan, setRunPlan] = useState<any>(null);
+
+  if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress /></Box>;
+  if (!data || data.length === 0) return (
+    <Box sx={{ textAlign: 'center', py: 8 }}>
+      <Typography variant="h5" color="text.secondary" gutterBottom>No hay planes de prueba</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Crea tu primer plan para empezar a organizar tu testing.</Typography>
+      <CreateButton />
+    </Box>
+  );
+
+  return (
+    <>
+      <Grid container direction="column" spacing={2.5}>
+        {data.map((plan: any) => {
+          const progress = getPlanProgress(plan, allCases as any[]);
+          return (
+            <Grid key={plan.id} sx={{ width: '100%', maxWidth: { xs: '100%', md: 760 } }}>
+              <Card sx={{
+                borderRadius: 3, border: '1px solid #e0e0e0',
+                boxShadow: '0 2px 12px rgba(80,80,120,0.09)',
+                transition: 'box-shadow 0.2s, transform 0.2s',
+                '&:hover': { boxShadow: '0 6px 24px rgba(80,80,120,0.18)', transform: 'translateY(-2px)' },
+              }}>
+                <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  {/* Header */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, mb: 0.75 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', fontSize: { xs: '1rem', sm: '1.1rem' }, wordBreak: 'break-word' }}>
+                        {plan.name}
+                      </Typography>
+                      {plan.description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, wordBreak: 'break-word' }}>
+                          {plan.description}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Chip
+                      label={STATUS_LABELS[plan.status as keyof typeof STATUS_LABELS] || plan.status}
+                      size="small"
+                      sx={{ bgcolor: STATUS_COLORS[plan.status as keyof typeof STATUS_COLORS] || '#ccc', color: '#fff', fontWeight: 700, flexShrink: 0, fontSize: 11 }}
+                    />
+                  </Box>
+
+                  {/* Fechas */}
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <CalendarIcon sx={{ color: '#FF6B35', fontSize: 15 }} />
+                      <Typography variant="caption" color="text.secondary">
+                        Inicio: <DateField source="startDate" record={plan} showTime={false} />
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <CalendarIcon sx={{ color: '#FF6B35', fontSize: 15 }} />
+                      <Typography variant="caption" color="text.secondary">
+                        Fin: <DateField source="endDate" record={plan} showTime={false} />
+                      </Typography>
+                    </Box>
+                    {(plan.manualTestCases || []).length > 0 && (
+                      <Chip label={`${(plan.manualTestCases || []).length} manuales`} size="small"
+                        sx={{ height: 18, fontSize: 10, bgcolor: '#f5f5f5' }} />
+                    )}
+                    {(plan.automatedTests || []).length > 0 && (
+                      <Chip label={`${(plan.automatedTests || []).length} automatizados`} size="small"
+                        sx={{ height: 18, fontSize: 10, bgcolor: '#fff3e0', color: '#ff9800' }} />
+                    )}
+                  </Box>
+
+                  {/* Barra de progreso */}
+                  {progress && <ProgressBar progress={progress} />}
+
+                  {/* Acciones */}
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2, alignItems: 'center' }}>
+                    <EditButton record={plan} label="Editar" sx={{ color: '#FF6B35', fontWeight: 600 }} />
+                    <DeleteButton record={plan} label="Eliminar" sx={{ color: '#e53935', fontWeight: 600 }} />
+                    <Tooltip title="Ejecutar y registrar resultados">
+                      <Button
+                        variant="contained" size="small"
+                        startIcon={<PlayArrowIcon />}
+                        sx={{ ml: { xs: 0, sm: 'auto' }, bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' }, textTransform: 'none', fontWeight: 600 }}
+                        onClick={() => setRunPlan(plan)}
+                      >
+                        Ejecutar plan
+                      </Button>
+                    </Tooltip>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      {runPlan && (
+        <RunPlanDialog
+          plan={runPlan}
+          allCases={allCases as any[]}
+          testResults={testResults as any[]}
+          onClose={() => setRunPlan(null)}
+          onSaved={() => { refetch(); setRunPlan(null); }}
+        />
+      )}
+    </>
+  );
+}
+
+// ??? PlanWizard (Create / Edit) ???????????????????????????????????????????????
+
+const WIZARD_STEPS = ['Informaci?n b?sica', 'Casos manuales', 'Tests automatizados'];
+
+function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
+  const record = useRecordContext();
+  const { save, saving } = useSaveContext() as any;
+  const redirect = useRedirect();
+
+  const [step, setStep] = useState(0);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<PlanFormData>({
+    name: '', description: '', status: 'draft',
+    startDate: '', endDate: '', manualTestCases: [], automatedTests: [],
+  });
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (record && !initialized) {
+      setForm({
+        name: record.name || '',
+        description: record.description || '',
+        status: record.status || 'draft',
+        startDate: record.startDate || '',
+        endDate: record.endDate || '',
+        manualTestCases: record.manualTestCases || [],
+        automatedTests: record.automatedTests || [],
+      });
+      setInitialized(true);
+    }
+  }, [record, initialized]);
+
+  const validate1 = () => {
+    const e: Record<string, string> = {};
+    if (!form.name.trim()) e.name = 'El nombre es requerido';
+    if (!form.status) e.status = 'El estado es requerido';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleNext = () => { if (step === 0 && !validate1()) return; setStep(s => s + 1); };
+  const handleBack = () => setStep(s => s - 1);
+
+  const handleSubmit = () => {
+    if (step === 0 && !validate1()) return;
+    save(form, { onSuccess: () => redirect('list', 'test_planning') });
+  };
+
+  const toggleAuto = (id: string) => {
+    setForm(f => ({
+      ...f,
+      automatedTests: f.automatedTests.includes(id)
+        ? f.automatedTests.filter(t => t !== id)
+        : [...f.automatedTests, id],
+    }));
+  };
+
+  return (
+    <Box sx={{ pt: { xs: 2, sm: 3 }, pr: { xs: 2, sm: 3 }, pb: 5, pl: 0, maxWidth: 860 }}>
+      {/* Header con back */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <IconButton onClick={() => redirect('list', 'test_planning')} size="small">
+          <ArrowBackIcon />
+        </IconButton>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+            {mode === 'create' ? 'Nuevo plan de pruebas' : `Editar: ${record?.name || ''}`}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {mode === 'create' ? 'Completa los 3 pasos para crear el plan' : 'Modifica los campos que necesites'}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Stepper */}
+      <Stepper activeStep={step} sx={{ mb: 4 }}>
+        {WIZARD_STEPS.map(label => (
+          <Step key={label}><StepLabel>{label}</StepLabel></Step>
+        ))}
+      </Stepper>
+
+      {/* ?? Paso 1: Info ?? */}
+      {step === 0 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, maxWidth: 600 }}>
+          <TextField
+            label="Nombre del plan *" fullWidth value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            error={!!errors.name} helperText={errors.name}
+          />
+          <TextField
+            label="Descripci?n" fullWidth multiline rows={3} value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          />
+          <FormControl fullWidth error={!!errors.status}>
+            <InputLabel>Estado *</InputLabel>
+            <Select value={form.status} label="Estado *" onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+              {STATUS_CHOICES.map(s => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField label="Fecha de inicio" type="date" fullWidth value={form.startDate}
+              onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
+              InputLabelProps={{ shrink: true }} />
+            <TextField label="Fecha de fin" type="date" fullWidth value={form.endDate}
+              onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))}
+              InputLabelProps={{ shrink: true }} />
+          </Box>
+        </Box>
+      )}
+
+      {/* ?? Paso 2: Casos manuales ?? */}
+      {step === 1 && (
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Selecciona los casos manuales</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Haz clic en un proyecto o categor?a para seleccionar todos sus casos a la vez.
+          </Typography>
+          <HierarchicalCaseSelector
+            value={form.manualTestCases}
+            onChange={ids => setForm(f => ({ ...f, manualTestCases: ids }))}
+          />
+        </Box>
+      )}
+
+      {/* ?? Paso 3: Tests automatizados ?? */}
+      {step === 2 && (
+        <Box sx={{ maxWidth: 600 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Tests automatizados</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Selecciona los scripts Playwright a incluir en la ejecuci?n del plan.
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {form.automatedTests.length} / {AUTOMATED_CHOICES.length} seleccionados
+            </Typography>
+          </Box>
+          {AUTOMATED_CHOICES.map(choice => {
+            const selected = form.automatedTests.includes(choice.id);
+            return (
+              <Box key={choice.id}
+                onClick={() => toggleAuto(choice.id)}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, mb: 1,
+                  borderRadius: 2, border: '1px solid', cursor: 'pointer',
+                  borderColor: selected ? '#FF6B35' : '#e0e0e0',
+                  bgcolor: selected ? 'rgba(255,107,53,0.05)' : 'transparent',
+                  transition: 'all 0.15s',
+                  '&:hover': { bgcolor: 'rgba(255,107,53,0.04)', borderColor: '#FF6B35' },
+                }}>
+                <Checkbox checked={selected} size="small"
+                  onClick={e => e.stopPropagation()} onChange={() => toggleAuto(choice.id)}
+                  sx={{ '&.Mui-checked': { color: '#FF6B35' } }} />
+                <PlayCircleOutlineIcon sx={{ color: selected ? '#FF6B35' : '#bbb', fontSize: 20 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{choice.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">{choice.id}</Typography>
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+
+      {/* Botones de navegaci?n */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>
+        <Button onClick={step === 0 ? () => redirect('list', 'test_planning') : handleBack}
+          startIcon={step > 0 ? <ArrowBackIcon /> : undefined}
+          sx={{ color: 'text.secondary', textTransform: 'none' }}>
+          {step === 0 ? 'Cancelar' : 'Atr?s'}
+        </Button>
+
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          {step === 1 && form.manualTestCases.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {form.manualTestCases.length} caso{form.manualTestCases.length !== 1 ? 's' : ''} seleccionado{form.manualTestCases.length !== 1 ? 's' : ''}
+            </Typography>
+          )}
+          {step < WIZARD_STEPS.length - 1 ? (
+            <Button variant="contained" onClick={handleNext} endIcon={<ChevronRightIcon />}
+              sx={{ bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' }, textTransform: 'none', fontWeight: 600 }}>
+              Siguiente
+            </Button>
+          ) : (
+            <Button variant="contained" onClick={handleSubmit} disabled={saving}
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+              sx={{ bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' }, textTransform: 'none', fontWeight: 600 }}>
+              {mode === 'create' ? 'Crear plan' : 'Guardar cambios'}
+            </Button>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+// ??? Filtros de la lista ??????????????????????????????????????????????????????
 
 const planFilters = [
   <TextInput label="Buscar por nombre" source="name" alwaysOn />,
-  <SelectInput label="Estado" source="status" choices={[
-    { id: 'draft', name: 'Borrador' },
-    { id: 'active', name: 'Activo' },
-    { id: 'in_progress', name: 'En Progreso' },
-    { id: 'completed', name: 'Completado' },
-    { id: 'cancelled', name: 'Cancelado' }
-  ]} alwaysOn />,
+  <SelectInput label="Estado" source="status" choices={STATUS_CHOICES} alwaysOn />,
 ];
-
-const statusColors = {
-  draft: '#9e9e9e',
-  active: '#2196f3',
-  in_progress: '#ff9800',
-  completed: '#4caf50',
-  cancelled: '#f44336'
-};
-
-const statusLabels = {
-  draft: 'Borrador',
-  active: 'Activo',
-  in_progress: 'En Progreso',
-  completed: 'Completado',
-  cancelled: 'Cancelado'
-};
-
-const Empty = () => (
-  <Box sx={{ minHeight: '100vh', boxSizing: 'border-box', padding: '32px 32px 0 0', margin: 0, textAlign: 'center' }}>
-    <Typography variant="h5" paragraph>
-      No hay planes de prueba
-    </Typography>
-    <Typography variant="body1">
-      Crea tu primer plan de pruebas para empezar a organizar tu testing.
-    </Typography>
-    <CreateButton />
-  </Box>
-);
 
 const ListActions = () => (
   <TopToolbar>
@@ -69,443 +713,21 @@ const ListActions = () => (
   </TopToolbar>
 );
 
-function TestPlanningCardList() {
-  const { data, isLoading } = useListContext();
-  const { data: testResults = [], refetch: refetchTestResults } = useGetList('test_results');
-  const { data: manualCases = [] } = useGetList('test_cases');
-  const [open, setOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const [openRun, setOpenRun] = useState(false);
-  const [selectedPlanRun, setSelectedPlanRun] = useState<any>(null);
-  const [manualResults, setManualResults] = useState<Record<string, string>>({});
-  const [autoStatus, setAutoStatus] = useState<Record<string, string>>({});
-  const [running, setRunning] = useState(false);
-  const pollingRefs = useRef<Record<string, any>>({});
-
-  // Polling para refrescar resultados en el modal de detalle
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (open) {
-      interval = setInterval(() => {
-        refetchTestResults && refetchTestResults();
-      }, 5000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [open, refetchTestResults]);
-
-  // Refrescar resultados solo cuando todos los tests hayan terminado
-  useEffect(() => {
-    if (!openRun) return;
-    // Si no hay tests automatizados, no hacer nada
-    if (!selectedPlanRun || !selectedPlanRun.automatedTests || selectedPlanRun.automatedTests.length === 0) return;
-    // Si alguno est? corriendo, no refrescar
-    const algunoCorriendo = selectedPlanRun.automatedTests.some((testId: string) => autoStatus[testId] === 'running');
-    if (!algunoCorriendo) {
-      refetchTestResults && refetchTestResults();
-    }
-  }, [openRun, autoStatus, selectedPlanRun, refetchTestResults]);
-
-  // Actualizar autoStatus cuando cambien los resultados de los tests
-  useEffect(() => {
-    if (!openRun || !selectedPlanRun || !selectedPlanRun.automatedTests) return;
-    const newStatus: Record<string, string> = { ...autoStatus };
-    for (const testId of selectedPlanRun.automatedTests) {
-      const status = getAutomatedTestStatus(testId, selectedPlanRun.id);
-      if (status === 'passed' || status === 'failed' || status === 'blocked' || status === 'not_executed') {
-        newStatus[testId] = status;
-      }
-    }
-    setAutoStatus(newStatus);
-  }, [testResults, openRun, selectedPlanRun]);
-
-  const handleOpen = (plan: any) => {
-    setSelectedPlan(plan);
-    setOpen(true);
-  };
-  const handleClose = () => {
-    setOpen(false);
-    setSelectedPlan(null);
-  };
-
-  const handleOpenRun = (plan: any) => {
-    setSelectedPlanRun(plan);
-    setManualResults({});
-    setAutoStatus({});
-    setOpenRun(true);
-  };
-  const handleCloseRun = () => {
-    setOpenRun(false);
-    setSelectedPlanRun(null);
-    setManualResults({});
-    setAutoStatus({});
-    setRunning(false);
-  };
-
-  // Mapeo de test automatizado a caseId (ajusta seg?n tu correspondencia real)
-  const testToCaseId: Record<string, string> = {
-    'test_create_user.py': 'TC001',
-    'test_create_company.py': 'TC002',
-    'test_create_visitor.py': 'TC003',
-    'test_create_room_reservation.py': 'TC004',
-    'test_deactivate_user_company.py': 'TC005',
-    'test_restore_user_company.py': 'TC006',
-  };
-
-  // Mapeo de alias de nombre de test automatizado
-  const testNameAliases: Record<string, string[]> = {
-    'test_create_company.py': ['test_create_company', 'pytest'],
-    'test_create_user.py': ['test_create_user', 'pytest'],
-    'test_create_visitor.py': ['test_create_visitor', 'pytest'],
-    'test_create_room_reservation.py': ['test_create_room_reservation', 'pytest'],
-    'test_deactivate_user_company.py': ['test_deactivate_user_company', 'pytest'],
-    'test_restore_user_company.py': ['test_restore_user_company', 'pytest'],
-    // Agrega m?s alias si es necesario
-  };
-
-  // Funci?n para obtener el estado del ?ltimo resultado de un test automatizado
-  const getAutomatedTestStatus = (testId: string, planId?: string) => {
-    const pid = planId || selectedPlan?.id;
-    const baseName = testId.replace('.py', '');
-    const caseId = testToCaseId[testId] || null;
-    const aliases = [baseName, ...(testNameAliases[testId] || [])];
-    // Buscar primero por planId
-    let results = testResults.filter((r: any) => {
-      const rName = (r.name || '').replace('.py', '');
-      const nameMatch = aliases.includes(rName);
-      return r.planId === pid && nameMatch && (!caseId || r.caseId === caseId);
-    });
-    // Si no hay resultados por planId, buscar por nombre/alias sin planId
-    if (results.length === 0) {
-      results = testResults.filter((r: any) => {
-        const rName = (r.name || '').replace('.py', '');
-        const nameMatch = aliases.includes(rName);
-        return nameMatch && (!caseId || r.caseId === caseId);
-      });
-    }
-    if (results.length === 0) return null;
-    // Tomar el m?s reciente por fecha
-    const last = results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    return last.status;
-  };
-
-  // Polling para cada test automatizado
-  const startPolling = (executionId: string, testId: string, _planId: string) => {
-    let attempts = 0;
-    const maxAttempts = 60; // 5 minutos
-    const interval = setInterval(async () => {
-      attempts++;
-      try {
-        const statusResponse = await fetch(`/api/tests/status/${executionId}`, {
-          headers: { 'Authorization': 'Bearer valid_token' }
-        });
-        if (!statusResponse.ok) throw new Error('Error status');
-        const status = await statusResponse.json();
-        if (status.status === 'completed' || status.status === 'failed' || status.status === 'error') {
-          clearInterval(interval);
-          pollingRefs.current[testId] = null;
-          // Esperar 2s y refrescar resultados desde Firestore
-          setTimeout(() => {
-            refetchTestResults && refetchTestResults();
-            setAutoStatus(s => ({ ...s }));
-          }, 2000);
-        }
-        if (attempts >= maxAttempts) {
-          clearInterval(interval);
-          pollingRefs.current[testId] = null;
-        }
-      } catch {
-        clearInterval(interval);
-        pollingRefs.current[testId] = null;
-      }
-    }, 5000);
-    pollingRefs.current[testId] = interval;
-  };
-
-  // Ejecutar todos los tests automatizados con polling
-  const handleRunAutomated = async () => {
-    if (!selectedPlanRun) return;
-    setRunning(true);
-    for (const testId of selectedPlanRun.automatedTests || []) {
-      setAutoStatus(s => ({ ...s, [testId]: 'running' }));
-      try {
-        const caseId = testToCaseId[testId] || '';
-        const planId = selectedPlanRun?.id || '';
-        // Log para validar cada petici?n
-        console.log('Enviando ejecuci?n desde plan:', { test_file: testId, planId, caseId });
-        const response = await fetch('/api/tests/execute', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer valid_token'
-          },
-          body: JSON.stringify({
-            test_file: testId,
-            planId: planId,
-            caseId: caseId
-          })
-        });
-        const data = await response.json();
-        if (data.execution_id) {
-          startPolling(data.execution_id, testId, selectedPlanRun.id);
-        }
-      } catch {
-        setAutoStatus(s => ({ ...s, [testId]: 'error' }));
-      }
-    }
-    setRunning(false);
-  };
-
-  // Guardar resultados de manuales
-  const handleSaveManuals = async () => {
-    // Limpiar arrays para evitar undefined
-    const cleanManualTestCases = (selectedPlanRun.manualTestCases || []).filter(Boolean);
-    const cleanAutomatedTests = (selectedPlanRun.automatedTests || []).filter(Boolean);
-    for (const testId of Object.keys(manualResults)) {
-      const test = manualCases.find((t: any) => t.id === testId);
-      if (test) {
-        await dataProvider.update('test_cases', { id: testId, data: { ...test, executionResult: manualResults[testId] } });
-      }
-    }
-    // Actualizar el plan de pruebas sin undefined
-    await dataProvider.update('test_planning', {
-      id: selectedPlanRun.id,
-      data: {
-        ...selectedPlanRun,
-        manualTestCases: cleanManualTestCases,
-        automatedTests: cleanAutomatedTests
-      }
-    });
-    handleCloseRun();
-  };
-
-  if (isLoading) return <Typography>Cargando...</Typography>;
-  if (!data || data.length === 0) return <Empty />;
-  return (
-    <>
-      <Grid container direction="column" spacing={3} sx={{ background: 'transparent', boxShadow: 'none' }}>
-        {data.map((plan: any) => (
-          <Grid key={plan.id} sx={{ width: '100%', maxWidth: { xs: '100%', md: 700 }, ml: 0 }}>
-            <Card
-              sx={{
-                borderRadius: 3,
-                background: '#fff',
-                border: '1px solid #e0e0e0',
-                boxShadow: '0 4px 16px 0 rgba(80,80,120,0.13)',
-                transition: 'box-shadow 0.2s, transform 0.2s',
-                '&:hover': {
-                  boxShadow: '0 8px 32px 0 rgba(80,80,120,0.22)',
-                  transform: 'translateY(-4px) scale(1.02)'
-                },
-                p: 0,
-                cursor: 'pointer',
-                position: 'relative'
-              }}
-              onClick={() => handleOpen(plan)}
-            >
-              <CardContent sx={{ p: { xs: 2, sm: 3 }, background: '#fff' }}>
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2} sx={{ background: '#fff', gap: 1 }}>
-                  <Box sx={{ background: '#fff', flex: 1, minWidth: 0 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#2B2D42', mb: 0.5, background: '#fff', wordBreak: 'break-word' }}>
-                      {plan.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, minHeight: 32, background: '#fff', wordBreak: 'break-word' }}>
-                      {plan.description}
-                    </Typography>
-                  </Box>
-                  <Chip
-                    label={statusLabels[(plan.status as keyof typeof statusLabels)] || plan.status}
-                    size="small"
-                    sx={{
-                      backgroundColor: statusColors[(plan.status as keyof typeof statusColors)] || '#ccc',
-                      color: 'white',
-                      fontWeight: 600,
-                      fontSize: 12,
-                      px: 1,
-                      borderRadius: 1,
-                      flexShrink: 0
-                    }}
-                  />
-                </Box>
-                <Box display="flex" alignItems="center" flexWrap="wrap" gap={1.5} mb={2} sx={{ background: '#fff' }}>
-                  <Box display="flex" alignItems="center" gap={0.5} sx={{ background: '#fff' }}>
-                    <CalendarIcon fontSize="small" sx={{ color: '#FF6B35', background: '#fff' }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ background: '#fff' }}>
-                      Inicio: <DateField source="startDate" record={plan} showTime={false} />
-                    </Typography>
-                  </Box>
-                  <Box display="flex" alignItems="center" gap={0.5} sx={{ background: '#fff' }}>
-                    <CalendarIcon fontSize="small" sx={{ color: '#FF6B35', background: '#fff' }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ background: '#fff' }}>
-                      Fin: <DateField source="endDate" record={plan} showTime={false} />
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box display="flex" flexWrap="wrap" gap={1} mt={2} sx={{ background: '#fff' }}>
-                  <EditButton record={plan} label="Editar" sx={{ color: '#FF6B35', fontWeight: 600, background: '#fff' }} />
-                  <DeleteButton record={plan} label="Eliminar" sx={{ color: '#E53935', fontWeight: 600, background: '#fff' }} />
-                  <Button variant="contained" color="primary" size="small" sx={{ ml: { xs: 0, sm: 'auto' }, fontWeight: 600, backgroundColor: '#FF6B35', '&:hover': { backgroundColor: '#E55A2B' } }} onClick={e => { e.stopPropagation(); handleOpenRun(plan); }}>Ejecutar plan</Button>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-      {/* Modal de detalle de plan de pruebas */}
-      <Modal open={open} onClose={handleClose}>
-        <Paper sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: { xs: 'calc(100vw - 32px)', sm: 560 }, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', p: { xs: 2.5, sm: 4 }, borderRadius: 4, outline: 'none' }}>
-          {selectedPlan && (
-            <>
-              <Typography variant="h5" sx={{ mb: 2 }}>Detalle del Plan: {selectedPlan.name}</Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Typography variant="h6">Test Automatizados</Typography>
-              <Box component="ul" sx={{ pl: 3, mb: 2 }}>
-                {(selectedPlan.automatedTests || []).map((testId: string, idx: number) => {
-                  const status = getAutomatedTestStatus(testId, selectedPlan.id);
-                  return (
-                    <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      {status === 'passed' && (
-                        <Chip label="Pas?" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
-                      )}
-                      {status === 'failed' && (
-                        <Chip label="Fall?" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
-                      )}
-                      {status === null && (
-                        <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
-                      )}
-                    </li>
-                  );
-                })}
-              </Box>
-              <Typography variant="h6">Test manuales</Typography>
-              <Box component="ul" sx={{ pl: 3 }}>
-                {(selectedPlan.manualTestCases || []).map((testId: string, idx: number) => {
-                  const test = manualCases.find((t: any) => t.id === testId);
-                  const status = test?.executionResult;
-                  return (
-                    <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ minWidth: 32 }}>{idx + 1}.</span> {test?.name || testId}
-                      {status && (
-                        <Chip
-                          label={status === 'passed' ? 'Pas?' : status === 'failed' ? 'Fall?' : status}
-                          sx={{
-                            ml: 2,
-                            backgroundColor: status === 'passed' ? '#4caf50' : status === 'failed' ? '#E53935' : '#bdbdbd',
-                            color: '#fff',
-                            fontWeight: 600
-                          }}
-                        />
-                      )}
-                    </li>
-                  );
-                })}
-              </Box>
-            </>
-          )}
-        </Paper>
-      </Modal>
-      {/* Modal de ejecuci?n de plan */}
-      <Modal open={openRun} onClose={handleCloseRun}>
-        <Paper sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: { xs: 'calc(100vw - 32px)', sm: 560 }, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', p: { xs: 2.5, sm: 4 }, borderRadius: 4, outline: 'none' }}>
-          {selectedPlanRun && (
-            <>
-              <Typography variant="h5" sx={{ mb: 2 }}>Ejecutar Plan: {selectedPlanRun.name}</Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Typography variant="h6">Test Automatizados</Typography>
-              <Box component="ul" sx={{ pl: 3, mb: 2 }}>
-                {(selectedPlanRun.automatedTests || []).map((testId: string, idx: number) => {
-                  const status = getAutomatedTestStatus(testId, selectedPlanRun.id);
-                  // Mostrar 'Ejecut?ndose' si est? corriendo
-                  if (autoStatus[testId] === 'running') {
-                    return (
-                      <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-                        <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        <Chip label="Ejecut?ndose" sx={{ ml: 2, backgroundColor: '#ff9800', color: '#fff', fontWeight: 600 }} />
-                      </li>
-                    );
-                  }
-                  return (
-                    <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      {status === 'passed' && (
-                        <Chip label="Pas?" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
-                      )}
-                      {status === 'failed' && (
-                        <Chip label="Fall?" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
-                      )}
-                      {status === null && (
-                        <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
-                      )}
-                    </li>
-                  );
-                })}
-              </Box>
-              {selectedPlanRun.automatedTests?.length > 0 && (
-                <Button variant="contained" color="primary" onClick={handleRunAutomated} disabled={running} sx={{ mb: 3 }}>
-                  Ejecutar todos los automatizados
-                </Button>
-              )}
-              <Typography variant="h6">Test manuales</Typography>
-              <Box component="ul" sx={{ pl: 3, mb: 2 }}>
-                {(selectedPlanRun.manualTestCases || []).map((testId: string, idx: number) => {
-                  const test = manualCases.find((t: any) => t.id === testId);
-                  const status = manualResults[testId] || test?.executionResult;
-                  return (
-                    <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ minWidth: 32 }}>{idx + 1}.</span> {test?.name || testId}
-                      <ToggleButtonGroup
-                        exclusive
-                        value={status || ''}
-                        onChange={(_, value) => setManualResults(r => ({ ...r, [testId]: value }))}
-                        sx={{ ml: 2 }}
-                        size="small"
-                      >
-                        <ToggleButton value="passed" sx={{ color: '#4caf50', borderColor: '#4caf50' }}>Pas?</ToggleButton>
-                        <ToggleButton value="failed" sx={{ color: '#E53935', borderColor: '#E53935' }}>Fall?</ToggleButton>
-                      </ToggleButtonGroup>
-                      {status === 'passed' && <Chip label="Pas?" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />}
-                      {status === 'failed' && <Chip label="Fall?" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />}
-                    </li>
-                  );
-                })}
-              </Box>
-              <Button variant="contained" color="success" onClick={handleSaveManuals} sx={{ mt: 2 }}>
-                Guardar resultados manuales
-              </Button>
-            </>
-          )}
-        </Paper>
-      </Modal>
-    </>
-  );
-}
+// ??? Exports ??????????????????????????????????????????????????????????????????
 
 export const TestPlanningPage = () => (
-  <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: { xs: '12px', sm: '20px' }, pl: 0 }}>
-      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
-      Planificación de Pruebas
+  <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: '20px', pl: 0 }}>
+    <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
+      Planificaci?n de Pruebas
     </Typography>
     <List
       actions={<ListActions />}
-      empty={<Empty />}
       filters={planFilters}
       pagination={false}
       sx={{
-        background: 'transparent',
-        boxShadow: 'none',
-        padding: 0,
-        '& .RaList-content': {
-          background: 'transparent',
-          boxShadow: 'none',
-          padding: 0,
-        },
-        '& .MuiPaper-root': {
-          background: 'transparent',
-          boxShadow: 'none',
-          padding: 0,
-        }
+        background: 'transparent', boxShadow: 'none', padding: 0,
+        '& .RaList-content': { background: 'transparent', boxShadow: 'none', padding: 0 },
+        '& .MuiPaper-root': { background: 'transparent', boxShadow: 'none', padding: 0 },
       }}
     >
       <TestPlanningCardList />
@@ -513,84 +735,14 @@ export const TestPlanningPage = () => (
   </Box>
 );
 
-export const TestPlanningCreate = (props: any) => {
-  const { data: manualCases = [] } = useGetList('test_cases');
-  return (
-    <Create {...props} title="Nuevo Plan de Pruebas" redirect="list">
-      <SimpleForm>
-        <TextInput source="name" label="Nombre" fullWidth required />
-        <TextInput source="description" label="Descripci?n" multiline fullWidth />
-        <SelectInput source="status" label="Estado" choices={[
-          { id: 'draft', name: 'Borrador' },
-          { id: 'active', name: 'Activo' },
-          { id: 'in_progress', name: 'En Progreso' },
-          { id: 'completed', name: 'Completado' },
-          { id: 'cancelled', name: 'Cancelado' }
-        ]} required />
-        <DateInput source="startDate" label="Fecha de inicio" />
-        <DateInput source="endDate" label="Fecha de fin" />
-        <SelectArrayInput
-          source="manualTestCases"
-          label="Casos de prueba manuales"
-          choices={manualCases.map(tc => ({ id: tc.id, name: tc.name }))}
-        />
-        <SelectArrayInput
-          source="automatedTests"
-          label="Tests automatizados"
-          choices={[
-            { id: 'test_create_user.py', name: 'Crear usuario' },
-            { id: 'test_create_visitor.py', name: 'Crear visitante' },
-            { id: 'test_create_company.py', name: 'Crear empresa' },
-            { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
-            { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
-            { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
-            { id: 'test_create_property.py', name: 'Crear Copropiedad' },
-            { id: 'test_edit_property.py', name: 'Editar Copropiedad' },
-            { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad' },
-          ]}
-        />
-      </SimpleForm>
-    </Create>
-  );
-};
+export const TestPlanningCreate = (props: any) => (
+  <Create {...props} title="Nuevo Plan de Pruebas" redirect="list">
+    <PlanWizardContent mode="create" />
+  </Create>
+);
 
-export const TestPlanningEdit = (props: any) => {
-  const { data: manualCases = [] } = useGetList('test_cases');
-  return (
-    <Edit {...props} title="Editar Plan de Pruebas">
-      <SimpleForm>
-        <TextInput source="name" label="Nombre" fullWidth required />
-        <TextInput source="description" label="Descripci?n" multiline fullWidth />
-        <SelectInput source="status" label="Estado" choices={[
-          { id: 'draft', name: 'Borrador' },
-          { id: 'active', name: 'Activo' },
-          { id: 'in_progress', name: 'En Progreso' },
-          { id: 'completed', name: 'Completado' },
-          { id: 'cancelled', name: 'Cancelado' }
-        ]} required />
-        <DateInput source="startDate" label="Fecha de inicio" />
-        <DateInput source="endDate" label="Fecha de fin" />
-        <SelectArrayInput
-          source="manualTestCases"
-          label="Casos de prueba manuales"
-          choices={manualCases.map(tc => ({ id: tc.id, name: tc.name }))}
-        />
-        <SelectArrayInput
-          source="automatedTests"
-          label="Tests automatizados"
-          choices={[
-            { id: 'test_create_user.py', name: 'Crear usuario' },
-            { id: 'test_create_visitor.py', name: 'Crear visitante' },
-            { id: 'test_create_company.py', name: 'Crear empresa' },
-            { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
-            { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
-            { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
-            { id: 'test_create_property.py', name: 'Crear Copropiedad' },
-            { id: 'test_edit_property.py', name: 'Editar Copropiedad' },
-            { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad' },
-          ]}
-        />
-      </SimpleForm>
-    </Edit>
-  );
-}; 
+export const TestPlanningEdit = (props: any) => (
+  <Edit {...props} title="Editar Plan de Pruebas" redirect="list">
+    <PlanWizardContent mode="edit" />
+  </Edit>
+);
