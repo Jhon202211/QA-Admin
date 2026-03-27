@@ -4,7 +4,7 @@ import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { ResultsViewPage } from './pages/TestResults/ResultsViewPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
-import { Typography, Box, useTheme } from '@mui/material';
+import { Typography, Box, useTheme, useMediaQuery } from '@mui/material';
 import LoginPage from './pages/LoginPage';
 import isotype from './assets/isotype white small.svg';
 import { TestCasesPage, TestCaseCreate } from './pages/TestCases/TestCasesPage';
@@ -60,75 +60,107 @@ const CustomAppBar = (props: any) => {
 };
 
 const CustomLayout = (props: any) => {
-  const [open] = useSidebarState();
+  const [open, setOpen] = useSidebarState();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   return (
-    <Layout
-      {...props}
-      appBar={CustomAppBar}
-      menu={AppMenu}
-      sx={{
-        '& .RaSidebar-fixed': {
-          position: 'fixed',
-          height: 'calc(100vh - 64px)',
-          backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5',
-          borderRight: 'none',
-          left: 0,
-          top: '64px',
-          width: open ? '240px' : '0px',
-          minWidth: 0,
-          maxWidth: open ? '240px' : '0px',
-          boxShadow: 'none',
-          overflowX: 'hidden',
-          transition: 'width 0.2s',
-        },
-        '& .RaLayout-appFrame': {
-          marginTop: '64px',
-        },
-        '& .RaLayout-contentWithSidebar': {
-          marginLeft: open ? '240px' : '0px',
-          minHeight: 'calc(100vh - 64px)',
-          width: open ? 'calc(100vw - 240px)' : '100vw',
-          maxWidth: 'none',
-          boxSizing: 'border-box',
-          backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5',
-          transition: 'margin-left 0.2s, width 0.2s',
-        },
-        '& .RaLayout-content': {
-          padding: 0,
-          backgroundColor: 'transparent',
-          width: '100%',
-          maxWidth: 'none',
-          boxSizing: 'border-box',
-        },
-        '& .RaMenu-root': {
-          marginTop: '24px',
-        },
-        '& .RaMenu-item': {
-          padding: '12px 28px',
-          color: isDark ? '#FFFFFF' : '#2B2D42',
-          fontWeight: 500,
-          '&:hover': {
-            backgroundColor: 'rgba(255, 107, 53, 0.1)',
-            color: '#FF6B35',
+    <>
+      {/* Overlay oscuro al abrir el sidebar en móvil */}
+      {isMobile && open && (
+        <Box
+          onClick={() => setOpen(false)}
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            bgcolor: 'rgba(0,0,0,0.45)',
+            zIndex: 1199,
+          }}
+        />
+      )}
+      <Layout
+        {...props}
+        appBar={CustomAppBar}
+        menu={AppMenu}
+        sx={{
+          // Spacer del DOM que empuja el contenido — debe coincidir con el ancho visual del sidebar
+          '& .RaSidebar-root': {
+            width: isMobile ? '0px' : (open ? '240px' : '0px'),
+            minWidth: 0,
+            flexShrink: 0,
+            transition: 'width 0.25s ease',
           },
-          '&[aria-current="page"]': {
-            color: '#FF6B35',
-            fontWeight: 600,
-            borderLeft: '3px solid #FF6B35',
-            backgroundColor: 'rgba(255, 107, 53, 0.05)',
+          // Panel visual del sidebar (fixed sobre el viewport)
+          '& .RaSidebar-fixed': {
+            position: 'fixed',
+            height: '100vh',
+            backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5',
+            borderRight: 'none',
+            left: 0,
+            top: 0,
+            paddingTop: isMobile ? '56px' : '64px',
+            width: open ? '240px' : '0px',
+            minWidth: 0,
+            maxWidth: open ? '240px' : '0px',
+            boxShadow: open ? '4px 0 20px rgba(0,0,0,0.15)' : 'none',
+            overflowX: 'hidden',
+            overflowY: 'auto',
+            transition: 'width 0.25s ease, max-width 0.25s ease',
+            zIndex: isMobile ? 1200 : 'auto',
           },
-        },
-        '& .RaListToolbar-root': {
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-        }
-      }}
-    />
+          '& .RaLayout-appFrame': {
+            marginTop: isMobile ? '56px' : '64px',
+          },
+          // Sin marginLeft extra — el spacer RaSidebar-root ya desplaza el contenido
+          '& .RaLayout-contentWithSidebar': {
+            marginLeft: 0,
+            minHeight: isMobile ? 'calc(100vh - 56px)' : 'calc(100vh - 64px)',
+            width: '100%',
+            maxWidth: 'none',
+            boxSizing: 'border-box',
+            backgroundColor: isDark ? '#1A1C2E' : '#F5F5F5',
+            transition: 'width 0.25s ease',
+            display: 'flex',
+          },
+          '& .RaLayout-content': {
+            padding: 0,
+            paddingLeft: isMobile ? '4px' : '8px',
+            backgroundColor: 'transparent',
+            flex: 1,
+            minWidth: 0,
+            maxWidth: 'none',
+            boxSizing: 'border-box',
+          },
+          '& .RaMenu-root': {
+            marginTop: '24px',
+          },
+          '& .RaMenu-item': {
+            padding: '12px 28px',
+            color: isDark ? '#FFFFFF' : '#2B2D42',
+            fontWeight: 500,
+            '&:hover': {
+              backgroundColor: 'rgba(255, 107, 53, 0.1)',
+              color: '#FF6B35',
+            },
+            '&[aria-current="page"]': {
+              color: '#FF6B35',
+              fontWeight: 600,
+              borderLeft: '3px solid #FF6B35',
+              backgroundColor: 'rgba(255, 107, 53, 0.05)',
+            },
+          },
+          '& .RaListToolbar-root': {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+            marginBottom: '16px',
+          },
+        }}
+      />
+    </>
   );
 };
 

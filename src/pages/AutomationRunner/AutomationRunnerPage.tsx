@@ -197,9 +197,9 @@ export const AutomationRunnerPage = () => {
   }, [dataProvider, initialized]);
 
   return (
-    <Box sx={{ paddingTop: '20px', paddingRight: '20px', paddingBottom: '20px' }}>
-      <Typography variant="h4" gutterBottom>
-        Automatización
+    <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: { xs: '12px', sm: '20px' } }}>
+      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
+      Automatización
       </Typography>
       <List
         actions={<ListActions />}
@@ -236,7 +236,7 @@ export const AutomationRunnerPage = () => {
 };
 
 export const AutomationCaseCreate = (props: any) => (
-  <Box sx={{ padding: '20px' }}>
+  <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
     <Typography variant="h4" gutterBottom>
       Nuevo Caso Automatizado
     </Typography>
@@ -271,7 +271,7 @@ export const AutomationCaseCreate = (props: any) => (
 );
 
 export const AutomationCaseEdit = (props: any) => (
-  <Box sx={{ padding: '20px' }}>
+  <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
     <Typography variant="h4" gutterBottom>
       Editar Caso Automatizado
     </Typography>

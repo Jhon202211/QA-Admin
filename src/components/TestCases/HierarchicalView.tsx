@@ -212,11 +212,11 @@ export const HierarchicalView = () => {
   };
 
   if (isLoading) {
-    return <Box sx={{ p: 3 }}>Cargando...</Box>;
+    return <Box sx={{ pt: 3, pr: 3, pb: 3, pl: 0 }}>Cargando...</Box>;
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ pt: 3, pr: 3, pb: 3, pl: 0 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
           Pruebas Manuales

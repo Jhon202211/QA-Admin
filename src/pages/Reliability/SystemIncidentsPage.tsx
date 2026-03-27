@@ -61,7 +61,7 @@ const Empty = () => (
 );
 
 export const SystemIncidentsPage = () => (
-  <Box sx={{ p: 3 }}>
+  <Box sx={{ pt: { xs: 1.5, sm: 3 }, pr: { xs: 1.5, sm: 3 }, pb: { xs: 1.5, sm: 3 }, pl: 0 }}>
     <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif", mb: 2 }}>
       Incidentes
     </Typography>

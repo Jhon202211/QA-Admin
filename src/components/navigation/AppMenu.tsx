@@ -8,7 +8,10 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
+import { useSidebarState } from 'react-admin';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
@@ -44,17 +47,20 @@ const MenuLinkItem = ({
   icon,
   active,
   nested = false,
+  onClick,
 }: {
   to: string;
   label: string;
   icon: ReactNode;
   active: boolean;
   nested?: boolean;
+  onClick?: () => void;
 }) => (
   <ListItemButton
     component={RouterLink}
     to={to}
     selected={active}
+    onClick={onClick}
     sx={{
       ...itemStyles,
       pl: nested ? 5.5 : 3,
@@ -67,39 +73,51 @@ const MenuLinkItem = ({
 
 export const AppMenu = () => {
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [, setOpen] = useSidebarState();
+
   const isReliabilityRoute = useMemo(
     () => location.pathname.startsWith('/reliability') || location.pathname.startsWith('/system_incidents'),
     [location.pathname]
   );
   const [reliabilityOpen, setReliabilityOpen] = useState(isReliabilityRoute);
 
+  const handleNavClick = () => {
+    if (isMobile) setOpen(false);
+  };
+
   return (
-    <Box sx={{ mt: 3 }}>
+    <Box sx={{ mt: 3, width: '240px', minWidth: '240px' }}>
       <List disablePadding>
-        <MenuLinkItem to="/" label="Dashboard" icon={<DashboardIcon />} active={location.pathname === '/'} />
+        <MenuLinkItem to="/" label="Dashboard" icon={<DashboardIcon />} active={location.pathname === '/'} onClick={handleNavClick} />
         <MenuLinkItem
           to="/test_cases"
           label="Pruebas manuales"
           icon={<AssignmentIcon />}
           active={location.pathname.startsWith('/test_cases')}
+          onClick={handleNavClick}
         />
         <MenuLinkItem
           to="/test_planning"
           label="Test plannings"
           icon={<EventNoteIcon />}
           active={location.pathname.startsWith('/test_planning')}
+          onClick={handleNavClick}
         />
         <MenuLinkItem
           to="/automation"
           label="Automatización"
           icon={<PlayCircleIcon />}
           active={location.pathname.startsWith('/automation')}
+          onClick={handleNavClick}
         />
         <MenuLinkItem
           to="/test_results"
           label="Vista de resultados"
           icon={<AssessmentIcon />}
           active={location.pathname.startsWith('/test_results')}
+          onClick={handleNavClick}
         />
 
         <ListItemButton
@@ -122,6 +140,7 @@ export const AppMenu = () => {
               icon={<InsightsIcon fontSize="small" />}
               active={location.pathname.startsWith('/reliability/dashboard')}
               nested
+              onClick={handleNavClick}
             />
             <MenuLinkItem
               to="/system_incidents"
@@ -129,6 +148,7 @@ export const AppMenu = () => {
               icon={<ReportProblemIcon fontSize="small" />}
               active={location.pathname.startsWith('/system_incidents')}
               nested
+              onClick={handleNavClick}
             />
             <MenuLinkItem
               to="/reliability/analysis"
@@ -136,6 +156,7 @@ export const AppMenu = () => {
               icon={<HubIcon fontSize="small" />}
               active={location.pathname.startsWith('/reliability/analysis')}
               nested
+              onClick={handleNavClick}
             />
           </List>
         </Collapse>
@@ -145,6 +166,7 @@ export const AppMenu = () => {
           label="Configuración"
           icon={<SettingsIcon />}
           active={location.pathname.startsWith('/configuration')}
+          onClick={handleNavClick}
         />
       </List>
     </Box>

@@ -45,6 +45,7 @@ html, body {
   font-family: var(--font-family-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -142,9 +143,38 @@ body {
   background: var(--color-primary);
 }
 
-/* Restaurar visibilidad y reducir el ancho del div azul visual */
-.MuiDrawer-paper {
-  width: 24px !important;
-  min-width: 24px !important;
-  max-width: 24px !important;
+/* Overlay para el sidebar en móvil */
+.sidebar-mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1199;
+}
+
+.sidebar-mobile-overlay.visible {
+  display: block;
+}
+
+/* Responsive: pantallas pequeñas */
+@media (max-width: 899px) {
+  .RaSidebar-fixed {
+    z-index: 1200 !important;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .RaLayout-contentWithSidebar {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 599px) {
+  .RaLayout-appFrame {
+    margin-top: 56px !important;
+  }
+
+  .RaMenu-root {
+    width: 240px !important;
+  }
 }

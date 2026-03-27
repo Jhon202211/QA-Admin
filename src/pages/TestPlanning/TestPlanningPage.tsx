@@ -100,7 +100,7 @@ function TestPlanningCardList() {
     if (!openRun) return;
     // Si no hay tests automatizados, no hacer nada
     if (!selectedPlanRun || !selectedPlanRun.automatedTests || selectedPlanRun.automatedTests.length === 0) return;
-    // Si alguno está corriendo, no refrescar
+    // Si alguno est? corriendo, no refrescar
     const algunoCorriendo = selectedPlanRun.automatedTests.some((testId: string) => autoStatus[testId] === 'running');
     if (!algunoCorriendo) {
       refetchTestResults && refetchTestResults();
@@ -143,7 +143,7 @@ function TestPlanningCardList() {
     setRunning(false);
   };
 
-  // Mapeo de test automatizado a caseId (ajusta según tu correspondencia real)
+  // Mapeo de test automatizado a caseId (ajusta seg?n tu correspondencia real)
   const testToCaseId: Record<string, string> = {
     'test_create_user.py': 'TC001',
     'test_create_company.py': 'TC002',
@@ -161,10 +161,10 @@ function TestPlanningCardList() {
     'test_create_room_reservation.py': ['test_create_room_reservation', 'pytest'],
     'test_deactivate_user_company.py': ['test_deactivate_user_company', 'pytest'],
     'test_restore_user_company.py': ['test_restore_user_company', 'pytest'],
-    // Agrega más alias si es necesario
+    // Agrega m?s alias si es necesario
   };
 
-  // Función para obtener el estado del último resultado de un test automatizado
+  // Funci?n para obtener el estado del ?ltimo resultado de un test automatizado
   const getAutomatedTestStatus = (testId: string, planId?: string) => {
     const pid = planId || selectedPlan?.id;
     const baseName = testId.replace('.py', '');
@@ -185,7 +185,7 @@ function TestPlanningCardList() {
       });
     }
     if (results.length === 0) return null;
-    // Tomar el más reciente por fecha
+    // Tomar el m?s reciente por fecha
     const last = results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
     return last.status;
   };
@@ -232,8 +232,8 @@ function TestPlanningCardList() {
       try {
         const caseId = testToCaseId[testId] || '';
         const planId = selectedPlanRun?.id || '';
-        // Log para validar cada petición
-        console.log('Enviando ejecución desde plan:', { test_file: testId, planId, caseId });
+        // Log para validar cada petici?n
+        console.log('Enviando ejecuci?n desde plan:', { test_file: testId, planId, caseId });
         const response = await fetch('/api/tests/execute', {
           method: 'POST',
           headers: {
@@ -286,7 +286,7 @@ function TestPlanningCardList() {
     <>
       <Grid container direction="column" spacing={3} sx={{ background: 'transparent', boxShadow: 'none' }}>
         {data.map((plan: any) => (
-          <Grid key={plan.id} sx={{ width: '100%', maxWidth: 700, ml: 0 }}>
+          <Grid key={plan.id} sx={{ width: '100%', maxWidth: { xs: '100%', md: 700 }, ml: 0 }}>
             <Card
               sx={{
                 borderRadius: 3,
@@ -304,13 +304,13 @@ function TestPlanningCardList() {
               }}
               onClick={() => handleOpen(plan)}
             >
-              <CardContent sx={{ p: 3, background: '#fff' }}>
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2} sx={{ background: '#fff' }}>
-                  <Box sx={{ background: '#fff' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#2B2D42', mb: 0.5, background: '#fff' }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 }, background: '#fff' }}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2} sx={{ background: '#fff', gap: 1 }}>
+                  <Box sx={{ background: '#fff', flex: 1, minWidth: 0 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#2B2D42', mb: 0.5, background: '#fff', wordBreak: 'break-word' }}>
                       {plan.name}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, minHeight: 32, background: '#fff' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, minHeight: 32, background: '#fff', wordBreak: 'break-word' }}>
                       {plan.description}
                     </Typography>
                   </Box>
@@ -321,13 +321,14 @@ function TestPlanningCardList() {
                       backgroundColor: statusColors[(plan.status as keyof typeof statusColors)] || '#ccc',
                       color: 'white',
                       fontWeight: 600,
-                      fontSize: 13,
-                      px: 1.5,
-                      borderRadius: 1
+                      fontSize: 12,
+                      px: 1,
+                      borderRadius: 1,
+                      flexShrink: 0
                     }}
                   />
                 </Box>
-                <Box display="flex" alignItems="center" gap={2} mb={2} sx={{ background: '#fff' }}>
+                <Box display="flex" alignItems="center" flexWrap="wrap" gap={1.5} mb={2} sx={{ background: '#fff' }}>
                   <Box display="flex" alignItems="center" gap={0.5} sx={{ background: '#fff' }}>
                     <CalendarIcon fontSize="small" sx={{ color: '#FF6B35', background: '#fff' }} />
                     <Typography variant="caption" color="text.secondary" sx={{ background: '#fff' }}>
@@ -341,10 +342,10 @@ function TestPlanningCardList() {
                     </Typography>
                   </Box>
                 </Box>
-                <Box display="flex" gap={2} mt={2} sx={{ background: '#fff' }}>
+                <Box display="flex" flexWrap="wrap" gap={1} mt={2} sx={{ background: '#fff' }}>
                   <EditButton record={plan} label="Editar" sx={{ color: '#FF6B35', fontWeight: 600, background: '#fff' }} />
                   <DeleteButton record={plan} label="Eliminar" sx={{ color: '#E53935', fontWeight: 600, background: '#fff' }} />
-                  <Button variant="contained" color="primary" sx={{ ml: 'auto', fontWeight: 600, backgroundColor: '#FF6B35', '&:hover': { backgroundColor: '#E55A2B' } }} onClick={e => { e.stopPropagation(); handleOpenRun(plan); }}>Ejecutar plan</Button>
+                  <Button variant="contained" color="primary" size="small" sx={{ ml: { xs: 0, sm: 'auto' }, fontWeight: 600, backgroundColor: '#FF6B35', '&:hover': { backgroundColor: '#E55A2B' } }} onClick={e => { e.stopPropagation(); handleOpenRun(plan); }}>Ejecutar plan</Button>
                 </Box>
               </CardContent>
             </Card>
@@ -353,7 +354,7 @@ function TestPlanningCardList() {
       </Grid>
       {/* Modal de detalle de plan de pruebas */}
       <Modal open={open} onClose={handleClose}>
-        <Paper sx={{ position: 'absolute', top: '50%', left: '60%', transform: 'translate(-50%, -50%)', minWidth: 420, maxWidth: 600, p: 4, borderRadius: 4, outline: 'none' }}>
+        <Paper sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: { xs: 'calc(100vw - 32px)', sm: 560 }, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', p: { xs: 2.5, sm: 4 }, borderRadius: 4, outline: 'none' }}>
           {selectedPlan && (
             <>
               <Typography variant="h5" sx={{ mb: 2 }}>Detalle del Plan: {selectedPlan.name}</Typography>
@@ -366,10 +367,10 @@ function TestPlanningCardList() {
                     <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
                       <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       {status === 'passed' && (
-                        <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
+                        <Chip label="Pas?" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === 'failed' && (
-                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
+                        <Chip label="Fall?" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === null && (
                         <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
@@ -388,7 +389,7 @@ function TestPlanningCardList() {
                       <span style={{ minWidth: 32 }}>{idx + 1}.</span> {test?.name || testId}
                       {status && (
                         <Chip
-                          label={status === 'passed' ? 'Pasó' : status === 'failed' ? 'Falló' : status}
+                          label={status === 'passed' ? 'Pas?' : status === 'failed' ? 'Fall?' : status}
                           sx={{
                             ml: 2,
                             backgroundColor: status === 'passed' ? '#4caf50' : status === 'failed' ? '#E53935' : '#bdbdbd',
@@ -405,9 +406,9 @@ function TestPlanningCardList() {
           )}
         </Paper>
       </Modal>
-      {/* Modal de ejecución de plan */}
+      {/* Modal de ejecuci?n de plan */}
       <Modal open={openRun} onClose={handleCloseRun}>
-        <Paper sx={{ position: 'absolute', top: '50%', left: '60%', transform: 'translate(-50%, -50%)', minWidth: 420, maxWidth: 600, p: 4, borderRadius: 4, outline: 'none' }}>
+        <Paper sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: { xs: 'calc(100vw - 32px)', sm: 560 }, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', p: { xs: 2.5, sm: 4 }, borderRadius: 4, outline: 'none' }}>
           {selectedPlanRun && (
             <>
               <Typography variant="h5" sx={{ mb: 2 }}>Ejecutar Plan: {selectedPlanRun.name}</Typography>
@@ -416,12 +417,12 @@ function TestPlanningCardList() {
               <Box component="ul" sx={{ pl: 3, mb: 2 }}>
                 {(selectedPlanRun.automatedTests || []).map((testId: string, idx: number) => {
                   const status = getAutomatedTestStatus(testId, selectedPlanRun.id);
-                  // Mostrar 'Ejecutándose' si está corriendo
+                  // Mostrar 'Ejecut?ndose' si est? corriendo
                   if (autoStatus[testId] === 'running') {
                     return (
                       <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
                         <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        <Chip label="Ejecutándose" sx={{ ml: 2, backgroundColor: '#ff9800', color: '#fff', fontWeight: 600 }} />
+                        <Chip label="Ejecut?ndose" sx={{ ml: 2, backgroundColor: '#ff9800', color: '#fff', fontWeight: 600 }} />
                       </li>
                     );
                   }
@@ -429,10 +430,10 @@ function TestPlanningCardList() {
                     <li key={testId} style={{ marginBottom: 8, display: 'flex', alignItems: 'center' }}>
                       <span style={{ minWidth: 32 }}>{idx + 1}.</span> {testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       {status === 'passed' && (
-                        <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
+                        <Chip label="Pas?" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === 'failed' && (
-                        <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
+                        <Chip label="Fall?" sx={{ ml: 2, backgroundColor: '#E53935', color: '#fff', fontWeight: 600 }} />
                       )}
                       {status === null && (
                         <Chip label="Pendiente" sx={{ ml: 2, backgroundColor: '#bdbdbd', color: '#fff', fontWeight: 600 }} />
@@ -461,11 +462,11 @@ function TestPlanningCardList() {
                         sx={{ ml: 2 }}
                         size="small"
                       >
-                        <ToggleButton value="passed" sx={{ color: '#4caf50', borderColor: '#4caf50' }}>Pasó</ToggleButton>
-                        <ToggleButton value="failed" sx={{ color: '#E53935', borderColor: '#E53935' }}>Falló</ToggleButton>
+                        <ToggleButton value="passed" sx={{ color: '#4caf50', borderColor: '#4caf50' }}>Pas?</ToggleButton>
+                        <ToggleButton value="failed" sx={{ color: '#E53935', borderColor: '#E53935' }}>Fall?</ToggleButton>
                       </ToggleButtonGroup>
-                      {status === 'passed' && <Chip label="Pasó" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />}
-                      {status === 'failed' && <Chip label="Falló" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />}
+                      {status === 'passed' && <Chip label="Pas?" sx={{ ml: 2, backgroundColor: '#4caf50', color: '#fff', fontWeight: 600 }} />}
+                      {status === 'failed' && <Chip label="Fall?" sx={{ ml: 2, backgroundColor: '#e53935', color: '#fff', fontWeight: 600 }} />}
                     </li>
                   );
                 })}
@@ -482,8 +483,8 @@ function TestPlanningCardList() {
 }
 
 export const TestPlanningPage = () => (
-  <Box sx={{ padding: '20px' }}>
-    <Typography variant="h4" gutterBottom>
+  <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: { xs: '12px', sm: '20px' }, pl: 0 }}>
+      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
       Planificación de Pruebas
     </Typography>
     <List
@@ -518,7 +519,7 @@ export const TestPlanningCreate = (props: any) => {
     <Create {...props} title="Nuevo Plan de Pruebas" redirect="list">
       <SimpleForm>
         <TextInput source="name" label="Nombre" fullWidth required />
-        <TextInput source="description" label="Descripción" multiline fullWidth />
+        <TextInput source="description" label="Descripci?n" multiline fullWidth />
         <SelectInput source="status" label="Estado" choices={[
           { id: 'draft', name: 'Borrador' },
           { id: 'active', name: 'Activo' },
@@ -559,7 +560,7 @@ export const TestPlanningEdit = (props: any) => {
     <Edit {...props} title="Editar Plan de Pruebas">
       <SimpleForm>
         <TextInput source="name" label="Nombre" fullWidth required />
-        <TextInput source="description" label="Descripción" multiline fullWidth />
+        <TextInput source="description" label="Descripci?n" multiline fullWidth />
         <SelectInput source="status" label="Estado" choices={[
           { id: 'draft', name: 'Borrador' },
           { id: 'active', name: 'Activo' },

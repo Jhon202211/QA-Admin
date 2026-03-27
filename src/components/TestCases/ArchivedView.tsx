@@ -98,11 +98,11 @@ export const ArchivedView = () => {
   };
 
   if (isLoading) {
-    return <Box sx={{ p: 3 }}>Cargando...</Box>;
+    return <Box sx={{ pt: 3, pr: 3, pb: 3, pl: 0 }}>Cargando...</Box>;
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ pt: 3, pr: 3, pb: 3, pl: 0 }}>
       {Object.keys(groupedData).length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 10 }}>
           <Typography variant="h6" sx={{ color: 'text.secondary', mb: 1 }}>
