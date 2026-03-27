@@ -49,21 +49,31 @@ export const Dashboard = () => {
   };
 
   return (
-    <Box sx={{ padding: '20px', backgroundColor: 'transparent' }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} width="100%">
-        <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
+    <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: { xs: '12px', sm: '20px' }, pl: 0, backgroundColor: 'transparent' }}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        gap={1}
+        mb={2}
+        width="100%"
+      >
+        <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif", fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
           Dashboard
         </Typography>
         <Button
           variant="contained"
           startIcon={<PictureAsPdfIcon />}
           onClick={handleExportPDF}
+          size="small"
           sx={{
             backgroundColor: '#FF6B35',
             color: '#FFFFFF',
             textTransform: 'none',
             fontWeight: 600,
             borderRadius: '8px',
+            alignSelf: { xs: 'flex-start', sm: 'auto' },
             '&:hover': {
               backgroundColor: '#E55A2B'
             }

@@ -69,7 +69,7 @@ export const ReliabilityAnalysisPage = () => {
   const incidentsBySubsystem = aggregateIncidentsBySubsystem(monthlyIncidents);
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ pt: { xs: 1.5, sm: 3 }, pr: { xs: 1.5, sm: 3 }, pb: { xs: 1.5, sm: 3 }, pl: 0 }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
           Análisis de Reliability

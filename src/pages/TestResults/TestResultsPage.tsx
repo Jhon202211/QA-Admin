@@ -43,7 +43,7 @@ export const TestResultsList = () => {
   ];
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ paddingTop: '20px', paddingRight: '20px', paddingBottom: '20px', paddingLeft: 0 }}>
       <Typography variant="h4" gutterBottom>
         Resultados
       </Typography>
