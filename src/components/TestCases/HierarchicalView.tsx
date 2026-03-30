@@ -39,7 +39,7 @@ export const HierarchicalView = () => {
   
   const refresh = useRefresh();
   const { data: testCases = [], isLoading } = useGetList('test_cases', {
-    pagination: { page: 1, perPage: 1000 },
+    pagination: { page: 1, perPage: 10000 },
     sort: { field: 'testProject', order: 'ASC' }
   });
 
@@ -84,7 +84,16 @@ export const HierarchicalView = () => {
     }
   };
 
-  const categories: TestCaseCategory[] = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión', 'UAT'];
+  const categories: TestCaseCategory[] = [
+    'Smoke',
+    'Funcionales',
+    'No Funcionales',
+    'Regresión',
+    'UAT',
+    'Integración',
+    'Unitarias',
+    'Exploratorias',
+  ];
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -93,6 +102,9 @@ export const HierarchicalView = () => {
       'No Funcionales': '#2196F3',
       'Regresión': '#FF9800',
       'UAT': '#9C27B0',
+      'Integración': '#673AB7',
+      'Unitarias': '#607D8B',
+      'Exploratorias': '#E91E63',
     };
     return colors[category] || '#6B6B6B';
   };
@@ -355,7 +367,10 @@ export const HierarchicalView = () => {
               </Box>
             </AccordionSummary>
             <AccordionDetails>
-              {categories.map((category) => {
+              {[
+                ...categories,
+                ...Object.keys(categoriesData).filter((cat) => !categories.includes(cat as TestCaseCategory)),
+              ].map((category) => {
                 const cases = categoriesData[category] || [];
                 if (cases.length === 0) return null;
 
@@ -462,6 +477,19 @@ export const HierarchicalView = () => {
                                     ? `${testCase.module} > ${testCase.submodule}`
                                     : testCase.module || testCase.submodule}
                                 </Typography>
+                              )}
+                              {testCase.tags?.length > 0 && (
+                                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.75, flexWrap: 'wrap' }}>
+                                  {testCase.tags.slice(0, 2).map((tag) => (
+                                    <Chip
+                                      key={tag}
+                                      size="small"
+                                      label={tag}
+                                      variant="outlined"
+                                      sx={{ fontSize: '0.68rem', height: 20 }}
+                                    />
+                                  ))}
+                                </Box>
                               )}
                             </Box>
                             <Chip

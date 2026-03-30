@@ -16,6 +16,12 @@ import {
   MenuItem,
   Select,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -119,6 +125,12 @@ export const TestExecutionModal = ({
     () => hasSteps ? summarizeExecutionFromSteps(steps) : noStepsStatus ?? 'not_executed',
     [steps, hasSteps, noStepsStatus]
   );
+  const aiArtifacts = testCase?.aiArtifacts;
+  const techniqueTags = testCase?.tags ?? [];
+  const decisionRows = (aiArtifacts?.decisionTable?.rows ?? []).map((row: any, index: number) => {
+    if (Array.isArray(row)) return { id: `legacy-${index}`, cells: row }; // compatibilidad antigua
+    return { id: row.id ?? `row-${index}`, cells: row.cells ?? [] };
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -376,6 +388,71 @@ export const TestExecutionModal = ({
 
           {/* Panel derecho: detalle del paso activo o formulario general */}
           <Box sx={{ p: 3, overflowY: 'auto', maxHeight: 640 }}>
+            {(techniqueTags.length > 0 || aiArtifacts?.decisionTable?.applicable) && (
+              <Stack spacing={1.5} sx={{ mb: 2.5 }}>
+                {techniqueTags.length > 0 && (
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                      Técnicas aplicadas
+                    </Typography>
+                    <Stack direction="row" spacing={0.8} sx={{ flexWrap: 'wrap', rowGap: 0.8 }}>
+                      {techniqueTags.map((tag) => (
+                        <Chip key={tag} label={tag} size="small" variant="outlined" color="secondary" />
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+
+                {aiArtifacts?.decisionTable?.applicable && (
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                        Elementos de tabla de decisión
+                      </Typography>
+                      {aiArtifacts.decisionElements && (
+                        <Stack spacing={0.6} sx={{ mb: 1.5 }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            <strong>Causas:</strong> {aiArtifacts.decisionElements.causes.join(', ') || 'N/A'}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            <strong>Efectos:</strong> {aiArtifacts.decisionElements.effects.join(', ') || 'N/A'}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            <strong>Alternativas:</strong> {aiArtifacts.decisionElements.conditionAlternatives.join(', ') || 'N/A'}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            <strong>Reglas:</strong> {aiArtifacts.decisionElements.rules.length}
+                          </Typography>
+                        </Stack>
+                      )}
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              {aiArtifacts.decisionTable.headers.map((header) => (
+                                <TableCell key={header} sx={{ fontWeight: 700 }}>
+                                  {header}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {decisionRows.map((row, rowIndex) => (
+                              <TableRow key={row.id ?? `rule-${rowIndex}`}>
+                                {row.cells.map((cell, cellIndex) => (
+                                  <TableCell key={`cell-${rowIndex}-${cellIndex}`}>{cell}</TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </CardContent>
+                  </Card>
+                )}
+              </Stack>
+            )}
+
             {!hasSteps ? (
               <Stack spacing={2.5}>
                 <Box>

@@ -6,9 +6,43 @@ export interface EvidenceFile {
   name: string;
   mimeType: string;
 }
-export type TestCaseType = 'functional' | 'performance' | 'security' | 'integration' | 'e2e' | 'api';
+export interface DecisionRule {
+  id: string;
+  conditions: Record<string, string>;
+  action: string;
+}
+
+export interface DecisionElements {
+  causes: string[];
+  effects: string[];
+  conditionAlternatives: string[];
+  rules: DecisionRule[];
+}
+
+export interface DecisionTableRow {
+  id: string;
+  cells: string[];
+}
+
+export interface TestCaseAIArtifacts {
+  generatedBy: string;
+  conditions?: Array<{
+    name: string;
+    description: string;
+    equivalence_partitions: string[];
+    boundary_values: string[];
+    notes: string;
+  }>;
+  decisionTable?: {
+    applicable: boolean;
+    headers: string[];
+    rows: DecisionTableRow[];
+  };
+  decisionElements?: DecisionElements;
+}
+export type TestCaseType = 'functional' | 'performance' | 'security' | 'integration' | 'e2e' | 'api' | 'unit' | 'system' | 'acceptance';
 export type TestCasePriority = 'low' | 'medium' | 'high' | 'critical';
-export type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT';
+export type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT' | 'Integración' | 'Unitarias' | 'Exploratorias';
 
 export interface TestStep {
   id: string;
@@ -43,6 +77,7 @@ export interface TestCase {
   priority: TestCasePriority;
   steps: TestStep[];
   tags: string[];
+  aiArtifacts?: TestCaseAIArtifacts;
   createdBy: string;
   createdAt: Date;
   updatedBy?: string;

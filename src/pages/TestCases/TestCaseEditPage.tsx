@@ -37,7 +37,7 @@ interface StepItem {
 
 const PRIORITY_CHOICES = ['Alta', 'Media', 'Baja'];
 const STATUS_CHOICES = ['Activo', 'Inactivo'];
-const CATEGORY_CHOICES = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión', 'UAT'];
+const CATEGORY_CHOICES = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión', 'UAT', 'Integración', 'Unitarias', 'Exploratorias'];
 const EXECUTION_CHOICES = [
   { id: 'not_executed', label: 'No ejecutado' },
   { id: 'passed', label: 'Aprobado' },
