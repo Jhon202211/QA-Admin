@@ -24,7 +24,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useCreate, useNotify } from 'react-admin';
 
-type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT';
+type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT' | 'Integración' | 'Unitarias' | 'Exploratorias';
 
 interface StepItem {
   id: string;
@@ -74,6 +74,9 @@ const Step2Category = ({ formData, setFormData, isReadOnly }: any) => (
         <MenuItem value="No Funcionales">No Funcionales</MenuItem>
         <MenuItem value="Regresión">Regresión</MenuItem>
         <MenuItem value="UAT">UAT</MenuItem>
+        <MenuItem value="Integración">Integración</MenuItem>
+        <MenuItem value="Unitarias">Unitarias</MenuItem>
+        <MenuItem value="Exploratorias">Exploratorias</MenuItem>
       </Select>
     </FormControl>
     <Typography variant="body2" sx={{ color: 'text.secondary' }}>

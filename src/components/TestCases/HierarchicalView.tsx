@@ -436,7 +436,7 @@ export const HierarchicalView = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedProject(project);
-                              setSelectedCategory(category);
+                              setSelectedCategory(category as TestCaseCategory);
                               setWizardOpen(true);
                             }}
                             sx={{ color: getCategoryColor(category) }}

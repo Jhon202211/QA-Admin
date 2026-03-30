@@ -133,9 +133,10 @@ export const TestExecutionModal = ({
   );
   const aiArtifacts = testCase?.aiArtifacts;
   const techniqueTags = testCase?.tags ?? [];
-  const decisionRows = (aiArtifacts?.decisionTable?.rows ?? []).map((row: any, index: number) => {
-    if (Array.isArray(row)) return { id: `legacy-${index}`, cells: row }; // compatibilidad antigua
-    return { id: row.id ?? `row-${index}`, cells: row.cells ?? [] };
+  const decisionRows = (aiArtifacts?.decisionTable?.rows ?? []).map((row: unknown, index: number) => {
+    if (Array.isArray(row)) return { id: `legacy-${index}`, cells: row as string[] };
+    const r = row as { id?: string; cells?: string[] };
+    return { id: r.id ?? `row-${index}`, cells: r.cells ?? [] };
   });
 
   useEffect(() => {
