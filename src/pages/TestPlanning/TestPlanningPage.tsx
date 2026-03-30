@@ -2,7 +2,7 @@ import {
   List, useListContext, EditButton, DeleteButton,
   TopToolbar, CreateButton, ExportButton, FilterButton,
   TextInput, SelectInput, DateField, useGetList,
-  Create, Edit, useRecordContext, useSaveContext, useRedirect,
+  Create, Edit, useRecordContext, useSaveContext, useRedirect, useNotify,
 } from 'react-admin';
 import {
   Box, Typography, Card, CardContent, Chip, Grid, Button,
@@ -509,16 +509,20 @@ const WIZARD_STEPS = ['Información básica', 'Casos manuales', 'Tests automatiz
 
 function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
   const record = useRecordContext();
-  const { save, saving } = useSaveContext() as any;
+  const { save, saving: raSaving } = useSaveContext() as any;
   const redirect = useRedirect();
+  const notify = useNotify();
 
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [editSaving, setEditSaving] = useState(false);
   const [form, setForm] = useState<PlanFormData>({
     name: '', description: '', status: 'draft',
     startDate: '', endDate: '', manualTestCases: [], automatedTests: [],
   });
   const [initialized, setInitialized] = useState(false);
+
+  const saving = mode === 'edit' ? editSaving : raSaving;
 
   useEffect(() => {
     if (record && !initialized) {
@@ -546,9 +550,29 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
   const handleNext = () => { if (step === 0 && !validate1()) return; setStep(s => s + 1); };
   const handleBack = () => setStep(s => s - 1);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (step === 0 && !validate1()) return;
-    save(form, { onSuccess: () => redirect('list', 'test_planning') });
+
+    if (mode === 'edit') {
+      if (!record?.id) return;
+      setEditSaving(true);
+      try {
+        await dataProvider.update('test_planning', {
+          id: record.id,
+          data: form,
+          previousData: record,
+        });
+        notify('Plan guardado correctamente', { type: 'success' });
+        redirect('list', 'test_planning');
+      } catch (error: any) {
+        notify(`Error al guardar: ${error?.message || 'Error desconocido'}`, { type: 'error' });
+        console.error('[TestPlanning] Error al actualizar plan:', error);
+      } finally {
+        setEditSaving(false);
+      }
+    } else {
+      save(form, { onSuccess: () => redirect('list', 'test_planning') });
+    }
   };
 
   const toggleAuto = (id: string) => {
