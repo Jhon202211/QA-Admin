@@ -73,6 +73,37 @@ Impacto: Afecta acceso de todos sus usuarios.
 Regla: Validaciones personalizadas
 Condición: Puede definir horarios y requisitos propios.
 
+2.3 Roles y permisos
+
+Regla: Acceso basado en rol
+Condición: Cada módulo y acción está condicionado al rol del usuario en sesión.
+
+Regla: Roles principales
+Opciones: Administrador, Property Owner, Coordinador, Recepcionista, Empleado, Control Center, Company Reception.
+
+Regla: Permisos por rol
+Condición: Los permisos de lectura, creación, edición y eliminación son configurables por rol y por módulo.
+
+Regla: Jerarquía de roles
+Condición: Los roles con mayor jerarquía pueden gestionar entidades que roles inferiores no pueden ver ni editar.
+
+Regla: Rol Company Reception
+Condición: Tiene acceso restringido a módulos de visitantes y autorizaciones de su empresa.
+
+Regla: Administrador de copropiedad
+Condición: Puede crear, editar, eliminar y configurar copropiedades, incluyendo proveedores de correo.
+
+2.4 Actividades
+
+Regla: Registro de actividades
+Condición: El sistema registra actividades relevantes de los usuarios (creación, edición, eliminación de entidades).
+
+Regla: Visibilidad por rol
+Condición: El historial de actividades es visible para roles con permiso explícito de lectura.
+
+Regla: Filtrado
+Condición: Las actividades pueden filtrarse por fecha, usuario y tipo de acción.
+
 ==============================
 3. CONTROL DE ACCESO
 ==============================
@@ -88,13 +119,36 @@ Permite filtrar por copropiedad, zona, empresa y rango de tiempo.
 Regla: Visualización temporal
 Debe mostrar gráficos de líneas con métricas promedio y máximo.
 
-3.2 Usuarios
+3.2 Flujo de validaciones de acceso
+
+Regla: Secuencia obligatoria
+Condición: Toda solicitud de acceso debe pasar por una secuencia de validaciones definida por el sistema; si una falla, el acceso se rechaza y se registra el motivo.
+
+Regla: Pertenencia válida
+Condición: El acceso está condicionado a pertenecer a la copropiedad y a la empresa correspondiente dentro de ella.
+
+Regla: Asignación de puertas
+Condición: El acceso a una puerta puede otorgarse por asignación directa o por pertenencia a grupos de puertas, incluyendo jerarquías de grupos.
+
+Regla: Reserva activa requerida
+Condición: Según configuración de la copropiedad, puede exigirse reserva activa del día para permitir acceso en determinados contextos.
+
+Regla: Validaciones complementarias
+Condición: El sistema valida restricciones por formularios (ej. salubridad), listas restrictivas y políticas operativas antes de autorizar el paso.
+
+Regla: Reglas diferenciales por método
+Condición: Para accesos manual, DNI o RFID pueden existir validaciones complementarias distintas (ej. geolocalización).
+
+Regla: Trazabilidad obligatoria
+Condición: Todo acceso aprobado o rechazado debe quedar registrado en historial para auditoría y soporte.
+
+3.3 Usuarios
 
 Regla: Restauración
 Condición: Solo restaura configuración previa a desactivación.
 Restricción: No editable durante restauración.
 
-3.3 Visitantes
+3.4 Visitantes
 
 Regla: Tipos de acceso permitidos
 Opciones: QR, DNI, Facial, Manual, RFID, LPR (próximo).
@@ -126,10 +180,80 @@ Condición: Usuario autorizador debe existir y tener acceso a la propiedad.
 Regla: Restricción funcional
 Condición: Visitantes no pueden crear ni reservar puestos.
 
-3.4 Historial de accesos
+Regla: Autorización vigente obligatoria
+Condición: Un visitante solo puede acceder si cuenta con una autorización activa y vigente en la fecha y hora del intento de acceso.
 
-Regla: Trazabilidad completa
-Condición: Todo acceso debe registrarse con fecha, hora, método y zona.
+Regla: Requisitos de autorización activa
+Condición: Requiere aprobaciones obligatorias (anunciante y autorizador), no estar denegada y estar dentro de la ventana temporal configurada.
+
+Regla: Pertenencia a empresa válida
+Condición: El visitante debe pertenecer a una empresa/autorización válida dentro de la copropiedad de la puerta por la cual intenta ingresar.
+
+Regla: Restricción de puertas
+Condición: El acceso puede restringirse a puertas o grupos de puertas específicos según la autorización otorgada.
+
+Regla: Acceso único
+Condición: Si la autorización es de acceso único, no se permite reingreso a zonas ya utilizadas bajo la misma autorización.
+
+Regla: Habilitación adicional por recepción
+Condición: En copropiedades con acceso limitado puede requerirse habilitación adicional de recepción/portería para permitir el ingreso.
+
+Regla: Legitimidad del autorizador
+Condición: El usuario creador/autorizador asociado debe cumplir reglas de legitimidad operativa para habilitar accesos del visitante.
+
+Regla: Sin solapamientos de autorizaciones
+Condición: No se permiten solapamientos de autorizaciones incompatibles para el mismo visitante en ventanas temporales concurrentes, según política del sistema.
+
+Regla: Sujeto a lista restrictiva
+Condición: El visitante continúa sujeto a reglas de lista restrictiva y validaciones de seguridad de la copropiedad.
+
+Regla: Restricción de reservas por rol
+Condición: Los visitantes no pueden crear ni administrar reservas de recursos si su perfil no lo permite explícitamente.
+
+3.5 Vehículos
+
+Regla: Placa única
+Condición: La placa de un vehículo debe ser única dentro del sistema.
+
+Regla: Validación de formato
+Condición: Se valida el formato de placa al crear o editar vehículos, incluyendo formatos de moto.
+
+Regla: Eliminación sin pérdida de datos básicos
+Condición: Al eliminar un vehículo desde los datos básicos de un usuario o visitante, debe eliminarse también del listado general de vehículos.
+
+Regla: Sin duplicados
+Condición: No se permite registrar el mismo vehículo dos veces para el mismo usuario.
+
+Regla: Vehículo principal
+Condición: Se puede asignar un vehículo principal en el formulario de usuarios y visitantes.
+
+3.6 Historial de Accesos
+
+Regla: Registro de contexto completo
+Condición: Todo intento de acceso (aprobado o rechazado) debe registrar persona, tipo de persona, puerta/zona, dirección del movimiento, método de acceso y marca temporal.
+
+Regla: Reconstrucción de secuencias
+Condición: El historial debe permitir reconstruir secuencias de tránsito para validar antipassback, permanencia y ocupación.
+
+Regla: Correlación con reglas de negocio
+Condición: Las reglas que impactan el acceso (aforo, horarios, formularios, autorización) deben poder correlacionarse con los eventos históricos.
+
+Regla: Conservación íntegra
+Condición: El historial debe conservarse de forma íntegra para soporte, auditoría interna y análisis de tendencias.
+
+Regla: Independencia de desactivaciones
+Condición: Los registros históricos no deben eliminarse por desactivación administrativa de entidades (copropiedad, empresa, usuario o visitante).
+
+3.7 Lista Restrictiva
+
+Regla: Bloqueo de acceso
+Condición: Un usuario o visitante en lista restrictiva no puede obtener acceso, independientemente de otras condiciones válidas.
+
+Regla: Aplicación transversal
+Condición: La validación de lista restrictiva aplica para todos los métodos de acceso (QR, DNI, RFID, Facial, Manual).
+
+Regla: Gestión por rol
+Condición: Solo roles autorizados pueden agregar, editar o remover entidades de la lista restrictiva.
 
 ==============================
 4. ESPACIOS DE TRABAJO
@@ -137,6 +261,30 @@ Condición: Todo acceso debe registrarse con fecha, hora, método y zona.
 
 MODULO
 : Espacios de Trabajo
+
+Regla: Dependencia de reserva
+Condición: El acceso a espacios de trabajo puede depender de reserva válida, conforme a la configuración de la copropiedad.
+
+Regla: Ventanas de pre check-in y check-in
+Condición: El sistema valida ventanas de pre check-in y check-in según reglas de anticipación definidas para cada tipo de recurso.
+
+Regla: Coherencia de registro en historial
+Condición: Debe existir coherencia entre el tipo de check-in (área vs puesto) y la forma en que se registra el acceso en historial.
+
+Regla: Límite de reservas por usuario
+Condición: El sistema puede limitar la cantidad máxima de reservas por usuario y por período, según parametrización.
+
+Regla: Reservas multidía y masivas
+Condición: Se pueden habilitar o restringir según políticas de la copropiedad.
+
+Regla: Anticipación mínima y máxima
+Condición: Deben respetarse los límites de anticipación mínima y máxima para la creación de reservas.
+
+Regla: Reserva a terceros
+Condición: Los permisos para reservar en nombre de terceros son explícitos y controlados por roles.
+
+Regla: Visitantes sin reserva automática
+Condición: Los visitantes no adquieren automáticamente permisos de reserva de espacios si no están habilitados en política de negocio.
 
 Regla: Pre-checkin
 Condición: Si ocurre antes de la reserva, se reconoce como acceso.
@@ -222,18 +370,45 @@ Debe registrar asignación y liberación.
 Regla: Capacidad máxima
 Configuración obligatoria por zona.
 
+Regla: Aforo por empresa
+Condición: La restricción por aforo puede operar también por empresa dentro de una misma zona, según configuración.
+
 Regla: Ocupación dinámica
-Debe actualizarse en tiempo real.
+Debe actualizarse en tiempo real basándose en eventos de acceso de entrada/salida y el estado vigente de permanencia.
 
-Regla: Sobreaforo
-Debe bloquear accesos cuando se supere límite.
+Regla: Comportamiento ante sobreaforo
+Condición: El comportamiento (bloqueo, alertamiento o control mixto) es configurable por copropiedad/zona.
 
-Regla: Integración
-Debe integrarse con accesos y reservas.
+Regla: Integración con acceso físico
+Condición: Las restricciones de aforo se integran con reglas de acceso físico y pueden impactar autorizaciones en tiempo real.
+
+Regla: Notificaciones operativas
+Condición: El sistema puede emitir notificaciones ante eventos de capacidad crítica o sobrepasada.
+
+Regla: Trazabilidad de eventos de aforo
+Condición: Los eventos de aforo deben quedar trazados para análisis de tendencia, auditoría y mejora continua.
 
 ==============================
 8. COMUNICACIÓN
 ==============================
+
+Regla: Formularios obligatorios
+Condición: Los formularios configurados como obligatorios deben estar diligenciados para habilitar acciones dependientes (acceso o reservas).
+
+Regla: Condición restrictiva en formulario
+Condición: Si un formulario contiene respuestas con condición restrictiva, el sistema puede bloquear temporalmente el acceso según la política definida.
+
+Regla: Aplicación contextual
+Condición: Las reglas de validación de formularios aplican de forma contextual por copropiedad, empresa o tipo de usuario.
+
+Regla: Vigencia temporal
+Condición: La vigencia de formularios y su impacto en acceso/reserva deben respetar la temporalidad configurada por negocio.
+
+Regla: Notificaciones dirigidas
+Condición: Las notificaciones derivadas de formularios deben dirigirse a los responsables definidos por alcance organizacional.
+
+Regla: Auditabilidad
+Condición: Todo bloqueo o habilitación derivado de formularios debe ser auditable y consistente con el historial de accesos.
 
 Regla: Formularios de salubridad
 Deben poder asociarse a reservas o accesos.
