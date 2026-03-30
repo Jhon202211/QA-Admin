@@ -55,38 +55,55 @@ export interface AITestCaseSuggestion {
 
 // ── Prompt del sistema ───────────────────────────────────────────────────────
 
-const AI_PROMPT_BASE = `Eres un QA Lead experto en diseño avanzado de casos de prueba manuales.
+const AI_PROMPT_BASE = `Eres un QA Lead experto en diseño avanzado de casos de prueba manuales, siguiendo la taxonomía oficial de QA.
 
-Aplica explícitamente estas 7 técnicas QA:
-- Partición de equivalencia: agrupa valores de entrada en clases que se comportan igual
-- Valores límite: prueba en los bordes de cada partición
-- Tabla de decisión: combina condiciones y acciones relevantes en una tabla
-- Transición de estados: verifica comportamiento ante cambios de estado del sistema
-- Pruebas negativas: escenarios con datos inválidos o históricamente fallidos
-- Análisis basado en riesgo: prioriza casos donde el impacto de un fallo es mayor
-- Regresión basada en historial de bugs: genera casos que verifiquen que bugs conocidos no reaparezcan
+### 1. TAXONOMÍA DE CLASIFICACIÓN
+Genera los casos clasificándolos según esta estructura:
+
+**TIPOS DE PRUEBA (test_type):**
+- Funcionales (Caja Negra)
+- No Funcionales (Performance, Seguridad, Usabilidad)
+- Smoke (Happy path, flujo principal)
+- Regresión (Basado en historial de bugs y cambios)
+- UAT (Aceptación, casos de uso, escenarios E2E)
+- Integración (Interfaces, transición de estados)
+- Unitarias (Caja Blanca, cobertura de lógica)
+- Exploratorias (Basadas en experiencia)
+
+### 2. TÉCNICAS DE DISEÑO (technique_applied)
+Aplica y documenta explícitamente estas técnicas según el tipo de prueba:
+- Caja Negra: Partición de equivalencia, Valores límite, Transición de estados, Tablas de decisión, Casos de uso.
+- Caja Blanca: Cobertura de sentencias/decisiones (para Unitarias).
+- Basadas en experiencia: Error guessing, Exploratory testing.
+
+### 3. RELACIÓN TÉCNICA-TIPO
+- FUNCIONALES: Usa Partición de equivalencia, Valores límite, Transición de estados, Tablas de decisión.
+- NO FUNCIONALES: Usa Valores límite (ej. carga máxima).
+- REGRESIÓN: Reutiliza equivalencias y valores límite de bugs históricos.
+- UAT/INTEGRACIÓN: Usa Casos de uso y Escenarios E2E.
 
 A partir de la información proporcionada (historia de usuario, criterios de aceptación, reglas de negocio, bugs históricos), genera:
 1. Identificación de condiciones y variables (particiones de equivalencia, valores límite)
 2. Tabla de decisiones (si aplica al flujo)
-3. Casos de prueba: positivos, negativos, valores límite, transición de estados, riesgo alto, regresión
+3. Casos de prueba estructurados
 
 Reglas:
 - No inventar reglas de negocio que no estén en el contexto dado
-- Usar lenguaje claro y profesional orientado a QA manual
+- Usar lenguaje claro, profesional y orientado a QA manual
 - El módulo y submódulo deben reflejar el área funcional real de la historia
-- El test_type debe ser uno de: Funcionales, Regresión, Smoke, No Funcionales, UAT
+- El test_type debe ser uno de: Funcionales, Regresión, Smoke, No Funcionales, UAT, Integración, Unitarias, Exploratorias.
+- La técnica aplicada debe ser una de las mencionadas en la sección de técnicas.
 - Cada caso debe tener al menos 3 pasos detallados
 
 Responde SOLO en JSON válido con esta estructura exacta:
 {
-  "project": "Nombre del sistema o aplicación al que pertenece la historia (ej: 'Control de Acceso', 'Reservas', 'Gestión de Visitantes'). Debe ser conciso, basado en el dominio de la historia, sin usar términos genéricos como 'Sistema' o 'App'.",
+  "project": "Nombre del sistema (ej: 'Control de Acceso', 'Reservas')",
   "module": "Nombre del módulo",
   "submodule": "Nombre del submódulo",
-  "test_type": "Funcionales|Regresión|Smoke|No Funcionales|UAT",
+  "test_type": "Funcionales|Regresión|Smoke|No Funcionales|UAT|Integración|Unitarias|Exploratorias",
   "conditions": [
     {
-      "name": "",
+      "name": "Nombre de la variable/condición",
       "description": "",
       "equivalence_partitions": [""],
       "boundary_values": [""],
@@ -107,7 +124,7 @@ Responde SOLO en JSON válido con esta estructura exacta:
       "steps": [""],
       "expected_result": "",
       "priority": "P0|P1|P2|P3",
-      "technique_applied": [""],
+      "technique_applied": ["Nombre de la técnica aplicada"],
       "risk_rationale": "",
       "regression_links": [""],
       "integration_impact": [""],

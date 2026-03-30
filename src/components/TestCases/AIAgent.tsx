@@ -40,6 +40,7 @@ import { useCreate, useNotify, useGetList } from 'react-admin';
 import { generateTestCasesFromUserStory } from '../../services/aiService';
 import type { AITestCaseSuggestion } from '../../services/aiService';
 import { knowledgeService } from '../../services/knowledgeService';
+import type { DecisionElements } from '../../types/testCase';
 
 // ── Helpers de visualización ─────────────────────────────────────────────────
 
@@ -89,6 +90,93 @@ const mapType = (category: string): string => {
   return 'functional';
 };
 
+const OFFICIAL_TEST_TYPES = [
+  'Smoke',
+  'Funcionales',
+  'No Funcionales',
+  'Regresión',
+  'UAT',
+  'Integración',
+  'Unitarias',
+  'Exploratorias',
+] as const;
+
+const normalizeTestType = (raw: string): string => {
+  const value = (raw || '').trim();
+  const lower = value.toLowerCase();
+  if (!value) return 'Funcionales';
+
+  if (OFFICIAL_TEST_TYPES.includes(value as (typeof OFFICIAL_TEST_TYPES)[number])) return value;
+  if (lower.includes('smoke') || lower.includes('humo')) return 'Smoke';
+  if (lower.includes('regresi')) return 'Regresión';
+  if (lower.includes('no funcional') || lower.includes('performance') || lower.includes('seguridad')) return 'No Funcionales';
+  if (lower === 'funcional' || lower.includes('funcionales')) return 'Funcionales';
+  if (lower.includes('uat') || lower.includes('acept')) return 'UAT';
+  if (lower.includes('integraci')) return 'Integración';
+  if (lower.includes('unitari')) return 'Unitarias';
+  if (lower.includes('explor')) return 'Exploratorias';
+  return 'Funcionales';
+};
+
+const sanitizeForFirestore = <T,>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeForFirestore(item))
+      .filter((item) => item !== undefined) as T;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, sanitizeForFirestore(v)]);
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
+};
+
+const toFirestoreDecisionRows = (rows: string[][]) =>
+  rows.map((cells, index) => ({
+    id: `row-${index + 1}`,
+    cells: cells.map((cell) => `${cell ?? ''}`),
+  }));
+
+const extractDecisionElements = (suggestion: AITestCaseSuggestion): DecisionElements | undefined => {
+  const table = suggestion.decision_table;
+  if (!table?.applicable || !table.headers?.length || !table.rows?.length) return undefined;
+
+  const headers = table.headers.map((h) => h.trim());
+  const resultIndex = headers.findIndex((h) => /resultado esperado|resultado|accion|acción/i.test(h));
+  const actionIndex = resultIndex >= 0 ? resultIndex : headers.length - 1;
+
+  const causes = headers.slice(0, actionIndex);
+  const effects = actionIndex >= 0 ? [headers[actionIndex]] : [];
+  const alternatives = Array.from(
+    new Set(
+      table.rows.flatMap((row) =>
+        row
+          .slice(0, actionIndex)
+          .map((cell) => cell?.toString().trim())
+          .filter(Boolean)
+      )
+    )
+  );
+
+  const rules = table.rows.map((row, idx) => ({
+    id: `R${idx + 1}`,
+    conditions: causes.reduce<Record<string, string>>((acc, cause, causeIndex) => {
+      acc[cause] = row[causeIndex] ?? '-';
+      return acc;
+    }, {}),
+    action: row[actionIndex] ?? '-',
+  }));
+
+  return {
+    causes,
+    effects,
+    conditionAlternatives: alternatives,
+    rules,
+  };
+};
+
 // ── Componente ───────────────────────────────────────────────────────────────
 
 interface AIAgentProps {
@@ -134,8 +222,15 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   const [editableSubmodule, setEditableSubmodule] = useState('');
   const [editableTestType, setEditableTestType] = useState('Funcionales');
 
+  // Determinar el tipo de prueba dinámicamente
+  useEffect(() => {
+    if (suggestion?.test_type) {
+      setEditableTestType(normalizeTestType(suggestion.test_type));
+    }
+  }, [suggestion]);
+
   const { data: existingTestCases = [] } = useGetList('test_cases', {
-    pagination: { page: 1, perPage: 1000 },
+    pagination: { page: 1, perPage: 10000 },
   });
 
   const existingProjects = Array.from(
@@ -164,7 +259,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
       setEditableProject(result.project || result.module);
       setEditableModule(result.module);
       setEditableSubmodule(result.submodule);
-      setEditableTestType(result.test_type);
+      setEditableTestType(normalizeTestType(result.test_type));
       notify('Casos de prueba generados exitosamente', { type: 'success' });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Error al generar casos de prueba';
@@ -192,21 +287,22 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     }
 
     try {
+      let createdCount = 0;
       for (const tc of suggestion.test_cases) {
+        const decisionElements = extractDecisionElements(suggestion);
         const descParts = [
           tc.risk_rationale && `Riesgo: ${tc.risk_rationale}`,
           tc.integration_impact?.length ? `Impacto: ${tc.integration_impact.join(', ')}` : null,
           'Generado automáticamente desde historia de usuario',
         ].filter(Boolean);
 
-        await create('test_cases', {
-          data: {
+        const payload = sanitizeForFirestore({
             name: tc.title,
             description: descParts.join(' | '),
             testProject: editableProject.trim(),
             module: editableModule.trim(),
             submodule: editableSubmodule.trim(),
-            category: editableTestType,
+            category: normalizeTestType(editableTestType),
             prerequisites: tc.preconditions,
             steps: tc.steps.map((step, index) => ({
               id: `step-${index}`,
@@ -219,20 +315,38 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
             status: 'Activo',
             executionResult: 'not_executed',
             type: mapType(tc.category),
-            tags: tc.technique_applied ?? [],
+            tags: tc.technique_applied?.filter(Boolean)?.length
+              ? tc.technique_applied.filter(Boolean)
+              : ['Generado por IA'],
+            aiArtifacts: {
+              generatedBy: 'QA Test Case Architect Agent',
+              conditions: suggestion.conditions,
+              decisionTable: {
+                applicable: suggestion.decision_table?.applicable ?? false,
+                headers: suggestion.decision_table?.headers ?? [],
+                // Firestore no soporta arrays anidados (string[][]).
+                rows: toFirestoreDecisionRows(suggestion.decision_table?.rows ?? []),
+              },
+              decisionElements,
+            },
             createdBy: 'system',
             version: 1,
             estimatedDuration: 15,
             automated: false,
-          },
+          });
+
+        const response = await create('test_cases', {
+          data: payload,
         });
+        if (response?.data?.id) createdCount += 1;
       }
 
-      notify(`${suggestion.test_cases.length} caso(s) de prueba creado(s) exitosamente`, { type: 'success' });
+      notify(`${createdCount} caso(s) de prueba creado(s) exitosamente`, { type: 'success' });
       handleClose();
       onCasesCreated?.();
-    } catch {
-      notify('Error al crear los casos de prueba', { type: 'error' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al crear los casos de prueba';
+      notify(message, { type: 'error' });
     }
   };
 
@@ -283,8 +397,10 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary', flex: 1 }}>
-              Proporciona contexto detallado y el agente aplicará 7 técnicas QA para generar casos de prueba
-              completos con análisis de condiciones, tabla de decisiones y priorización por riesgo.
+              Describe la historia de usuario y el agente aplicará la <strong>Taxonomía Oficial de QA</strong> —
+              tipos de prueba, enfoques (Caja Negra / Blanca / Experiencia) y técnicas de diseño (partición de
+              equivalencia, valores límite, tablas de decisión, entre otras) — para generar casos estructurados
+              con priorización por riesgo.
             </Typography>
             <Chip
               size="small"
@@ -566,6 +682,9 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
                           <MenuItem value="No Funcionales">No Funcionales</MenuItem>
                           <MenuItem value="Regresión">Regresión</MenuItem>
                           <MenuItem value="UAT">UAT</MenuItem>
+                          <MenuItem value="Integración">Integración</MenuItem>
+                          <MenuItem value="Unitarias">Unitarias</MenuItem>
+                          <MenuItem value="Exploratorias">Exploratorias</MenuItem>
                         </Select>
                       </FormControl>
                     </Box>
@@ -742,7 +861,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
               '&:hover': { backgroundColor: '#E55A2B' },
             }}
           >
-            Crear {suggestion.test_cases.length} caso(s) en Firebase
+            Crear {suggestion.test_cases.length} caso(s)
           </Button>
         )}
       </DialogActions>

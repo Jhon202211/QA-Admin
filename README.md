@@ -9,7 +9,7 @@ Panel de administración para gestionar pruebas de calidad, planificación de te
 | Módulo | Descripción |
 |---|---|
 | **Pruebas Manuales** | Gestión jerárquica de casos de prueba (Proyecto → Módulo → Submódulo → Tipo) |
-| **QA Test Case Architect Agent** | Agente IA que genera casos de prueba aplicando 7 técnicas QA con RAG (BM25) |
+| **QA Test Case Architect Agent** | Agente IA que genera casos de prueba siguiendo la Taxonomía Oficial de QA con RAG (BM25) |
 | **Planificación** | Creación y seguimiento de planes de prueba |
 | **Resultados** | Registro y visualización de ejecuciones |
 | **Automatización** | Editor y runner de scripts Playwright |
@@ -19,17 +19,41 @@ Panel de administración para gestionar pruebas de calidad, planificación de te
 
 ## QA Test Case Architect Agent
 
-El agente de IA está integrado en la sección **Pruebas Manuales** (botón `Agente IA`). Genera casos de prueba a partir de una Historia de Usuario y contexto adicional, aplicando automáticamente 7 técnicas QA estándar.
+El agente de IA está integrado en la sección **Pruebas Manuales** (botón `Agente IA`). Genera casos de prueba a partir de una Historia de Usuario siguiendo la **Taxonomía Oficial de QA** en tres niveles:
 
-### Técnicas aplicadas
+### 1. Tipos de Prueba — *What* (qué validar)
 
-1. **Partición de equivalencia** — agrupa valores de entrada en clases que se comportan igual
-2. **Valores límite** — prueba en los bordes de cada partición
-3. **Tabla de decisión** — combina condiciones y acciones relevantes
-4. **Transición de estados** — verifica comportamiento ante cambios de estado
-5. **Pruebas negativas** — escenarios con datos inválidos o históricamente fallidos
-6. **Análisis basado en riesgo** — prioriza casos donde el impacto de un fallo es mayor
-7. **Regresión basada en historial de bugs** — genera casos para verificar que bugs conocidos no reaparezcan
+| Tipo | Enfoque | Descripción |
+|---|---|---|
+| **Funcionales** | Caja Negra | Validación de reglas de negocio y flujos del sistema |
+| **No Funcionales** | Mixto | Performance, Seguridad, Usabilidad, Compatibilidad |
+| **Smoke** | Caja Negra | Happy path — flujo principal crítico |
+| **Regresión** | Caja Negra + automatización | Verificación de bugs históricos y estabilidad |
+| **UAT** | Caja Negra + experiencia | Aceptación, escenarios E2E, validación de negocio |
+| **Integración** | Caja Negra / Gris | Interfaces entre módulos, transición de estados |
+| **Unitarias** | Caja Blanca | Cobertura de lógica y decisiones de código |
+| **Exploratorias** | Basadas en experiencia | Error guessing, checklist, sesiones exploratorias |
+
+### 2. Enfoques de Prueba — *How* (cómo diseñar)
+
+- **Caja Negra** — comportamiento externo, sin conocer implementación interna.
+- **Caja Blanca** — estructura interna, cobertura de código.
+- **Caja Gris** — combinación de ambos enfoques.
+- **Basado en Experiencia** — criterio y conocimiento del tester.
+
+### 3. Técnicas de Diseño — *How Exact* (cómo generar casos)
+
+| Técnica | Enfoque | Tipos de prueba que la usan |
+|---|---|---|
+| Partición de equivalencia | Caja Negra | Funcionales, Regresión |
+| Valores límite | Caja Negra | Funcionales, No Funcionales, Regresión |
+| Transición de estados | Caja Negra | Funcionales, Integración |
+| Tablas de decisión | Caja Negra | Funcionales, Integración |
+| Casos de uso / Escenarios E2E | Caja Negra | UAT, Integración |
+| Reglas de negocio | Caja Negra | Funcionales |
+| Cobertura de sentencias/decisiones | Caja Blanca | Unitarias |
+| Exploratory testing | Experiencia | Exploratorias |
+| Error guessing | Experiencia | Exploratorias, Regresión |
 
 ### Campos de entrada
 
@@ -39,16 +63,16 @@ El agente de IA está integrado en la sección **Pruebas Manuales** (botón `Age
 | Criterios de aceptación | No | Condiciones que debe cumplir la historia |
 | Reglas de negocio | No | Restricciones y validaciones del dominio |
 | Bugs históricos | No | Bugs conocidos relacionados con la funcionalidad |
-| Top K | No (default: 5) | Número de chunks del knowledge base a recuperar (1–20) |
+| Top K | No (default: 3) | Número de chunks del knowledge base a recuperar (1–20) |
 
 ### Salida generada
 
 El agente produce:
 - **Condiciones identificadas**: particiones de equivalencia y valores límite por variable
-- **Tabla de decisiones**: si aplica al flujo analizado
-- **Casos de prueba**: con ID, categoría, prioridad (P0–P3), técnicas aplicadas, justificación de riesgo, impacto en integración y referencias de regresión
+- **Tabla de decisiones**: causas, efectos, alternativas y reglas (cuando aplica al flujo)
+- **Casos de prueba**: con ID, tipo, prioridad (P0–P3), técnicas aplicadas, justificación de riesgo, impacto en integración y referencias de regresión
 
-Los casos se crean directamente en Firebase Firestore con prioridad y tags mapeados desde el JSON del LLM.
+Los casos se guardan en Firebase Firestore con `category` (tipo de prueba), `tags` (técnicas) y `aiArtifacts` (tabla de decisión estructurada).
 
 ---
 
@@ -96,19 +120,17 @@ public/knowledge/
 
 ---
 
-## Configuración de OpenAI
+## Configuración del Agente IA
 
-El agente requiere una API key de OpenAI. Se configura desde **Configuración → Integraciones** en la UI (se almacena en `localStorage` bajo la clave `qaScopeConfig`).
+El agente se configura desde **Configuración → Integraciones** en la UI (se almacena en `localStorage` bajo la clave `qaScopeConfig`). Soporta múltiples proveedores de LLM:
 
-| Parámetro | Descripción |
-|---|---|
-| `openaiEnabled` | Activa/desactiva el agente IA |
-| `openaiApiKey` | API key de OpenAI |
-| `openaiModel` | Modelo a usar (default: `gpt-4o-mini`) |
+| Proveedor | Modelos disponibles | Notas |
+|---|---|---|
+| **OpenAI** | `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo` | Requiere API key |
+| **DeepSeek** | `deepseek-chat`, `deepseek-reasoner` | Requiere API key |
+| **Ollama Cloud** | Modelos locales expuestos vía API | Requiere URL del servidor |
 
-Modelos soportados: `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`.
-
-> Si no hay API key configurada, el agente opera en **modo simulación** devolviendo casos de prueba básicos generados localmente.
+> Si no hay proveedor configurado, el agente opera en **modo simulación** devolviendo casos de prueba básicos generados localmente.
 
 ---
 
