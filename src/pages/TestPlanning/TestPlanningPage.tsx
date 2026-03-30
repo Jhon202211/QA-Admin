@@ -79,8 +79,8 @@ const TEST_ALIASES: Record<string, string[]> = {
 };
 
 const RESULT_LABELS: Record<string, { label: string; color: string }> = {
-  passed: { label: 'Pas?', color: '#4caf50' },
-  failed: { label: 'Fall?', color: '#e53935' },
+  passed: { label: 'Pasó', color: '#4caf50' },
+  failed: { label: 'Falló', color: '#e53935' },
   blocked: { label: 'Bloqueado', color: '#ff9800' },
 };
 
@@ -110,7 +110,7 @@ const groupCasesByHierarchy = (caseIds: string[], allCases: any[]) => {
     const tc = allCases.find((t: any) => t.id === id);
     if (!tc) continue;
     const p = tc.testProject || 'Sin proyecto';
-    const c = tc.category || 'Sin categor?a';
+    const c = tc.category || 'Sin categoría';
     if (!g[p]) g[p] = {};
     if (!g[p][c]) g[p][c] = [];
     g[p][c].push(tc);
@@ -129,10 +129,10 @@ const ProgressBar = ({ progress }: { progress: NonNullable<ReturnType<typeof get
       {progress.pending > 0 && <Box sx={{ flex: progress.pending, bgcolor: '#e0e0e0' }} />}
     </Box>
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-      <Typography variant="caption" sx={{ color: '#4caf50', fontWeight: 600 }}>? {progress.passed} pasaron</Typography>
-      <Typography variant="caption" sx={{ color: '#e53935', fontWeight: 600 }}>? {progress.failed} fallaron</Typography>
-      {progress.blocked > 0 && <Typography variant="caption" sx={{ color: '#ff9800', fontWeight: 600 }}>? {progress.blocked} bloqueados</Typography>}
-      <Typography variant="caption" sx={{ color: 'text.disabled' }}>? {progress.pending} pendientes</Typography>
+      <Typography variant="caption" sx={{ color: '#4caf50', fontWeight: 600 }}>✓ {progress.passed} pasaron</Typography>
+      <Typography variant="caption" sx={{ color: '#e53935', fontWeight: 600 }}>✗ {progress.failed} fallaron</Typography>
+      {progress.blocked > 0 && <Typography variant="caption" sx={{ color: '#ff9800', fontWeight: 600 }}>⚠ {progress.blocked} bloqueados</Typography>}
+      <Typography variant="caption" sx={{ color: 'text.disabled' }}>○ {progress.pending} pendientes</Typography>
       <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary', fontWeight: 600 }}>{progress.pct}%</Typography>
     </Box>
   </Box>
@@ -302,11 +302,11 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
                                 onChange={(_, v) => { if (v) setManualResults(r => ({ ...r, [tc.id]: v })); }}>
                                 <ToggleButton value="passed"
                                   sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#e8f5e9', color: '#4caf50', borderColor: '#4caf50' } }}>
-                                  Pas?
+                                  Pasó
                                 </ToggleButton>
                                 <ToggleButton value="failed"
                                   sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#fdecea', color: '#e53935', borderColor: '#e53935' } }}>
-                                  Fall?
+                                  Falló
                                 </ToggleButton>
                                 <ToggleButton value="blocked"
                                   sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#fff3e0', color: '#ff9800', borderColor: '#ff9800' } }}>
@@ -505,7 +505,7 @@ function TestPlanningCardList() {
 
 // ??? PlanWizard (Create / Edit) ???????????????????????????????????????????????
 
-const WIZARD_STEPS = ['Informaci?n b?sica', 'Casos manuales', 'Tests automatizados'];
+const WIZARD_STEPS = ['Información básica', 'Casos manuales', 'Tests automatizados'];
 
 function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
   const record = useRecordContext();
@@ -593,7 +593,7 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
             error={!!errors.name} helperText={errors.name}
           />
           <TextField
-            label="Descripci?n" fullWidth multiline rows={3} value={form.description}
+            label="Descripción" fullWidth multiline rows={3} value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
           />
           <FormControl fullWidth error={!!errors.status}>
@@ -618,7 +618,7 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Selecciona los casos manuales</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Haz clic en un proyecto o categor?a para seleccionar todos sus casos a la vez.
+            Haz clic en un proyecto o categoría para seleccionar todos sus casos a la vez.
           </Typography>
           <HierarchicalCaseSelector
             value={form.manualTestCases}
@@ -632,7 +632,7 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
         <Box sx={{ maxWidth: 600 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Tests automatizados</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Selecciona los scripts Playwright a incluir en la ejecuci?n del plan.
+            Selecciona los scripts Playwright a incluir en la ejecución del plan.
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
@@ -666,12 +666,12 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
         </Box>
       )}
 
-      {/* Botones de navegaci?n */}
+      {/* Botones de navegación */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 4 }}>
         <Button onClick={step === 0 ? () => redirect('list', 'test_planning') : handleBack}
           startIcon={step > 0 ? <ArrowBackIcon /> : undefined}
           sx={{ color: 'text.secondary', textTransform: 'none' }}>
-          {step === 0 ? 'Cancelar' : 'Atr?s'}
+          {step === 0 ? 'Cancelar' : 'Atrás'}
         </Button>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
