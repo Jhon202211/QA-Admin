@@ -95,12 +95,6 @@ export const TestExecutionModal = ({
     isUploading: boolean;
   } | null>(null);
 
-  // Estado para casos sin pasos
-  const [noStepsStatus, setNoStepsStatus] = useState<TestStep['status']>('not_executed');
-  const [noStepsActualResult, setNoStepsActualResult] = useState('');
-  const [noStepsEvidences, setNoStepsEvidences] = useState<EvidenceFile[]>([]);
-  const noStepsFileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (!open || !testCase) return;
     setSteps(

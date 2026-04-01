@@ -49,64 +49,64 @@ const defaultAutomationCases = [
   { 
     name: 'Crear usuario', 
     description: 'Prueba de creación de usuario.', 
-    test_file: 'test_create_user.py',
-    prompts: 'Endpoint: POST /api/users\nDatos requeridos: email, password, name\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'create_user.spec.ts',
+    prompts: 'Endpoint: /users/create\nDatos: UserTest, testQa\nConfiguración: Playwright',
     status: 'active'
   },
   { 
     name: 'Crear visitante', 
     description: 'Prueba de creación de visitante.', 
-    test_file: 'test_create_visitor.py',
-    prompts: 'Endpoint: POST /api/visitors\nDatos requeridos: name, document, reason\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'create_visitor.spec.ts',
+    prompts: 'Endpoint: /visitors/create\nConfiguración: Playwright',
     status: 'active'
   },
   { 
     name: 'Crear empresa', 
     description: 'Prueba de creación de empresa.', 
-    test_file: 'test_create_company.py',
-    prompts: 'Endpoint: POST /api/companies\nDatos requeridos: name, nit, address\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'create_company.spec.ts',
+    prompts: 'Endpoint: /companies/create\nConfiguración: Playwright',
     status: 'active'
   },
   { 
     name: 'Reservar sala', 
     description: 'Prueba de reserva de sala.', 
-    test_file: 'test_create_room_reservation.py',
-    prompts: 'Endpoint: POST /api/room-reservations\nDatos requeridos: roomId, date, time, duration\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'create_room_reservation.spec.ts',
+    prompts: 'Endpoint: /reservations/create\nConfiguración: Playwright',
     status: 'active'
   },
   { 
     name: 'Desactivar usuario/empresa', 
     description: 'Prueba de desactivación de usuario o empresa.', 
-    test_file: 'test_deactivate_user_company.py',
-    prompts: 'Endpoint: PUT /api/users/:id/deactivate o PUT /api/companies/:id/deactivate\nDatos requeridos: id\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'desactivate_company.spec.ts',
+    prompts: 'Configuración: Playwright',
     status: 'active'
   },
   { 
     name: 'Restaurar usuario/empresa', 
     description: 'Prueba de restauración de usuario o empresa.', 
-    test_file: 'test_restore_user_company.py',
-    prompts: 'Endpoint: PUT /api/users/:id/restore o PUT /api/companies/:id/restore\nDatos requeridos: id\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'restore_user_company.spec.ts',
+    prompts: 'Configuración: Playwright',
     status: 'active'
   },
   { 
     name: 'Crear Copropiedad', 
     description: 'Prueba de creación de copropiedad.', 
-    test_file: 'test_create_property.py',
-    prompts: 'Endpoint: POST /api/properties\nDatos requeridos: name, address, units\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'create_property.spec.ts',
+    prompts: 'Configuración: Playwright',
     status: 'active'
   },
   { 
     name: 'Editar Copropiedad', 
     description: 'Prueba de edición de copropiedad.', 
-    test_file: 'test_edit_property.py',
-    prompts: 'Endpoint: PUT /api/properties/:id\nDatos requeridos: id, name, address, units\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'edit_property.spec.ts',
+    prompts: 'Configuración: Playwright',
     status: 'active'
   },
   { 
     name: 'Desactivar Copropiedad', 
     description: 'Prueba de desactivación de copropiedad.', 
-    test_file: 'test_deactivate_property.py',
-    prompts: 'Endpoint: PUT /api/properties/:id/deactivate\nDatos requeridos: id\nConfiguración: requiere autenticación Bearer token',
+    test_file: 'desactivate_activate_property.spec.ts',
+    prompts: 'Configuración: Playwright',
     status: 'active'
   },
 ];
