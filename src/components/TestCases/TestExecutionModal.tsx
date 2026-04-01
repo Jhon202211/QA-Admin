@@ -252,6 +252,7 @@ export const TestExecutionModal = ({
     e.target.value = '';
   };
 
+
   const handleNoStepsDeleteEvidence = async (evidence: EvidenceFile) => {
     setDeletingPath(evidence.path);
     try {

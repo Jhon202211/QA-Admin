@@ -2,6 +2,7 @@ import { Admin, Resource, Layout, AppBar, CustomRoutes } from 'react-admin';
 import { BrowserRouter, Route, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { ResultsViewPage } from './pages/TestResults/ResultsViewPage';
+import { TestResultShow } from './pages/TestResults/TestResultsPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box, useTheme, useMediaQuery } from '@mui/material';
@@ -181,7 +182,7 @@ const Footer = () => {
       background: 'transparent', 
       fontFamily: "'Ubuntu Sans', sans-serif" 
     }}>
-      © 2026 QAScope - Suite de pruebas | v1.3
+      © 2026 QAScope - Suite de pruebas | v2.0
     </Box>
   );
 };
@@ -205,7 +206,7 @@ function App() {
           <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEditPage} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
-          <Resource name="test_results" list={ResultsViewPage} icon={AssessmentIcon} options={{ label: 'Vista de resultados' }} />
+          <Resource name="test_results" list={ResultsViewPage} show={TestResultShow} icon={AssessmentIcon} options={{ label: 'Vista de resultados' }} />
           <Resource
             name="system_incidents"
             list={SystemIncidentsPage}

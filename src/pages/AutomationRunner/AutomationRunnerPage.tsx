@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   List,
   Datagrid,
@@ -17,34 +17,129 @@ import {
   Create,
   Edit,
   useDataProvider,
+  useUpdate,
 } from 'react-admin';
-import { Box, Typography, IconButton, Chip, CircularProgress, Snackbar, Alert } from '@mui/material';
+import { 
+  Box, 
+  Typography, 
+  IconButton, 
+  Chip, 
+  CircularProgress, 
+  Snackbar, 
+  Alert,
+  Tooltip,
+  Paper,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Tabs,
+  Tab
+} from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import HistoryIcon from '@mui/icons-material/History';
+import TimerIcon from '@mui/icons-material/Timer';
+import TerminalIcon from '@mui/icons-material/Terminal';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import { seedAutomationCases } from '../../firebase/seedData';
+import { io } from 'socket.io-client';
+import { cleanAndSeedAutomation } from '../../firebase/fixAutomationData';
+import { TestResultsList, TestResultShow } from '../TestResults/TestResultsPage';
 
-const API_URL = '/api/tests/execute';
-const API_TOKEN = 'valid_token'; // Token fijo para pruebas
+const API_BASE_URL = 'http://localhost:9000/api/tests';
+const SOCKET_URL = 'http://localhost:9000';
+const API_TOKEN = 'valid_token';
+
+const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
+  return (
+    <div role="tabpanel" hidden={value !== index}>
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  );
+};
+
+// Modal para mostrar logs en tiempo real
+const ExecutionLogsModal = ({ open, onClose, logs, testName, status }) => {
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ bgcolor: '#1e1e1e', color: '#fff', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <TerminalIcon />
+        Ejecución en vivo: {testName}
+        {status === 'running' && <CircularProgress size={16} sx={{ ml: 2, color: '#fff' }} />}
+      </DialogTitle>
+      <DialogContent sx={{ bgcolor: '#1e1e1e', p: 0 }}>
+        <Box 
+          ref={scrollRef}
+          sx={{ 
+            height: 400, 
+            overflowY: 'auto', 
+            p: 2, 
+            fontFamily: 'monospace',
+            fontSize: '0.85rem',
+            color: '#d4d4d4',
+            whiteSpace: 'pre-wrap'
+          }}
+        >
+          {logs.length === 0 ? (
+            <Typography sx={{ color: '#666', fontStyle: 'italic' }}>Esperando salida del test...</Typography>
+          ) : (
+            logs.map((log, i) => (
+              <div key={i} style={{ color: log.type === 'stderr' ? '#f44336' : 'inherit', marginBottom: 2 }}>
+                {log.data}
+              </div>
+            ))
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ bgcolor: '#1e1e1e', color: '#fff' }}>
+        <Button onClick={onClose} sx={{ color: '#fff' }}>Cerrar</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 // Componente para el botón de ejecutar
-const RunButton = ({ record }: { record: any }) => {
+const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: string, name: string) => void }) => {
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<'success' | 'error' | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
   const notify = useNotify();
+  const [update] = useUpdate();
 
-  const handleRun = async () => {
+  const handleRun = async (e: React.MouseEvent) => {
+    e.stopPropagation(); 
     if (!record?.test_file) {
       notify('Error: El caso no tiene un archivo de test definido', { type: 'error' });
       return;
     }
 
     setRunning(true);
-    setResult(null);
+    onShowLogs(record.id, record.name);
     
     try {
-      const response = await fetch(API_URL, {
+      await update('automation', {
+        id: record.id,
+        data: { last_status: 'running' },
+        previousData: record,
+      });
+    } catch (e) {
+      console.error('Error updating status to running:', e);
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,57 +151,45 @@ const RunButton = ({ record }: { record: any }) => {
         })
       });
 
-      // Verificar si la respuesta es exitosa antes de parsear JSON
       if (!response.ok) {
         let errorMessage = `Error del servidor (${response.status})`;
-        try {
-          const errorText = await response.text();
-          if (errorText) {
-            try {
-              const errorJson = JSON.parse(errorText);
-              errorMessage = errorJson.message || errorJson.error || errorMessage;
-            } catch {
-              errorMessage = errorText || errorMessage;
-            }
-          }
-        } catch {
-          errorMessage = `Error del servidor (${response.status} ${response.statusText})`;
-        }
-        setResult('error');
         setSnackbar({ open: true, message: errorMessage, severity: 'error' });
         notify(errorMessage, { type: 'error' });
+        
+        await update('automation', {
+          id: record.id,
+          data: { last_status: 'failed' },
+          previousData: record,
+        });
         return;
       }
 
-      // Intentar parsear JSON solo si la respuesta es exitosa
-      const text = await response.text();
-      let data;
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (parseError) {
-        setResult('error');
-        const errorMsg = 'Error: Respuesta inválida del servidor';
-        setSnackbar({ open: true, message: errorMsg, severity: 'error' });
-        notify(errorMsg, { type: 'error' });
-        return;
-      }
+      const data = await response.json();
 
       if (data.status === 'started') {
-        setResult('success');
         setSnackbar({ open: true, message: 'Ejecución iniciada correctamente', severity: 'success' });
-        notify('Ejecución iniciada correctamente', { type: 'success' });
       } else {
-        setResult('error');
         const errorMsg = data.message || 'Error al iniciar la ejecución';
         setSnackbar({ open: true, message: errorMsg, severity: 'error' });
         notify(errorMsg, { type: 'error' });
+        
+        await update('automation', {
+          id: record.id,
+          data: { last_status: 'failed' },
+          previousData: record,
+        });
       }
     } catch (error: any) {
       console.error('Error en handleRun:', error);
-      setResult('error');
-      const errorMessage = error.message || 'Error de conexión. Verifica que el servidor backend esté corriendo en el puerto 9000.';
+      const errorMessage = error.message || 'Error de conexión.';
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
       notify(errorMessage, { type: 'error' });
+      
+      await update('automation', {
+        id: record.id,
+        data: { last_status: 'failed' },
+        previousData: record,
+      });
     } finally {
       setRunning(false);
     }
@@ -114,16 +197,16 @@ const RunButton = ({ record }: { record: any }) => {
 
   return (
     <>
-      {running ? (
-        <CircularProgress size={24} />
-      ) : result === 'success' ? (
-        <CheckCircleIcon color="success" />
-      ) : result === 'error' ? (
-        <ErrorIcon color="error" />
-      ) : (
-        <IconButton edge="end" color="primary" onClick={handleRun} title="Ejecutar test">
-          <PlayArrowIcon />
+      {running || record.last_status === 'running' ? (
+        <IconButton size="small" onClick={(e) => { e.stopPropagation(); onShowLogs(record.id, record.name); }}>
+          <CircularProgress size={20} />
         </IconButton>
+      ) : (
+        <Tooltip title="Ejecutar test">
+          <IconButton edge="end" color="primary" onClick={handleRun}>
+            <PlayArrowIcon />
+          </IconButton>
+        </Tooltip>
       )}
       <Snackbar 
         open={snackbar.open} 
@@ -137,6 +220,52 @@ const RunButton = ({ record }: { record: any }) => {
       </Snackbar>
     </>
   );
+};
+
+const StatusChip = ({ status }: { status: string }) => {
+  let config = { label: 'No ejecutado', color: '#bdbdbd', icon: <HistoryIcon size="small" /> };
+  
+  if (status === 'passed') config = { label: 'Pasó', color: '#4caf50', icon: <CheckCircleIcon size="small" /> };
+  if (status === 'failed') config = { label: 'Falló', color: '#f44336', icon: <ErrorIcon size="small" /> };
+  if (status === 'running') config = { label: 'Ejecutando', color: '#2196f3', icon: <CircularProgress size={14} color="inherit" /> };
+
+  return (
+    <Chip 
+      label={config.label}
+      size="small"
+      icon={config.icon}
+      sx={{ 
+        backgroundColor: config.color, 
+        color: '#fff', 
+        fontWeight: 600,
+        '& .MuiChip-icon': { color: 'inherit' }
+      }} 
+    />
+  );
+};
+
+const useTestFiles = () => {
+  const [files, setFiles] = useState<{ id: string, name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/files`);
+        if (response.ok) {
+          const data = await response.json();
+          setFiles(data);
+        }
+      } catch (error) {
+        console.error('Error fetching test files:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFiles();
+  }, []);
+
+  return { files, loading };
 };
 
 const automationFilters = [
@@ -160,29 +289,88 @@ const Empty = () => (
   </Box>
 );
 
-const ListActions = () => (
-  <TopToolbar>
-    <FilterButton />
-    <CreateButton />
-    <ExportButton />
-  </TopToolbar>
-);
+const ListActions = ({ files }: { files: any[] }) => {
+  const notify = useNotify();
+  const [loading, setLoading] = useState(false);
+
+  const handleFixData = async () => {
+    if (window.confirm(`¿Estás seguro? Se detectaron ${files.length} archivos locales. Esto sincronizará la base de datos exactamente con lo que tienes en tu carpeta de tests.`)) {
+      setLoading(true);
+      const fileNames = files.map(f => f.id);
+      const success = await cleanAndSeedAutomation(fileNames);
+      setLoading(false);
+      if (success) {
+        notify('Sincronización completada con éxito', { type: 'success' });
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        notify('Error al sincronizar datos', { type: 'error' });
+      }
+    }
+  };
+
+  return (
+    <TopToolbar>
+      <FilterButton />
+      <CreateButton />
+      <Button 
+        size="small" 
+        onClick={handleFixData} 
+        disabled={loading}
+        startIcon={loading ? <CircularProgress size={16} /> : <HistoryIcon />}
+        sx={{ ml: 1, color: '#FF6B35' }}
+      >
+        Limpiar y Recargar Tests
+      </Button>
+      <ExportButton />
+    </TopToolbar>
+  );
+};
 
 export const AutomationRunnerPage = () => {
   const dataProvider = useDataProvider();
+  const notify = useNotify();
+  const [update] = useUpdate();
   const [initialized, setInitialized] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+  const { files } = useTestFiles();
+  
+  // Estados para logs en vivo
+  const [logs, setLogs] = useState<any[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [activeTest, setActiveTest] = useState<{ id: string, name: string } | null>(null);
+  const [activeStatus, setActiveStatus] = useState<'idle' | 'running'>('idle');
 
-  // Inicializar casos por defecto si no existen
+  useEffect(() => {
+    const socket = io(SOCKET_URL);
+
+    socket.on('test-log', (newLog) => {
+      setLogs((prev) => [...prev, newLog]);
+    });
+
+    socket.on('test-finished', async (data) => {
+      setActiveStatus('idle');
+      notify(`Test finalizado: ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { type: data.status === 'passed' ? 'success' : 'error' });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [activeTest, update, notify]);
+
+  const handleShowLogs = (id: string, name: string) => {
+    setActiveTest({ id, name });
+    setLogs([]);
+    setShowLogs(true);
+    setActiveStatus('running');
+  };
+
   useEffect(() => {
     const initializeDefaultCases = async () => {
       if (initialized) return;
-      
       try {
         const { data } = await dataProvider.getList('automation', {
           pagination: { page: 1, perPage: 1 },
         });
-        
-        // Si no hay casos, inicializar los por defecto
         if (data.length === 0) {
           await seedAutomationCases();
         }
@@ -192,115 +380,191 @@ export const AutomationRunnerPage = () => {
         setInitialized(true);
       }
     };
-
     initializeDefaultCases();
   }, [dataProvider, initialized]);
 
   return (
     <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: { xs: '12px', sm: '20px' } }}>
-      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
-      Automatización
-      </Typography>
-      <List
-        actions={<ListActions />}
-        empty={<Empty />}
-        filters={automationFilters}
-      >
-        <Datagrid>
-          <TextField source="name" label="Nombre" />
-          <TextField source="description" label="Descripción" />
-          <TextField source="test_file" label="Archivo de Test" />
-          <FunctionField
-            label="Estado"
-            render={record => (
-              <Chip
-                label={record.status === 'active' ? 'Activo' : 'Inactivo'}
-                sx={{
-                  backgroundColor: record.status === 'active' ? '#4caf50' : '#bdbdbd',
-                  color: '#fff',
-                  fontWeight: 600
-                }}
-              />
-            )}
-          />
-          <FunctionField
-            label="Ejecutar"
-            render={record => <RunButton record={record} />}
-          />
-          <EditButton />
-          <DeleteButton />
-        </Datagrid>
-      </List>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
+          Automatización
+        </Typography>
+      </Stack>
+
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+          <Tab icon={<PlayCircleIcon />} iconPosition="start" label="Tests" />
+          <Tab icon={<AssessmentIcon />} iconPosition="start" label="Vista de Resultados" />
+        </Tabs>
+      </Box>
+
+      <TabPanel value={tabValue} index={0}>
+        <List
+          actions={<ListActions files={files} />}
+          empty={<Empty />}
+          filters={automationFilters}
+          sort={{ field: 'updatedAt', order: 'DESC' }}
+        >
+          <Datagrid 
+            rowClick="edit"
+            sx={{
+              '& .MuiTableCell-head': { backgroundColor: '#f5f5f5', fontWeight: 700 },
+              '& .MuiTableRow-root:hover': { backgroundColor: '#f9f9f9' }
+            }}
+          >
+            <TextField source="name" label="Nombre" />
+            
+            <FunctionField 
+              label="Archivo de Test" 
+              render={record => (
+                <code style={{ backgroundColor: '#eee', padding: '2px 4px', borderRadius: '4px' }}>
+                  {(record.test_file || '').replace('.py', '.spec.ts')}
+                </code>
+              )} 
+            />
+
+            <FunctionField
+              label="Último Resultado"
+              render={record => <StatusChip status={record.last_status} />}
+            />
+
+            <FunctionField
+              label="Duración"
+              render={record => record.last_duration ? (
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <TimerIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <Typography variant="body2">{record.last_duration}s</Typography>
+                </Stack>
+              ) : '-'}
+            />
+
+            <FunctionField
+              label="Config"
+              render={record => (
+                <Chip 
+                  label={record.status === 'active' ? 'Activo' : 'Inactivo'} 
+                  variant="outlined"
+                  size="small"
+                  color={record.status === 'active' ? 'success' : 'default'}
+                />
+              )}
+            />
+
+            <FunctionField
+              label="Ejecutar"
+              render={record => <RunButton record={record} onShowLogs={handleShowLogs} />}
+            />
+            <Box sx={{ display: 'flex' }}>
+              <EditButton label="" />
+              <DeleteButton label="" />
+            </Box>
+          </Datagrid>
+        </List>
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={1}>
+        <Box sx={{ mt: -3 }}>
+          <TestResultsList hideTitle />
+        </Box>
+      </TabPanel>
+
+      <ExecutionLogsModal 
+        open={showLogs} 
+        onClose={() => setShowLogs(false)} 
+        logs={logs} 
+        testName={activeTest?.name || ''}
+        status={activeStatus}
+      />
     </Box>
   );
 };
 
-export const AutomationCaseCreate = (props: any) => (
-  <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
-    <Typography variant="h4" gutterBottom>
-      Nuevo Caso Automatizado
-    </Typography>
-    <Box sx={{ maxWidth: 800, mt: 3 }}>
-      <Create {...props} title="Nuevo Caso Automatizado" redirect="list">
-        <SimpleForm defaultValues={{ status: 'active' }}>
-          <TextInput source="name" label="Nombre" fullWidth required />
-          <TextInput source="description" label="Descripción" multiline fullWidth />
-          <TextInput 
-            source="test_file" 
-            label="Archivo de Test (ej: test_create_user.py)" 
-            fullWidth 
-            required
-            helperText="Nombre del archivo de test que se ejecutará en el backend"
-          />
-          <TextInput 
-            source="prompts" 
-            label="Prompts / Parámetros" 
-            multiline 
-            fullWidth 
-            rows={6}
-            helperText="Parámetros y metadatos que Cursor leerá para enlazar este test con el backend. Puedes incluir información sobre endpoints, datos de prueba, configuración, etc."
-          />
-          <SelectInput source="status" label="Estado" choices={[
-            { id: 'active', name: 'Activo' },
-            { id: 'inactive', name: 'Inactivo' }
-          ]} required />
-        </SimpleForm>
-      </Create>
-    </Box>
-  </Box>
-);
+export const AutomationCaseCreate = (props: any) => {
+  const { files, loading } = useTestFiles();
 
-export const AutomationCaseEdit = (props: any) => (
-  <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
-    <Typography variant="h4" gutterBottom>
-      Editar Caso Automatizado
-    </Typography>
-    <Box sx={{ maxWidth: 800, mt: 3 }}>
-      <Edit {...props} title="Editar Caso Automatizado">
-        <SimpleForm>
-          <TextInput source="name" label="Nombre" fullWidth required />
-          <TextInput source="description" label="Descripción" multiline fullWidth />
-          <TextInput 
-            source="test_file" 
-            label="Archivo de Test (ej: test_create_user.py)" 
-            fullWidth 
-            required
-            helperText="Nombre del archivo de test que se ejecutará en el backend"
-          />
-          <TextInput 
-            source="prompts" 
-            label="Prompts / Parámetros" 
-            multiline 
-            fullWidth 
-            rows={6}
-            helperText="Parámetros y metadatos que Cursor leerá para enlazar este test con el backend. Puedes incluir información sobre endpoints, datos de prueba, configuración, etc."
-          />
-          <SelectInput source="status" label="Estado" choices={[
-            { id: 'active', name: 'Activo' },
-            { id: 'inactive', name: 'Inactivo' }
-          ]} required />
-        </SimpleForm>
-      </Edit>
+  return (
+    <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
+      <Typography variant="h4" gutterBottom>
+        Nuevo Caso Automatizado
+      </Typography>
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Create {...props} title="Nuevo Caso Automatizado" redirect="list">
+          <SimpleForm defaultValues={{ status: 'active' }}>
+            <TextInput source="name" label="Nombre" fullWidth required />
+            <TextInput source="description" label="Descripción" multiline fullWidth />
+            
+            {loading ? (
+              <CircularProgress size={20} sx={{ m: 2 }} />
+            ) : (
+              <SelectInput 
+                source="test_file" 
+                label="Archivo de Test (Playwright)" 
+                choices={files}
+                fullWidth 
+                required
+                helperText="Selecciona uno de los archivos .spec.ts detectados en tu carpeta local"
+              />
+            )}
+
+            <TextInput 
+              source="prompts" 
+              label="Configuración / Parámetros" 
+              multiline 
+              fullWidth 
+              rows={4}
+              helperText="Parámetros en formato texto o JSON para el test."
+            />
+            <SelectInput source="status" label="Estado" choices={[
+              { id: 'active', name: 'Activo' },
+              { id: 'inactive', name: 'Inactivo' }
+            ]} required />
+          </SimpleForm>
+        </Create>
+      </Paper>
     </Box>
-  </Box>
-);
+  );
+};
+
+export const AutomationCaseEdit = (props: any) => {
+  const { files, loading } = useTestFiles();
+
+  return (
+    <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
+      <Typography variant="h4" gutterBottom>
+        Editar Caso Automatizado
+      </Typography>
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Edit {...props} title="Editar Caso Automatizado">
+          <SimpleForm>
+            <TextInput source="name" label="Nombre" fullWidth required />
+            <TextInput source="description" label="Descripción" multiline fullWidth />
+            
+            {loading ? (
+              <CircularProgress size={20} sx={{ m: 2 }} />
+            ) : (
+              <SelectInput 
+                source="test_file" 
+                label="Archivo de Test (Playwright)" 
+                choices={files}
+                fullWidth 
+                required
+              />
+            )}
+
+            <TextInput 
+              source="prompts" 
+              label="Configuración / Parámetros" 
+              multiline 
+              fullWidth 
+              rows={4}
+            />
+            <SelectInput source="status" label="Estado" choices={[
+              { id: 'active', name: 'Activo' },
+              { id: 'inactive', name: 'Inactivo' }
+            ]} required />
+          </SimpleForm>
+        </Edit>
+      </Paper>
+    </Box>
+  );
+};

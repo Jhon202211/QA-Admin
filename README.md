@@ -11,9 +11,39 @@ Panel de administración para gestionar pruebas de calidad, planificación de te
 | **Pruebas Manuales** | Gestión jerárquica de casos de prueba (Proyecto → Módulo → Submódulo → Tipo) |
 | **QA Test Case Architect Agent** | Agente IA que genera casos de prueba siguiendo la Taxonomía Oficial de QA con RAG (BM25) |
 | **Planificación** | Creación y seguimiento de planes de prueba |
-| **Resultados** | Registro y visualización de ejecuciones |
-| **Automatización** | Editor y runner de scripts Playwright |
+| **Automatización** | Gestión y ejecución local de scripts Playwright con logs en vivo |
+| **Vista de Resultados** | Historial detallado de ejecuciones manuales y automáticas con evidencias (screenshots) |
 | **Dashboard** | Métricas y estado general del QA |
+
+---
+
+## Automatización con Playwright
+
+El sistema permite integrar y ejecutar pruebas automatizadas de Playwright directamente desde la interfaz.
+
+### Arquitectura de ejecución
+
+1. **Frontend (React-Admin)**: Interfaz para gestionar casos, lanzar ejecuciones y visualizar resultados.
+2. **Servidor Local (`automation-server.js`)**: Servidor Express que actúa como puente entre la web y el sistema local.
+3. **Socket.io**: Comunicación bidireccional para transmitir logs de ejecución en tiempo real al navegador.
+4. **Firebase Firestore**: Almacenamiento persistente de los resultados de cada ejecución (`test_results`) y actualización del estado de salud de cada test (`automation`).
+
+### Configuración de Automatización
+
+Para que la automatización funcione en local, debes configurar las variables de entorno específicas en `.env.automation`:
+
+```env
+BASE_URL=https://tu-sitio-a-testear.com
+# Otras variables necesarias para tus tests de Playwright
+```
+
+### Ejecución del Servidor de Automatización
+
+Es necesario tener corriendo el servidor local para poder listar y ejecutar los archivos `.spec.ts`:
+
+```bash
+npm run automation:server
+```
 
 ---
 
@@ -161,6 +191,8 @@ VITE_FIREBASE_APP_ID=tu_app_id
 | OpenAI API | LLM para generación de casos de prueba |
 | BM25 (TypeScript) | Retrieval del knowledge base en el browser |
 | Playwright | Automatización de pruebas |
+| Socket.io | Logs en tiempo real para automatización |
+| Express | Servidor de ejecución local |
 
 ---
 
@@ -173,6 +205,9 @@ npm install
 # Iniciar servidor de desarrollo
 npm run dev
 
+# Iniciar servidor de automatización (necesario para correr tests)
+npm run automation:server
+
 # Construir para producción
 npm run build
 ```
@@ -183,19 +218,17 @@ npm run build
 
 ```
 src/
-├── components/TestCases/
-│   ├── AIAgent.tsx              ← Modal del agente IA (UI completa)
-│   └── HierarchicalView.tsx     ← Vista jerárquica con botón "Agente IA"
-├── services/
-│   ├── aiService.ts             ← Lógica RAG + llamada a OpenAI
-│   └── knowledgeService.ts      ← BM25 + chunking + carga de knowledge base
+├── components/
+│   ├── navigation/AppMenu.tsx   ← Menú principal
+│   └── TestCases/               ← Componentes de pruebas manuales
 ├── pages/
-│   ├── TestCases/               ← Sección Pruebas Manuales
-│   └── Configuration/           ← Configuración de API key
-public/
-└── knowledge/
-    ├── manifest.json
-    ├── bugs_historicos.txt
-    ├── reglas_negocio.txt
-    └── criterios_acceso.txt
+│   ├── AutomationRunner/        ← Módulo de Automatización
+│   ├── TestResults/             ← Vista de Resultados (Manual/Auto)
+│   └── Configuration/           ← Configuración global
+├── firebase/
+│   ├── dataProvider.ts          ← Adaptador de datos para Firestore
+│   └── fixAutomationData.ts     ← Script de sincronización de tests
+├── automation-server.js         ← Servidor local de ejecución
+├── playwright.config.ts         ← Configuración de Playwright
+└── .env.automation              ← Variables para tests automáticos
 ```
