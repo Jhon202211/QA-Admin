@@ -21,12 +21,11 @@ import {
   DialogTitle, 
   DialogContent, 
   IconButton,
-  Stack
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
 // Componente de Detalle dentro de un Modal
-const TestResultDetailModal = ({ open, onClose, record, planIdToName }: { open: boolean, onClose: () => void, record: any, planIdToName: any }) => {
+const TestResultDetailModal = ({ open, onClose, record }: { open: boolean, onClose: () => void, record: any }) => {
   if (!record) return null;
 
   return (
@@ -126,10 +125,10 @@ export const TestResultsList = ({ hideTitle = false }: { hideTitle?: boolean }) 
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleRowClick = (id: any, resource: string, record: any) => {
+  const handleRowClick = (_id: any, _resource: string, record: any) => {
     setSelectedRecord(record);
     setIsModalOpen(true);
-    return false; // Evita la navegación por defecto
+    return false as const; // Evita la navegación por defecto
   };
 
   const filters = [
@@ -231,7 +230,6 @@ export const TestResultsList = ({ hideTitle = false }: { hideTitle?: boolean }) 
         open={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         record={selectedRecord}
-        planIdToName={planIdToName}
       />
     </Box>
   );

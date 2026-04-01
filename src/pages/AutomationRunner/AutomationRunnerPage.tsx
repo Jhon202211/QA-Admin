@@ -49,11 +49,16 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import { seedAutomationCases } from '../../firebase/seedData';
 import { io } from 'socket.io-client';
 import { cleanAndSeedAutomation } from '../../firebase/fixAutomationData';
-import { TestResultsList, TestResultShow } from '../TestResults/TestResultsPage';
+import { TestResultsList } from '../TestResults/TestResultsPage';
 
 const API_BASE_URL = 'http://localhost:9000/api/tests';
 const SOCKET_URL = 'http://localhost:9000';
 const API_TOKEN = 'valid_token';
+
+interface LogEntry {
+  type: 'stdout' | 'stderr';
+  data: string;
+}
 
 const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
   return (
@@ -64,8 +69,8 @@ const TabPanel = ({ children, value, index }: { children: React.ReactNode; value
 };
 
 // Modal para mostrar logs en tiempo real
-const ExecutionLogsModal = ({ open, onClose, logs, testName, status }) => {
-  const scrollRef = useRef(null);
+const ExecutionLogsModal = ({ open, onClose, logs, testName, status }: { open: boolean, onClose: () => void, logs: LogEntry[], testName: string, status: string }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -223,10 +228,10 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
 };
 
 const StatusChip = ({ status }: { status: string }) => {
-  let config = { label: 'No ejecutado', color: '#bdbdbd', icon: <HistoryIcon size="small" /> };
+  let config = { label: 'No ejecutado', color: '#bdbdbd', icon: <HistoryIcon sx={{ fontSize: 16 }} /> };
   
-  if (status === 'passed') config = { label: 'Pasó', color: '#4caf50', icon: <CheckCircleIcon size="small" /> };
-  if (status === 'failed') config = { label: 'Falló', color: '#f44336', icon: <ErrorIcon size="small" /> };
+  if (status === 'passed') config = { label: 'Pasó', color: '#4caf50', icon: <CheckCircleIcon sx={{ fontSize: 16 }} /> };
+  if (status === 'failed') config = { label: 'Falló', color: '#f44336', icon: <ErrorIcon sx={{ fontSize: 16 }} /> };
   if (status === 'running') config = { label: 'Ejecutando', color: '#2196f3', icon: <CircularProgress size={14} color="inherit" /> };
 
   return (
