@@ -108,6 +108,14 @@ This is an administration dashboard for quality assurance (QA) test management b
 - Implement localized date and number formatting
 - Keep UI texts separate from logic
 
+### 16. Automation and Playwright
+- Follow the established architecture: Frontend (React-Admin) -> Local Server (Express) -> Playwright.
+- Use Socket.io for real-time log streaming in automation features.
+- Ensure test results are properly saved to the `test_results` collection in Firestore.
+- Maintain ES Module compatibility in all `.spec.ts` files (use `fileURLToPath` for `__dirname`).
+- Keep `.env.automation` for Playwright-specific environment variables.
+- When modifying the automation server, ensure Firebase is properly initialized using the main `.env` file.
+
 ## React Admin Specific Rules
 - Use React Admin resources for CRUD operations
 - Implement custom layouts when necessary
