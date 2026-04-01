@@ -34,7 +34,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button
+  Button,
+  Tabs,
+  Tab
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -42,12 +44,24 @@ import ErrorIcon from '@mui/icons-material/Error';
 import HistoryIcon from '@mui/icons-material/History';
 import TimerIcon from '@mui/icons-material/Timer';
 import TerminalIcon from '@mui/icons-material/Terminal';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import { seedAutomationCases } from '../../firebase/seedData';
 import { io } from 'socket.io-client';
+import { cleanAndSeedAutomation } from '../../firebase/fixAutomationData';
+import { TestResultsList, TestResultShow } from '../TestResults/TestResultsPage';
 
 const API_BASE_URL = 'http://localhost:9000/api/tests';
 const SOCKET_URL = 'http://localhost:9000';
 const API_TOKEN = 'valid_token';
+
+const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
+  return (
+    <div role="tabpanel" hidden={value !== index}>
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  );
+};
 
 // Modal para mostrar logs en tiempo real
 const ExecutionLogsModal = ({ open, onClose, logs, testName, status }) => {
@@ -105,7 +119,7 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
   const [update] = useUpdate();
 
   const handleRun = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Evitar que se abra la edición al hacer clic en el botón
+    e.stopPropagation(); 
     if (!record?.test_file) {
       notify('Error: El caso no tiene un archivo de test definido', { type: 'error' });
       return;
@@ -230,7 +244,6 @@ const StatusChip = ({ status }: { status: string }) => {
   );
 };
 
-// Hook para obtener la lista de archivos de test desde el servidor local
 const useTestFiles = () => {
   const [files, setFiles] = useState<{ id: string, name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -276,17 +289,13 @@ const Empty = () => (
   </Box>
 );
 
-import { cleanAndSeedAutomation } from '../../firebase/fixAutomationData';
-
-const ListActions = () => {
+const ListActions = ({ files }: { files: any[] }) => {
   const notify = useNotify();
   const [loading, setLoading] = useState(false);
-  const { files } = useTestFiles();
 
   const handleFixData = async () => {
     if (window.confirm(`¿Estás seguro? Se detectaron ${files.length} archivos locales. Esto sincronizará la base de datos exactamente con lo que tienes en tu carpeta de tests.`)) {
       setLoading(true);
-      // Extraer solo los nombres de los archivos de la lista de 'files'
       const fileNames = files.map(f => f.id);
       const success = await cleanAndSeedAutomation(fileNames);
       setLoading(false);
@@ -319,8 +328,11 @@ const ListActions = () => {
 
 export const AutomationRunnerPage = () => {
   const dataProvider = useDataProvider();
+  const notify = useNotify();
   const [update] = useUpdate();
   const [initialized, setInitialized] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+  const { files } = useTestFiles();
   
   // Estados para logs en vivo
   const [logs, setLogs] = useState<any[]>([]);
@@ -337,28 +349,13 @@ export const AutomationRunnerPage = () => {
 
     socket.on('test-finished', async (data) => {
       setActiveStatus('idle');
-      // Actualizar base de datos con el resultado final
-      if (activeTest) {
-        try {
-          await update('automation', {
-            id: activeTest.id,
-            data: { 
-              last_status: data.status,
-              last_duration: data.duration,
-              updatedAt: new Date()
-            },
-            previousData: {}
-          });
-        } catch (e) {
-          console.error('Error updating final status:', e);
-        }
-      }
+      notify(`Test finalizado: ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { type: data.status === 'passed' ? 'success' : 'error' });
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [activeTest, update]);
+  }, [activeTest, update, notify]);
 
   const handleShowLogs = (id: string, name: string) => {
     setActiveTest({ id, name });
@@ -388,73 +385,88 @@ export const AutomationRunnerPage = () => {
 
   return (
     <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: { xs: '12px', sm: '20px' } }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
         <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
           Automatización
         </Typography>
       </Stack>
 
-      <List
-        actions={<ListActions />}
-        empty={<Empty />}
-        filters={automationFilters}
-        sort={{ field: 'updatedAt', order: 'DESC' }}
-      >
-        <Datagrid 
-          rowClick="edit"
-          sx={{
-            '& .MuiTableCell-head': { backgroundColor: '#f5f5f5', fontWeight: 700 },
-            '& .MuiTableRow-root:hover': { backgroundColor: '#f9f9f9' }
-          }}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+          <Tab icon={<PlayCircleIcon />} iconPosition="start" label="Tests" />
+          <Tab icon={<AssessmentIcon />} iconPosition="start" label="Vista de Resultados" />
+        </Tabs>
+      </Box>
+
+      <TabPanel value={tabValue} index={0}>
+        <List
+          actions={<ListActions files={files} />}
+          empty={<Empty />}
+          filters={automationFilters}
+          sort={{ field: 'updatedAt', order: 'DESC' }}
         >
-          <TextField source="name" label="Nombre" />
-          
-          <FunctionField 
-            label="Archivo de Test" 
-            render={record => (
-              <code style={{ backgroundColor: '#eee', padding: '2px 4px', borderRadius: '4px' }}>
-                {(record.test_file || '').replace('.py', '.spec.ts')}
-              </code>
-            )} 
-          />
+          <Datagrid 
+            rowClick="edit"
+            sx={{
+              '& .MuiTableCell-head': { backgroundColor: '#f5f5f5', fontWeight: 700 },
+              '& .MuiTableRow-root:hover': { backgroundColor: '#f9f9f9' }
+            }}
+          >
+            <TextField source="name" label="Nombre" />
+            
+            <FunctionField 
+              label="Archivo de Test" 
+              render={record => (
+                <code style={{ backgroundColor: '#eee', padding: '2px 4px', borderRadius: '4px' }}>
+                  {(record.test_file || '').replace('.py', '.spec.ts')}
+                </code>
+              )} 
+            />
 
-          <FunctionField
-            label="Último Resultado"
-            render={record => <StatusChip status={record.last_status} />}
-          />
+            <FunctionField
+              label="Último Resultado"
+              render={record => <StatusChip status={record.last_status} />}
+            />
 
-          <FunctionField
-            label="Duración"
-            render={record => record.last_duration ? (
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <TimerIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                <Typography variant="body2">{record.last_duration}s</Typography>
-              </Stack>
-            ) : '-'}
-          />
+            <FunctionField
+              label="Duración"
+              render={record => record.last_duration ? (
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <TimerIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <Typography variant="body2">{record.last_duration}s</Typography>
+                </Stack>
+              ) : '-'}
+            />
 
-          <FunctionField
-            label="Config"
-            render={record => (
-              <Chip 
-                label={record.status === 'active' ? 'Activo' : 'Inactivo'} 
-                variant="outlined"
-                size="small"
-                color={record.status === 'active' ? 'success' : 'default'}
-              />
-            )}
-          />
+            <FunctionField
+              label="Config"
+              render={record => (
+                <Chip 
+                  label={record.status === 'active' ? 'Activo' : 'Inactivo'} 
+                  variant="outlined"
+                  size="small"
+                  color={record.status === 'active' ? 'success' : 'default'}
+                />
+              )}
+            />
 
-          <FunctionField
-            label="Ejecutar"
-            render={record => <RunButton record={record} onShowLogs={handleShowLogs} />}
-          />
-          <Box sx={{ display: 'flex' }}>
-            <EditButton label="" />
-            <DeleteButton label="" />
-          </Box>
-        </Datagrid>
-      </List>
+            <FunctionField
+              label="Ejecutar"
+              render={record => <RunButton record={record} onShowLogs={handleShowLogs} />}
+            />
+            <Box sx={{ display: 'flex' }}>
+              <EditButton label="" />
+              <DeleteButton label="" />
+            </Box>
+          </Datagrid>
+        </List>
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={1}>
+        <Box sx={{ mt: -3 }}>
+          <TestResultsList hideTitle />
+        </Box>
+      </TabPanel>
 
       <ExecutionLogsModal 
         open={showLogs} 
