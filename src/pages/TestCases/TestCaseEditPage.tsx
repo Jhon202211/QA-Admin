@@ -41,8 +41,9 @@ const CATEGORY_CHOICES = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión'
 const EXECUTION_CHOICES = [
   { id: 'not_executed', label: 'No ejecutado' },
   { id: 'passed', label: 'Aprobado' },
-  { id: 'failed', label: 'Fallido' },
+  { id: 'failed', label: 'Falló' },
   { id: 'blocked', label: 'Bloqueado' },
+  { id: 'retest', label: 'Retest' },
   { id: 'in_progress', label: 'En progreso' },
 ];
 

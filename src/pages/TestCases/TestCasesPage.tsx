@@ -158,6 +158,7 @@ export const TestCaseCreate = (props: any) => (
         { id: 'passed', name: 'Aprobado' },
         { id: 'failed', name: 'Fallido' },
         { id: 'blocked', name: 'Bloqueado' },
+        { id: 'retest', name: 'Retest' },
         { id: 'in_progress', name: 'En progreso' },
         { id: 'not_executed', name: 'No ejecutado' },
       ]} />
@@ -207,6 +208,7 @@ export const TestCaseEdit = (props: any) => (
         { id: 'passed', name: 'Aprobado' },
         { id: 'failed', name: 'Fallido' },
         { id: 'blocked', name: 'Bloqueado' },
+        { id: 'retest', name: 'Retest' },
         { id: 'in_progress', name: 'En progreso' },
         { id: 'not_executed', name: 'No ejecutado' },
       ]} />
