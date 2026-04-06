@@ -62,7 +62,7 @@ interface TestExecutionModalProps {
   onExecuted?: () => void;
 }
 
-const STEP_STATUSES: Array<TestStep['status']> = ['passed', 'failed', 'blocked', 'in_progress', 'not_executed'];
+const STEP_STATUSES: Array<TestStep['status']> = ['passed', 'failed', 'blocked', 'retest', 'in_progress', 'not_executed'];
 
 export const TestExecutionModal = ({
   open,
@@ -170,6 +170,8 @@ export const TestExecutionModal = ({
         return <ErrorOutlineIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
       case 'blocked':
         return <BlockIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
+      case 'retest':
+        return <AutorenewIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
       case 'in_progress':
         return <AutorenewIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
       default:
@@ -278,6 +280,8 @@ export const TestExecutionModal = ({
                   ? 'La ejecución contiene uno o más pasos fallidos.'
                   : executionResult === 'blocked'
                     ? 'La ejecución quedó bloqueada en uno o más pasos.'
+                    : executionResult === 'retest'
+                      ? 'Uno o más pasos requieren retest.'
                     : executionResult === 'in_progress'
                       ? 'La ejecución fue iniciada y quedó en progreso.'
                       : '',
