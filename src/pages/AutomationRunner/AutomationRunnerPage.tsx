@@ -470,7 +470,7 @@ export const AutomationRunnerPage = () => {
           sort={{ field: 'updatedAt', order: 'DESC' }}
         >
           <Datagrid 
-            rowClick={(id, resource, record) => {
+            rowClick={(id, _resource, record) => {
               handleShowLogs(id.toString(), record.name);
               return false;
             }}
