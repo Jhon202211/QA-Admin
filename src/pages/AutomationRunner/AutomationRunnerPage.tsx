@@ -46,6 +46,9 @@ import TimerIcon from '@mui/icons-material/Timer';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import SettingsRemoteIcon from '@mui/icons-material/SettingsRemote';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { seedAutomationCases } from '../../firebase/seedData';
 import { io } from 'socket.io-client';
 import { cleanAndSeedAutomation } from '../../firebase/fixAutomationData';
@@ -120,6 +123,7 @@ const ExecutionLogsModal = ({ open, onClose, logs, testName, status }: { open: b
 const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: string, name: string) => void }) => {
   const [running, setRunning] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const [showServerModal, setShowServerModal] = useState(false);
   const notify = useNotify();
   const [update] = useUpdate();
 
@@ -186,9 +190,15 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
       }
     } catch (error: any) {
       console.error('Error en handleRun:', error);
-      const errorMessage = error.message || 'Error de conexión.';
-      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
-      notify(errorMessage, { type: 'error' });
+      
+      // Detectar si es un error de conexión (servidor apagado)
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        setShowServerModal(true);
+      } else {
+        const errorMessage = error.message || 'Error de conexión.';
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        notify(errorMessage, { type: 'error' });
+      }
       
       await update('automation', {
         id: record.id,
@@ -213,6 +223,55 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
           </IconButton>
         </Tooltip>
       )}
+
+      {/* Modal de sugerencia de servidor */}
+      <Dialog open={showServerModal} onClose={() => setShowServerModal(false)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningAmberIcon color="warning" />
+          Servidor de Automatización Apagado
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            No se pudo establecer conexión con el servidor de automatización en <strong>localhost:9000</strong>.
+          </Typography>
+          <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 1, position: 'relative' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+              Para ejecutar tests automáticos, debes iniciar el servidor local ejecutando:
+              <Box component="code" sx={{ display: 'block', mt: 1, fontWeight: 'bold', color: '#d32f2f' }}>
+                npm run automation:server
+              </Box>
+            </Typography>
+            <Tooltip title="Copiar comando">
+              <IconButton 
+                size="small" 
+                sx={{ position: 'absolute', top: 8, right: 8 }}
+                onClick={() => {
+                  navigator.clipboard.writeText('npm run automation:server');
+                  notify('Comando copiado al portapapeles', { type: 'info' });
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <ContentCopyIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowServerModal(false)}>Cerrar</Button>
+          <Button 
+            variant="contained" 
+            startIcon={<SettingsRemoteIcon />}
+            sx={{ bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' } }}
+            onClick={() => {
+              setShowServerModal(false);
+              notify('Por favor, ejecuta "npm run automation:server" en tu terminal.', { type: 'info' });
+            }}
+          >
+            Entendido
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar 
         open={snackbar.open} 
         autoHideDuration={4000} 
@@ -411,7 +470,10 @@ export const AutomationRunnerPage = () => {
           sort={{ field: 'updatedAt', order: 'DESC' }}
         >
           <Datagrid 
-            rowClick="edit"
+            rowClick={(id, resource, record) => {
+              handleShowLogs(id.toString(), record.name);
+              return false;
+            }}
             sx={{
               '& .MuiTableCell-head': { backgroundColor: '#f5f5f5', fontWeight: 700 },
               '& .MuiTableRow-root:hover': { backgroundColor: '#f9f9f9' }
