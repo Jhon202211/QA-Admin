@@ -10,6 +10,39 @@ import {
 
 const REMEMBERED_EMAIL_KEY = 'qa_remembered_email';
 
+/** Tiempo máximo de espera a que Firebase restaure la sesión desde IndexedDB (p. ej. tras dormir el equipo). */
+const CHECK_AUTH_MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutos
+
+/** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
+const TOKEN_REFRESH_INTERVAL_MS = 45 * 60 * 1000;
+
+/**
+ * Mantiene el token válido cuando la pestaña vuelve al frente o tras largos periodos inactivos.
+ * Firebase renueva solo, pero el throttling del navegador en pestañas ocultas puede retrasarlo.
+ */
+export function setupAuthSessionMaintenance(): () => void {
+  const refresh = () => {
+    const user = auth.currentUser;
+    if (user) {
+      user.getIdToken(true).catch(() => {
+        /* red / revocación: siguiente lectura de Firestore o checkAuth lo gestionarán */
+      });
+    }
+  };
+
+  const onVisibility = () => {
+    if (document.visibilityState === 'visible') refresh();
+  };
+
+  document.addEventListener('visibilitychange', onVisibility);
+  const intervalId = window.setInterval(refresh, TOKEN_REFRESH_INTERVAL_MS);
+
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.clearInterval(intervalId);
+  };
+}
+
 export const authProvider = {
   login: async ({ username, password, remember }: { username: string; password: string; remember?: boolean }) => {
     try {
@@ -41,28 +74,33 @@ export const authProvider = {
     return Promise.resolve();
   },
   checkAuth: async () => {
-    // Respuesta inmediata si Firebase ya restauró la sesión de forma síncrona
     if (auth.currentUser) return Promise.resolve();
 
     return new Promise<void>((resolve, reject) => {
       let settled = false;
 
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const finish = (user: typeof auth.currentUser) => {
         if (settled) return;
         settled = true;
         unsubscribe();
         clearTimeout(timer);
         if (user) resolve();
         else reject();
+      };
+
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        finish(user);
       });
 
-      // Timeout generoso (10 s) como red de seguridad ante problemas de red
       const timer = setTimeout(() => {
         if (settled) return;
-        settled = true;
-        unsubscribe();
-        reject();
-      }, 10000);
+        // Tras dormir el equipo o IndexedDB lento, a veces currentUser aparece después del primer evento
+        if (auth.currentUser) {
+          finish(auth.currentUser);
+        } else {
+          finish(null);
+        }
+      }, CHECK_AUTH_MAX_WAIT_MS);
     });
   },
   getPermissions: () => Promise.resolve(),
