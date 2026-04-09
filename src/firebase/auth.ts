@@ -79,7 +79,7 @@ export const authProvider = {
     return new Promise<void>((resolve, reject) => {
       let settled = false;
 
-      const finish = (user: typeof auth.currentUser) => {
+      const finish = (user: any) => {
         if (settled) return;
         settled = true;
         unsubscribe();
