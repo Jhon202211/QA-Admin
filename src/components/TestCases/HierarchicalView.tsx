@@ -8,8 +8,9 @@ import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ArchiveIcon from '@mui/icons-material/Archive';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useNavigate } from 'react-router-dom';
-import { useGetList, useRefresh, useUpdateMany, useDeleteMany, useNotify } from 'react-admin';
+import { useGetList, useRefresh, useUpdateMany, useDeleteMany, useNotify, useCreate } from 'react-admin';
 import { useState } from 'react';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
 import { AIAgent } from './AIAgent';
@@ -59,7 +60,10 @@ export const HierarchicalView = () => {
     return acc;
   }, {});
 
-  // Funciones para archivar proyecto
+    const [create] = useCreate();
+    const [isCloning, setIsCloning] = useState<string | null>(null);
+
+    // Funciones para archivar proyecto
   const handleArchiveProject = (project: string) => {
     const casesInProject = testCases.filter((tc: TestCase) => matchProject(tc, project));
     setArchiveProjectDialog({ open: true, project, count: casesInProject.length });
@@ -81,6 +85,40 @@ export const HierarchicalView = () => {
       refresh();
     } catch {
       notify('Error al archivar el proyecto', { type: 'error' });
+    }
+  };
+
+    const handleCloneTestCase = async (testCase: TestCase) => {
+    setIsCloning(testCase.id);
+    try {
+      const { id, createdAt, updatedAt, createdBy, updatedBy, version, ...cloneData } = testCase;
+      
+      // Limpiar IDs de los pasos para que se generen nuevos
+      if (cloneData.steps) {
+        cloneData.steps = cloneData.steps.map(step => {
+          const { id: _, ...stepData } = step;
+          return stepData as any;
+        });
+      }
+
+      await create('test_cases', {
+        data: {
+          ...cloneData,
+          name: `${cloneData.name} (Copia)`,
+          caseKey: cloneData.caseKey ? `${cloneData.caseKey}-COPY` : '',
+          executionResult: 'not_executed',
+          actualResult: '',
+          notes: '',
+          version: 1,
+          createdAt: new Date(),
+        }
+      });
+      notify('Caso de prueba clonado exitosamente', { type: 'success' });
+      refresh();
+    } catch (error) {
+      notify('Error al clonar el caso de prueba', { type: 'error' });
+    } finally {
+      setIsCloning(null);
     }
   };
 
@@ -510,6 +548,23 @@ export const HierarchicalView = () => {
                                 fontWeight: 600,
                               }}
                             />
+                            <Tooltip title="Clonar caso de prueba">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCloneTestCase(testCase);
+                                }}
+                                disabled={isCloning === testCase.id}
+                                sx={{ color: '#9C27B0' }}
+                              >
+                                {isCloning === testCase.id ? (
+                                  <CircularProgress size={18} color="inherit" />
+                                ) : (
+                                  <ContentCopyIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </Tooltip>
                             <Tooltip title="Ejecutar caso de prueba">
                               <IconButton
                                 size="small"

@@ -357,6 +357,30 @@ export const TestExecutionModal = ({
                 : 'Sin pasos · Resultado general'}
             </Typography>
 
+            {/* Información adicional del caso de prueba */}
+            <Box sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+              {testCase.description && (
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                    Descripción
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.primary', whiteSpace: 'pre-wrap' }}>
+                    {testCase.description}
+                  </Typography>
+                </Box>
+              )}
+              {testCase.prerequisites && (
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                    Precondiciones
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.primary', whiteSpace: 'pre-wrap' }}>
+                    {Array.isArray(testCase.prerequisites) ? testCase.prerequisites.join('\n') : testCase.prerequisites}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
             <Stack spacing={1}>
               {steps.map((step, index) => (
                 <Card
@@ -367,13 +391,14 @@ export const TestExecutionModal = ({
                     border: '1px solid',
                     borderColor: index === activeStepIndex ? '#FF6B35' : 'divider',
                     boxShadow: index === activeStepIndex ? '0 0 0 2px rgba(255,107,53,0.12)' : 'none',
+                    mb: 0.5, // Reducir margen entre tarjetas
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       {getStepIcon(step.status)}
                       <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', lineHeight: 1.2 }}>
                           Paso {step.order || index + 1}
                           {step.evidences && step.evidences.length > 0 && (
                             <Tooltip title={`${step.evidences.length} evidencia(s)`}>
@@ -381,7 +406,7 @@ export const TestExecutionModal = ({
                             </Tooltip>
                           )}
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8125rem', lineHeight: 1.3 }}>
                           {step.description}
                         </Typography>
                       </Box>

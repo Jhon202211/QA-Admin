@@ -219,6 +219,21 @@ export const TestCaseEditPage = () => {
               onChange={(e) => setField('submodule', e.target.value)}
               fullWidth
             />
+            <TextField
+              label="Datos de prueba"
+              value={form.testData || ''}
+              onChange={(e) => setField('testData', e.target.value)}
+              fullWidth
+              multiline
+              maxRows={4}
+            />
+            <TextField
+              label="Duración estimada (min)"
+              type="number"
+              value={form.estimatedDuration || 0}
+              onChange={(e) => setField('estimatedDuration', parseInt(e.target.value) || 0)}
+              fullWidth
+            />
             <FormControl fullWidth>
               <InputLabel>Tipo de Prueba</InputLabel>
               <Select
