@@ -3,6 +3,7 @@ import {
   TopToolbar, CreateButton, ExportButton, FilterButton,
   TextInput, SelectInput, DateField, useGetList,
   Create, Edit, useRecordContext, useSaveContext, useRedirect, useNotify,
+  useUpdate, useRefresh,
 } from 'react-admin';
 import {
   Box, Typography, Card, CardContent, Chip, Grid, Button,
@@ -11,9 +12,9 @@ import {
   TextField, Select, MenuItem, FormControl, InputLabel,
   Checkbox, IconButton, CircularProgress,
   ToggleButtonGroup, ToggleButton, Accordion, AccordionSummary,
-  AccordionDetails, LinearProgress, Tooltip,
+  AccordionDetails, LinearProgress, Tooltip, Stack,
 } from '@mui/material';
-import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
+import { CalendarMonth as CalendarIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon } from '@mui/icons-material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SaveIcon from '@mui/icons-material/Save';
@@ -22,9 +23,237 @@ import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import FolderIcon from '@mui/icons-material/Folder';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { dataProvider } from '../../firebase/dataProvider';
 import { HierarchicalCaseSelector } from '../../components/TestPlanning/HierarchicalCaseSelector';
+
+// --- Estructura de Módulos (Sincronizada con AutomationRunnerPage) ---
+const MODULES_STRUCTURE = [
+  {
+    name: 'Autenticación',
+    tests: [
+      'Login con usuario y contraseña',
+      'Login con proveedor social (Socialite)',
+      'Logout',
+      'Recuperación de contraseña (forgot password)',
+      'Bienvenida de usuario (establecer contraseña inicial)'
+    ]
+  },
+  {
+    name: 'ORGANIZACIÓN - Copropiedades',
+    tests: [
+      'Listar copropiedades',
+      'Buscar copropiedades',
+      'Crear copropiedades',
+      'Editar copropiedades',
+      'Eliminar copropiedades',
+      'Configurar proveedores'
+    ]
+  },
+  {
+    name: 'ORGANIZACIÓN - Empresas',
+    tests: [
+      'Listar empresas',
+      'Buscar empresas',
+      'Crear empresas',
+      'Editar empresas',
+      'Eliminar empresas',
+      'Exportar usuarios por empresa'
+    ]
+  },
+  {
+    name: 'Roles y permisos',
+    tests: [
+      'Listar roles',
+      'Crear roles',
+      'Editar roles',
+      'Eliminar roles',
+      'Listar permisos',
+      'Cambiar estado on/off de un permiso',
+      'Crear permisos',
+      'Editar permisos',
+      'Eliminar permisos'
+    ]
+  },
+  {
+    name: 'Actividades',
+    tests: [
+      'Listar actividades',
+      'Filtrar actividades',
+      'Exportar actividades'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Resumen',
+    tests: [
+      'Ver resumenes',
+      'Filtrar resumenes'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Usuarios',
+    tests: [
+      'Listar usuarios',
+      'Crear usuarios',
+      'Ver información de usuarios',
+      'Editar usuarios',
+      'Ver vehículos de usuarios',
+      'Desactivar empresa',
+      'Restaurar empresa',
+      'Desactivar copropiedad',
+      'Restaurar copropiedad',
+      'Eliminar permanentemente usuarios',
+      'Desactivar usuarios masivamente',
+      'Importar usuarios desde Directorio Activo',
+      'Importar usuarios desde Excel',
+      'Exportar usuarios'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Visitantes',
+    tests: [
+      'Ver visitantes en modo enfoque',
+      'Listar visitantes',
+      'Ver detalle de visitantes',
+      'Filtrar visitantes',
+      'Importar visitantes',
+      'Crear visitante',
+      'Editar visitante',
+      'Eliminar visitante',
+      'Crear autorización para un visitante (Pre-registro. Anunciar. Autorizar)',
+      'Editar autorización para un visitante',
+      'Denegar autorización para un visitante',
+      'Anunciar autorizaciones'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Vehículos',
+    tests: [
+      'Listar vehículos',
+      'Filtrar vehículos',
+      'Crear vehículos',
+      'Editar vehículos',
+      'Eliminar vehículos'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Historial de accesos',
+    tests: [
+      'Listar historial de accesos',
+      'Filtrar historial de accesos',
+      'Exportar historial de accesos',
+      'Crear comentarios en historial de accesos'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Lista restrictiva',
+    tests: [
+      'Listar lista restrictiva',
+      'Agregar registro en lista restrictiva',
+      'Editar registro en lista restrictiva',
+      'Eliminar registro en lista restrictiva'
+    ]
+  },
+  {
+    name: 'ESPACIOS DE TRABAJO - Resumen',
+    tests: [
+      'Ver resumenes',
+      'Filtrar resumenes'
+    ]
+  },
+  {
+    name: 'ESPACIOS DE TRABAJO - Áreas de trabajo',
+    tests: [
+      'Listar áreas de trabajo',
+      'Crear áreas de trabajo',
+      'Ver mapa de un área de trabajo',
+      'Reservar puestos',
+      'Editar áreas de trabajo',
+      'Eliminar áreas de trabajo'
+    ]
+  },
+  {
+    name: 'ESPACIOS DE TRABAJO - Reservaciones',
+    tests: [
+      'Listar reservaciones',
+      'Filtrar reservaciones',
+      'Exportar reservaciones',
+      'Importar reservaciones',
+      'Ver detalle de una reserva',
+      'Ver accesos',
+      'Volver a reservar'
+    ]
+  },
+  {
+    name: 'SALAS - Resumen',
+    tests: [
+      'Ver resumenes',
+      'Filtrar resumenes'
+    ]
+  },
+  {
+    name: 'SALAS - Lista de salas',
+    tests: [
+      'Listar salas',
+      'Filtra salas',
+      'Reserva sala',
+      'Ver reservas'
+    ]
+  },
+  {
+    name: 'SALAS - Disponibilidad de salas',
+    tests: [
+      'Ver disponibilidad de salas',
+      'Configurar pantalla completa',
+      'Filtrar salas'
+    ]
+  },
+  {
+    name: 'LOCKERS',
+    tests: [
+      'Listar lockers',
+      'Bloquear lockers',
+      'Desbloquear lockers',
+      'Filtrar lockers'
+    ]
+  },
+  {
+    name: 'AFOROS',
+    tests: [
+      'Listar zonas con aforo',
+      'Filtrar zonas con aforo',
+      'Ver aforo por empresas'
+    ]
+  },
+  {
+    name: 'COMUNICACIÓN - Formularios de salubridad',
+    tests: [
+      'Listar respuestas de formularios',
+      'Filtrar respuestas de formularios',
+      'Exportar respuestas de formularios'
+    ]
+  },
+  {
+    name: 'COMUNICACIÓN - Formularios de reservas',
+    tests: [
+      'Listar usuarios que respondieron un form de reserva',
+      'Filtrar usuarios que respondieron un form de reserva',
+      'Exportar usuarios que respondieron un form de reserva',
+      'Ver respuestas de un form de reserva de un usuario',
+      'Añadir observaciones a respuestas',
+      'Eliminar respuestas'
+    ]
+  },
+  {
+    name: 'PERFIL DEL USUARIO',
+    tests: [
+      'Ver perfil de usuario',
+      'Actualizar avatar',
+      'Actualizar datos',
+      'Cambiar contraseña'
+    ]
+  }
+];
 
 // ??? Constantes ???????????????????????????????????????????????????????????????
 
@@ -34,48 +263,22 @@ const STATUS_CHOICES = [
   { id: 'in_progress', name: 'En Progreso' },
   { id: 'completed', name: 'Completado' },
   { id: 'cancelled', name: 'Cancelado' },
+  { id: 'archived', name: 'Archivado' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
   draft: '#9e9e9e', active: '#2196f3', in_progress: '#ff9800',
-  completed: '#4caf50', cancelled: '#f44336',
+  completed: '#4caf50', cancelled: '#f44336', archived: '#607d8b',
 };
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador', active: 'Activo', in_progress: 'En Progreso',
-  completed: 'Completado', cancelled: 'Cancelado',
+  completed: 'Completado', cancelled: 'Cancelado', archived: 'Archivado',
 };
 
 const CAT_COLORS: Record<string, string> = {
   Smoke: '#FF6B35', Funcionales: '#3CCF91', 'No Funcionales': '#2196F3',
   'Regresión': '#FF9800', UAT: '#9C27B0',
-};
-
-const AUTOMATED_CHOICES = [
-  { id: 'test_create_user.py', name: 'Crear usuario' },
-  { id: 'test_create_visitor.py', name: 'Crear visitante' },
-  { id: 'test_create_company.py', name: 'Crear empresa' },
-  { id: 'test_create_room_reservation.py', name: 'Reservar sala' },
-  { id: 'test_deactivate_user_company.py', name: 'Desactivar usuario/empresa' },
-  { id: 'test_restore_user_company.py', name: 'Restaurar usuario/empresa' },
-  { id: 'test_create_property.py', name: 'Crear Copropiedad' },
-  { id: 'test_edit_property.py', name: 'Editar Copropiedad' },
-  { id: 'test_deactivate_property.py', name: 'Desactivar Copropiedad' },
-];
-
-const TEST_TO_CASE_ID: Record<string, string> = {
-  'test_create_user.py': 'TC001', 'test_create_company.py': 'TC002',
-  'test_create_visitor.py': 'TC003', 'test_create_room_reservation.py': 'TC004',
-  'test_deactivate_user_company.py': 'TC005', 'test_restore_user_company.py': 'TC006',
-};
-
-const TEST_ALIASES: Record<string, string[]> = {
-  'test_create_company.py': ['test_create_company', 'pytest'],
-  'test_create_user.py': ['test_create_user', 'pytest'],
-  'test_create_visitor.py': ['test_create_visitor', 'pytest'],
-  'test_create_room_reservation.py': ['test_create_room_reservation', 'pytest'],
-  'test_deactivate_user_company.py': ['test_deactivate_user_company', 'pytest'],
-  'test_restore_user_company.py': ['test_restore_user_company', 'pytest'],
 };
 
 const RESULT_LABELS: Record<string, { label: string; color: string }> = {
@@ -157,18 +360,26 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
   const manualGrouped = groupCasesByHierarchy(plan.manualTestCases || [], allCases);
 
+  const { data: automationTests = [] } = useGetList('automation', {
+    pagination: { page: 1, perPage: 1000 },
+  });
+
   const getAutoStatus = (testId: string) => {
-    const baseName = testId.replace('.py', '');
-    const caseId = TEST_TO_CASE_ID[testId] || null;
-    const aliases = [baseName, ...(TEST_ALIASES[testId] || [])];
+    const testRecord = automationTests.find((t: any) => t.id === testId);
+    if (!testRecord) return null;
+    
+    const baseName = testId.replace('.py', '').replace('.spec.ts', '');
+    const aliases = [baseName, testRecord.name];
+    
     let results = testResults.filter((r: any) => {
-      const rName = (r.name || '').replace('.py', '');
-      return r.planId === plan.id && aliases.includes(rName) && (!caseId || r.caseId === caseId);
+      const rName = (r.name || '').replace('.py', '').replace('.spec.ts', '');
+      return r.planId === plan.id && (aliases.includes(rName) || r.name === testRecord.name);
     });
+
     if (results.length === 0) {
       results = testResults.filter((r: any) => {
-        const rName = (r.name || '').replace('.py', '');
-        return aliases.includes(rName) && (!caseId || r.caseId === caseId);
+        const rName = (r.name || '').replace('.py', '').replace('.spec.ts', '');
+        return aliases.includes(rName) || r.name === testRecord.name;
       });
     }
     if (results.length === 0) return null;
@@ -197,12 +408,19 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
   const handleRunAll = async () => {
     setRunning(true);
     for (const testId of plan.automatedTests || []) {
+      const testRecord = automationTests.find((t: any) => t.id === testId);
+      if (!testRecord) continue;
+
       setAutoStatus(s => ({ ...s, [testId]: 'running' }));
       try {
         const res = await fetch('/api/tests/execute', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid_token' },
-          body: JSON.stringify({ test_file: testId, planId: plan.id, caseId: TEST_TO_CASE_ID[testId] || '' }),
+          body: JSON.stringify({ 
+            test_file: testRecord.test_file || testId, 
+            planId: plan.id, 
+            caseId: testId 
+          }),
         });
         const data = await res.json();
         if (data.execution_id) startPolling(data.execution_id, testId);
@@ -352,8 +570,8 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
                 {(plan.automatedTests || []).map((testId: string, idx: number) => {
                   const status = autoStatus[testId] === 'running' ? 'running' : getAutoStatus(testId);
-                  const info = AUTOMATED_CHOICES.find(c => c.id === testId);
-                  const name = info?.name || testId.replace('test_', '').replace('.py', '').replace(/_/g, ' ');
+                  const testRecord = automationTests.find((t: any) => t.id === testId);
+                  const name = testRecord?.name || testId.replace('test_', '').replace('.py', '').replace('.spec.ts', '').replace(/_/g, ' ');
                   const resultInfo = status && RESULT_LABELS[status];
 
                   return (
@@ -363,7 +581,7 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
                       <PlayCircleOutlineIcon sx={{ color: '#FF6B35', fontSize: 20, flexShrink: 0 }} />
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>{name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{testId}</Typography>
+                        <Typography variant="caption" color="text.secondary">{testRecord?.test_file || testId}</Typography>
                       </Box>
                       {status === 'running' ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -401,25 +619,54 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
 // ??? TestPlanningCardList ??????????????????????????????????????????????????????
 
-function TestPlanningCardList() {
+function TestPlanningCardList({ showArchived = false }: { showArchived?: boolean }) {
   const { data, isLoading } = useListContext();
   const { data: allCases = [] } = useGetList('test_cases', { pagination: { page: 1, perPage: 1000 } });
   const { data: testResults = [], refetch } = useGetList('test_results');
   const [runPlan, setRunPlan] = useState<any>(null);
+  const [update] = useUpdate();
+  const notify = useNotify();
+  const refresh = useRefresh();
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress /></Box>;
-  if (!data || data.length === 0) return (
+  
+  const filteredData = data?.filter((plan: any) => 
+    showArchived ? plan.status === 'archived' : plan.status !== 'archived'
+  );
+
+  if (!filteredData || filteredData.length === 0) return (
     <Box sx={{ textAlign: 'center', py: 8 }}>
-      <Typography variant="h5" color="text.secondary" gutterBottom>No hay planes de prueba</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Crea tu primer plan para empezar a organizar tu testing.</Typography>
-      <CreateButton />
+      <Typography variant="h5" color="text.secondary" gutterBottom>
+        {showArchived ? 'No hay planes archivados' : 'No hay planes de prueba'}
+      </Typography>
+      {!showArchived && (
+        <>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Crea tu primer plan para empezar a organizar tu testing.</Typography>
+          <CreateButton />
+        </>
+      )}
     </Box>
   );
+
+  const handleToggleArchive = async (plan: any) => {
+    const newStatus = plan.status === 'archived' ? 'active' : 'archived';
+    try {
+      await update('test_planning', {
+        id: plan.id,
+        data: { ...plan, status: newStatus },
+        previousData: plan
+      });
+      notify(newStatus === 'archived' ? 'Plan archivado' : 'Plan restaurado', { type: 'success' });
+      refresh();
+    } catch (error) {
+      notify('Error al actualizar el plan', { type: 'error' });
+    }
+  };
 
   return (
     <>
       <Grid container direction="column" spacing={2.5}>
-        {data.map((plan: any) => {
+        {filteredData.map((plan: any) => {
           const progress = getPlanProgress(plan, allCases as any[]);
           return (
             <Grid key={plan.id} sx={{ width: '100%', maxWidth: { xs: '100%', md: 760 } }}>
@@ -428,6 +675,7 @@ function TestPlanningCardList() {
                 boxShadow: '0 2px 12px rgba(80,80,120,0.09)',
                 transition: 'box-shadow 0.2s, transform 0.2s',
                 '&:hover': { boxShadow: '0 6px 24px rgba(80,80,120,0.18)', transform: 'translateY(-2px)' },
+                opacity: plan.status === 'archived' ? 0.8 : 1
               }}>
                 <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
                   {/* Header */}
@@ -480,16 +728,28 @@ function TestPlanningCardList() {
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2, alignItems: 'center' }}>
                     <EditButton record={plan} label="Editar" sx={{ color: '#FF6B35', fontWeight: 600 }} />
                     <DeleteButton record={plan} label="Eliminar" sx={{ color: '#e53935', fontWeight: 600 }} />
-                    <Tooltip title="Ejecutar y registrar resultados">
-                      <Button
-                        variant="contained" size="small"
-                        startIcon={<PlayArrowIcon />}
-                        sx={{ ml: { xs: 0, sm: 'auto' }, bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' }, textTransform: 'none', fontWeight: 600 }}
-                        onClick={() => setRunPlan(plan)}
-                      >
-                        Ejecutar plan
-                      </Button>
-                    </Tooltip>
+                    
+                    <Button
+                      size="small"
+                      startIcon={plan.status === 'archived' ? <UnarchiveIcon /> : <ArchiveIcon />}
+                      onClick={() => handleToggleArchive(plan)}
+                      sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'none' }}
+                    >
+                      {plan.status === 'archived' ? 'Restaurar' : 'Archivar'}
+                    </Button>
+
+                    {plan.status !== 'archived' && (
+                      <Tooltip title="Ejecutar y registrar resultados">
+                        <Button
+                          variant="contained" size="small"
+                          startIcon={<PlayArrowIcon />}
+                          sx={{ ml: { xs: 0, sm: 'auto' }, bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' }, textTransform: 'none', fontWeight: 600 }}
+                          onClick={() => setRunPlan(plan)}
+                        >
+                          Ejecutar plan
+                        </Button>
+                      </Tooltip>
+                    )}
                   </Box>
                 </CardContent>
               </Card>
@@ -592,6 +852,65 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
     }));
   };
 
+  // Lógica de agrupación para tests automatizados
+  const { data: automationTests = [], isLoading: loadingAutomation } = useGetList('automation', {
+    pagination: { page: 1, perPage: 1000 },
+  });
+
+  const groupedAutomationData = useMemo(() => {
+    if (!automationTests) return [];
+
+    const assignedIds = new Set();
+    const modules = MODULES_STRUCTURE.map(module => {
+      const moduleTests: any[] = [];
+      
+      // 1. Tests con módulo asignado explícitamente
+      const explicitTestsInModule = automationTests.filter(t => !assignedIds.has(t.id) && t.module === module.name);
+      explicitTestsInModule.forEach(t => {
+        assignedIds.add(t.id);
+        moduleTests.push(t);
+      });
+
+      // 2. Tests que coinciden por nombre (retrocompatibilidad)
+      module.tests.forEach(testName => {
+        const normalize = (str: string) => str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const alreadyAssigned = moduleTests.find((t: any) => normalize(t.name) === normalize(testName));
+        if (alreadyAssigned) return;
+
+        const existingTest = automationTests.find(t => {
+          if (assignedIds.has(t.id)) return false;
+          if (t.module && t.module !== 'Otros / Sin Clasificar') return false;
+          
+          const n1 = normalize(t.name);
+          const n2 = normalize(testName);
+          return n1 === n2 || (n1.length > 5 && n2.length > 5 && (n1.includes(n2) || n2.includes(n1)));
+        });
+
+        if (existingTest) {
+          assignedIds.add(existingTest.id);
+          moduleTests.push(existingTest);
+        }
+      });
+
+      return {
+        ...module,
+        testsData: moduleTests,
+      };
+    }).filter(m => m.testsData.length > 0);
+
+    // Tests sin clasificar
+    const unassignedTests = automationTests.filter(t => !assignedIds.has(t.id));
+    if (unassignedTests.length > 0) {
+      modules.push({
+        name: 'Otros / Sin Clasificar',
+        tests: [],
+        testsData: unassignedTests,
+      });
+    }
+
+    return modules;
+  }, [automationTests]);
+
   return (
     <Box sx={{ pt: { xs: 2, sm: 3 }, pr: { xs: 2, sm: 3 }, pb: 5, pl: 0, maxWidth: 860 }}>
       {/* Header con back */}
@@ -668,33 +987,51 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              {form.automatedTests.length} / {AUTOMATED_CHOICES.length} seleccionados
+              {form.automatedTests.length} / {automationTests.length} seleccionados
             </Typography>
           </Box>
-          {AUTOMATED_CHOICES.map(choice => {
-            const selected = form.automatedTests.includes(choice.id);
-            return (
-              <Box key={choice.id}
-                onClick={() => toggleAuto(choice.id)}
-                sx={{
-                  display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, mb: 1,
-                  borderRadius: 2, border: '1px solid', cursor: 'pointer',
-                  borderColor: selected ? '#FF6B35' : '#e0e0e0',
-                  bgcolor: selected ? 'rgba(255,107,53,0.05)' : 'transparent',
-                  transition: 'all 0.15s',
-                  '&:hover': { bgcolor: 'rgba(255,107,53,0.04)', borderColor: '#FF6B35' },
-                }}>
-                <Checkbox checked={selected} size="small"
-                  onClick={e => e.stopPropagation()} onChange={() => toggleAuto(choice.id)}
-                  sx={{ '&.Mui-checked': { color: '#FF6B35' } }} />
-                <PlayCircleOutlineIcon sx={{ color: selected ? '#FF6B35' : '#bbb', fontSize: 20 }} />
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{choice.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{choice.id}</Typography>
-                </Box>
-              </Box>
-            );
-          })}
+          
+          {loadingAutomation ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+          ) : (
+            groupedAutomationData.map((module, mIdx) => (
+              <Accordion key={mIdx} disableGutters elevation={0} sx={{ mb: 1, border: '1px solid #e0e0e0', borderRadius: '8px !important', '&:before': { display: 'none' } }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FolderIcon sx={{ color: '#FF6B35', fontSize: 20 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{module.name}</Typography>
+                    <Chip size="small" label={module.testsData.length} sx={{ height: 20, fontSize: 10 }} />
+                  </Stack>
+                </AccordionSummary>
+                <AccordionDetails sx={{ pt: 0 }}>
+                  {module.testsData.map((test: any) => {
+                    const selected = form.automatedTests.includes(test.id);
+                    return (
+                      <Box key={test.id}
+                        onClick={() => toggleAuto(test.id)}
+                        sx={{
+                          display: 'flex', alignItems: 'center', gap: 1.5, p: 1, mb: 0.5,
+                          borderRadius: 2, border: '1px solid', cursor: 'pointer',
+                          borderColor: selected ? '#FF6B35' : 'transparent',
+                          bgcolor: selected ? 'rgba(255,107,53,0.05)' : 'transparent',
+                          transition: 'all 0.15s',
+                          '&:hover': { bgcolor: 'rgba(255,107,53,0.04)', borderColor: '#FF6B35' },
+                        }}>
+                        <Checkbox checked={selected} size="small"
+                          onClick={e => e.stopPropagation()} onChange={() => toggleAuto(test.id)}
+                          sx={{ '&.Mui-checked': { color: '#FF6B35' } }} />
+                        <PlayCircleOutlineIcon sx={{ color: selected ? '#FF6B35' : '#bbb', fontSize: 18 }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{test.name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>{test.test_file}</Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </AccordionDetails>
+              </Accordion>
+            ))
+          )}
         </Box>
       )}
 
@@ -747,25 +1084,37 @@ const ListActions = () => (
 
 // ??? Exports ??????????????????????????????????????????????????????????????????
 
-export const TestPlanningPage = () => (
-  <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: '20px', pl: 0 }}>
-    <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
-      Planificación de Pruebas
-    </Typography>
-    <List
-      actions={<ListActions />}
-      filters={planFilters}
-      pagination={false}
-      sx={{
-        background: 'transparent', boxShadow: 'none', padding: 0,
-        '& .RaList-content': { background: 'transparent', boxShadow: 'none', padding: 0 },
-        '& .MuiPaper-root': { background: 'transparent', boxShadow: 'none', padding: 0 },
-      }}
-    >
-      <TestPlanningCardList />
-    </List>
-  </Box>
-);
+export const TestPlanningPage = () => {
+  const [tab, setTab] = useState(0);
+
+  return (
+    <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: '20px', pl: 0 }}>
+      <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
+        Planificación de Pruebas
+      </Typography>
+
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+          <Tab label="Planes Activos" />
+          <Tab label="Archivados" />
+        </Tabs>
+      </Box>
+
+      <List
+        actions={<ListActions />}
+        filters={planFilters}
+        pagination={false}
+        sx={{
+          background: 'transparent', boxShadow: 'none', padding: 0,
+          '& .RaList-content': { background: 'transparent', boxShadow: 'none', padding: 0 },
+          '& .MuiPaper-root': { background: 'transparent', boxShadow: 'none', padding: 0 },
+        }}
+      >
+        <TestPlanningCardList showArchived={tab === 1} />
+      </List>
+    </Box>
+  );
+};
 
 export const TestPlanningCreate = (props: any) => (
   <Create {...props} title="Nuevo Plan de Pruebas" redirect="list">
