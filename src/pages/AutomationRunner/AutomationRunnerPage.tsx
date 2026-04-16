@@ -722,9 +722,19 @@ const ModuleDatagrid = ({
       }}
       sx={{
         '& .MuiTableCell-head': { backgroundColor: '#f5f5f5', fontWeight: 700 },
-        '& .MuiTableRow-root:hover': { backgroundColor: record => record.isPlaceholder ? 'transparent' : '#f9f9f9' },
-        '& .MuiTableRow-root': { opacity: record => record.isPlaceholder ? 0.6 : 1 }
+        '& .MuiTableRow-root': {
+          '&:hover': {
+            backgroundColor: '#f9f9f9',
+          },
+          '&.is-placeholder': {
+            opacity: 0.6,
+            '&:hover': {
+              backgroundColor: 'transparent',
+            },
+          }
+        }
       }}
+      rowClassName={(record: any) => record.isPlaceholder ? 'is-placeholder' : ''}
       bulkActionButtons={false}
     >
       <TextField source="name" label="Nombre" />
@@ -812,7 +822,7 @@ const GroupedAutomationList = ({ onShowLogs }: { onShowLogs: (id: string, name: 
 
     const assignedIds = new Set();
     const modules = MODULES_STRUCTURE.map(module => {
-      const moduleTests = [];
+      const moduleTests: any[] = [];
       
       // 1. Primero, agregar tests que tienen este módulo asignado explícitamente en el campo 'module'
       const explicitTestsInModule = data.filter(t => !assignedIds.has(t.id) && t.module === module.name);
@@ -824,7 +834,7 @@ const GroupedAutomationList = ({ onShowLogs }: { onShowLogs: (id: string, name: 
       // 2. Luego, para los nombres de tests definidos en la estructura que aún no están asignados
       module.tests.forEach(testName => {
         // Buscar si ya se asignó por el paso 1 (por nombre)
-        const alreadyAssigned = moduleTests.find(t => normalize(t.name) === normalize(testName));
+        const alreadyAssigned = moduleTests.find((t: any) => normalize(t.name) === normalize(testName));
         if (alreadyAssigned) return;
 
         // Intentar encontrar un test que no tenga módulo pero coincida por nombre (retrocompatibilidad)
@@ -856,7 +866,7 @@ const GroupedAutomationList = ({ onShowLogs }: { onShowLogs: (id: string, name: 
       return {
         ...module,
         testsData: moduleTests,
-        hasActiveTests: moduleTests.some(t => !t.isPlaceholder && t.status === 'active')
+        hasActiveTests: moduleTests.some((t: any) => !t.isPlaceholder && t.status === 'active')
       };
     });
 
@@ -903,7 +913,7 @@ const GroupedAutomationList = ({ onShowLogs }: { onShowLogs: (id: string, name: 
           module: placeholderModal.moduleName,
           name: placeholderModal.testName // Reemplazar el nombre para que coincida con la estructura
         },
-        previousData: data.find(t => t.id === testId)
+        previousData: data ? data.find((t: any) => t.id === testId) : undefined
       });
       notify('Test asociado y renombrado correctamente', { type: 'success' });
       setPlaceholderModal(prev => ({ ...prev, open: false }));
