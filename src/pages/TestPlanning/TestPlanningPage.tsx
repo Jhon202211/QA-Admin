@@ -434,14 +434,32 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
       notify(`Test finalizado: ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { 
         type: data.status === 'passed' ? 'success' : 'error' 
       });
+      
       // Actualizar el estado local para reflejar que terminó
       if (data.test_file) {
-        // Intentar encontrar el testId por el archivo
-        const testId = Object.keys(autoStatus).find(id => id.includes(data.test_file) || data.test_file.includes(id));
+        // Intentar encontrar el testId por el archivo o nombre
+        const testId = Object.keys(autoStatus).find(id => {
+          const testRecord = automationTests.find((t: any) => t.id === id);
+          return id.includes(data.test_file) || data.test_file.includes(id) || 
+                 (testRecord && (testRecord.test_file === data.test_file || testRecord.name === data.name));
+        });
+        
         if (testId) {
-          setAutoStatus(prev => ({ ...prev, [testId]: data.status }));
+          setAutoStatus(prev => {
+            const newState = { ...prev };
+            newState[testId] = data.status;
+            return newState;
+          });
         }
       }
+
+      // Limpiar el estado de "running" global si todos terminaron (para handleRunAll)
+      setRunning(false);
+
+      // Forzar un refetch de los resultados para que getAutoStatus obtenga el último
+      setTimeout(() => {
+        onSaved(); // Esto dispara el refetch en el padre
+      }, 1000);
     });
 
     return () => {

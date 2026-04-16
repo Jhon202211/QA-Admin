@@ -191,7 +191,13 @@ export const TestResultsList = ({ hideTitle = false }: { hideTitle?: boolean }) 
           <DateField source="date" label="Fecha" showTime />
           <FunctionField
             label="Plan de Pruebas"
-            render={record => record ? (planIdToName[record.planId] || record.planId || '-') : '-'}
+            render={record => {
+              if (!record) return '-';
+              const planName = planIdToName[record.planId];
+              if (planName) return planName;
+              if (record.planId && record.planId !== '-') return record.planId;
+              return 'Sin plan de pruebas';
+            }}
           />
           <FunctionField
             label="Tipo"
