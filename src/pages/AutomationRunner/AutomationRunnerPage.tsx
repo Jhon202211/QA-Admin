@@ -18,6 +18,7 @@ import {
   Edit,
   useDataProvider,
   useUpdate,
+  useRefresh,
 } from 'react-admin';
 import { 
   Box, 
@@ -394,6 +395,7 @@ export const AutomationRunnerPage = () => {
   const dataProvider = useDataProvider();
   const notify = useNotify();
   const [update] = useUpdate();
+  const refresh = useRefresh();
   const [initialized, setInitialized] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const { files } = useTestFiles();
@@ -414,6 +416,9 @@ export const AutomationRunnerPage = () => {
     socket.on('test-finished', async (data) => {
       setActiveStatus('idle');
       notify(`Test finalizado: ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { type: data.status === 'passed' ? 'success' : 'error' });
+      
+      // Refrescar la lista completa para asegurar que el estado se actualice
+      refresh();
     });
 
     return () => {
