@@ -1,3 +1,5 @@
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { io } from 'socket.io-client';
 import {
   List, useListContext, EditButton, DeleteButton,
   TopToolbar, CreateButton, ExportButton, FilterButton,
@@ -14,6 +16,7 @@ import {
   ToggleButtonGroup, ToggleButton, Accordion, AccordionSummary,
   AccordionDetails, LinearProgress, Tooltip, Stack,
 } from '@mui/material';
+import TerminalIcon from '@mui/icons-material/Terminal';
 import { CalendarMonth as CalendarIcon, Archive as ArchiveIcon, Unarchive as UnarchiveIcon } from '@mui/icons-material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -23,9 +26,63 @@ import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import FolderIcon from '@mui/icons-material/Folder';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useState, useEffect, useRef, useMemo } from 'react';
 import { dataProvider } from '../../firebase/dataProvider';
 import { HierarchicalCaseSelector } from '../../components/TestPlanning/HierarchicalCaseSelector';
+
+const SOCKET_URL = 'http://localhost:9000';
+
+interface LogEntry {
+  type: 'stdout' | 'stderr';
+  data: string;
+}
+
+// Modal para mostrar logs en tiempo real (Sincronizado con AutomationRunnerPage)
+const ExecutionLogsModal = ({ open, onClose, logs, testName, status }: { open: boolean, onClose: () => void, logs: LogEntry[], testName: string, status: string }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ bgcolor: '#1e1e1e', color: '#fff', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <TerminalIcon />
+        Ejecución en vivo: {testName}
+        {status === 'running' && <CircularProgress size={16} sx={{ ml: 2, color: '#fff' }} />}
+      </DialogTitle>
+      <DialogContent sx={{ bgcolor: '#1e1e1e', p: 0 }}>
+        <Box 
+          ref={scrollRef}
+          sx={{ 
+            height: 400, 
+            overflowY: 'auto', 
+            p: 2, 
+            fontFamily: 'monospace',
+            fontSize: '0.85rem',
+            color: '#d4d4d4',
+            whiteSpace: 'pre-wrap'
+          }}
+        >
+          {logs.length === 0 ? (
+            <Typography sx={{ color: '#666', fontStyle: 'italic' }}>Esperando salida del test...</Typography>
+          ) : (
+            logs.map((log, i) => (
+              <div key={i} style={{ color: log.type === 'stderr' ? '#f44336' : 'inherit', marginBottom: 2 }}>
+                {log.data}
+              </div>
+            ))
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ bgcolor: '#1e1e1e', color: '#fff' }}>
+        <Button onClick={onClose} sx={{ color: '#fff' }}>Cerrar</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 // --- Estructura de Módulos (Sincronizada con AutomationRunnerPage) ---
 const MODULES_STRUCTURE = [
@@ -357,6 +414,40 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const pollingRefs = useRef<Record<string, any>>({});
+  const notify = useNotify();
+
+  // Estados para logs en vivo
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [activeTestName, setActiveTestName] = useState('');
+  const [activeStatus, setActiveStatus] = useState<'idle' | 'running'>('idle');
+
+  useEffect(() => {
+    const socket = io(SOCKET_URL);
+
+    socket.on('test-log', (newLog: LogEntry) => {
+      setLogs((prev) => [...prev, newLog]);
+    });
+
+    socket.on('test-finished', async (data) => {
+      setActiveStatus('idle');
+      notify(`Test finalizado: ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { 
+        type: data.status === 'passed' ? 'success' : 'error' 
+      });
+      // Actualizar el estado local para reflejar que terminó
+      if (data.test_file) {
+        // Intentar encontrar el testId por el archivo
+        const testId = Object.keys(autoStatus).find(id => id.includes(data.test_file) || data.test_file.includes(id));
+        if (testId) {
+          setAutoStatus(prev => ({ ...prev, [testId]: data.status }));
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [notify, autoStatus]);
 
   const manualGrouped = groupCasesByHierarchy(plan.manualTestCases || [], allCases);
 
@@ -386,23 +477,37 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
     return results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].status;
   };
 
-  const startPolling = (executionId: string, testId: string) => {
-    let attempts = 0;
-    const interval = setInterval(async () => {
-      attempts++;
-      try {
-        const res = await fetch(`/api/tests/status/${executionId}`, { headers: { Authorization: 'Bearer valid_token' } });
-        if (!res.ok) throw new Error();
-        const s = await res.json();
-        if (['completed', 'failed', 'error'].includes(s.status)) {
-          clearInterval(interval);
-          pollingRefs.current[testId] = null;
-          setTimeout(() => setAutoStatus(prev => ({ ...prev })), 2000);
-        }
-        if (attempts >= 60) { clearInterval(interval); pollingRefs.current[testId] = null; }
-      } catch { clearInterval(interval); pollingRefs.current[testId] = null; }
-    }, 5000);
-    pollingRefs.current[testId] = interval;
+  const handleRunTest = async (testId: string) => {
+    const testRecord = automationTests.find((t: any) => t.id === testId);
+    if (!testRecord) return;
+
+    setActiveTestName(testRecord.name);
+    setLogs([]);
+    setShowLogs(true);
+    setActiveStatus('running');
+    setAutoStatus(s => ({ ...s, [testId]: 'running' }));
+
+    try {
+      const res = await fetch('http://localhost:9000/api/tests/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid_token' },
+        body: JSON.stringify({ 
+          test_file: testRecord.test_file || testId, 
+          planId: plan.id, 
+          caseId: testId 
+        }),
+      });
+      const data = await res.json();
+      if (data.status !== 'started') {
+        notify(data.message || 'Error al iniciar el test', { type: 'error' });
+        setAutoStatus(s => ({ ...s, [testId]: 'failed' }));
+        setActiveStatus('idle');
+      }
+    } catch (error) {
+      notify('Error de conexión con el servidor', { type: 'error' });
+      setAutoStatus(s => ({ ...s, [testId]: 'failed' }));
+      setActiveStatus('idle');
+    }
   };
 
   const handleRunAll = async () => {
@@ -413,7 +518,7 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
       setAutoStatus(s => ({ ...s, [testId]: 'running' }));
       try {
-        const res = await fetch('/api/tests/execute', {
+        const res = await fetch('http://localhost:9000/api/tests/execute', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid_token' },
           body: JSON.stringify({ 
@@ -423,8 +528,13 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
           }),
         });
         const data = await res.json();
-        if (data.execution_id) startPolling(data.execution_id, testId);
-      } catch { setAutoStatus(s => ({ ...s, [testId]: 'error' })); }
+        // En ejecución masiva no abrimos el modal automáticamente para cada uno,
+        // pero el socket actualizará los estados.
+      } catch { 
+        setAutoStatus(s => ({ ...s, [testId]: 'error' })); 
+      }
+      // Pequeña espera entre ejecuciones para no saturar
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     setRunning(false);
   };
@@ -568,7 +678,7 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
                   {running ? 'Ejecutando...' : 'Ejecutar todos'}
                 </Button>
 
-                {(plan.automatedTests || []).map((testId: string, idx: number) => {
+                  {(plan.automatedTests || []).map((testId: string, idx: number) => {
                   const status = autoStatus[testId] === 'running' ? 'running' : getAutoStatus(testId);
                   const testRecord = automationTests.find((t: any) => t.id === testId);
                   const name = testRecord?.name || testId.replace('test_', '').replace('.py', '').replace('.spec.ts', '').replace(/_/g, ' ');
@@ -578,15 +688,29 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
                     <Box key={testId} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.25,
                       borderBottom: '1px solid #f5f5f5' }}>
                       <Typography variant="body2" sx={{ color: 'text.secondary', minWidth: 24 }}>{idx + 1}.</Typography>
-                      <PlayCircleOutlineIcon sx={{ color: '#FF6B35', fontSize: 20, flexShrink: 0 }} />
+                      
+                      <Tooltip title="Ver logs en vivo">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleRunTest(testId)}
+                          disabled={status === 'running'}
+                          sx={{ color: '#FF6B35' }}
+                        >
+                          {status === 'running' ? (
+                            <CircularProgress size={20} sx={{ color: '#ff9800' }} />
+                          ) : (
+                            <PlayCircleOutlineIcon />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>{name}</Typography>
                         <Typography variant="caption" color="text.secondary">{testRecord?.test_file || testId}</Typography>
                       </Box>
                       {status === 'running' ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <CircularProgress size={14} sx={{ color: '#ff9800' }} />
-                          <Typography variant="caption" sx={{ color: '#ff9800', fontWeight: 600 }}>Ejecutando?</Typography>
+                          <Typography variant="caption" sx={{ color: '#ff9800', fontWeight: 600 }}>Ejecutando...</Typography>
                         </Box>
                       ) : resultInfo ? (
                         <Chip label={resultInfo.label} size="small"
@@ -602,6 +726,14 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
           </Box>
         )}
       </DialogContent>
+
+      <ExecutionLogsModal 
+        open={showLogs} 
+        onClose={() => setShowLogs(false)} 
+        logs={logs} 
+        testName={activeTestName}
+        status={activeStatus}
+      />
 
       {tab === 0 && (
         <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #f0f0f0' }}>
