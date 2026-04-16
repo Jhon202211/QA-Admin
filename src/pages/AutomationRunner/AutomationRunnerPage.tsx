@@ -467,7 +467,7 @@ export const AutomationRunnerPage = () => {
           actions={<ListActions files={files} />}
           empty={<Empty />}
           filters={automationFilters}
-          sort={{ field: 'updatedAt', order: 'DESC' }}
+          sort={{ field: 'last_status', order: 'DESC' }}
         >
           <Datagrid 
             rowClick={(id, _resource, record) => {
