@@ -28,7 +28,8 @@ test('Configurar proveedor Google para propiedad', async ({ page }) => {
     
     // Login
     await page.getByRole('textbox', { name: 'Correo electrónico' }).fill(USER_EMAIL);
-    await page.getByRole('textbox', { name: 'Contraseña' }).fill(USER_PASSWORD);
+    // Usar locator por ID para el campo de contraseña, ya que getByRole('textbox', { name: 'Contraseña' }) puede fallar
+    await page.locator('#password').fill(USER_PASSWORD);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
     
     // Esperar a que se complete el login
