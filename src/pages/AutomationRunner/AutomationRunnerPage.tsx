@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   List,
   Datagrid,
@@ -19,6 +19,7 @@ import {
   useDataProvider,
   useUpdate,
   useRefresh,
+  useListContext,
 } from 'react-admin';
 import { 
   Box, 
@@ -37,8 +38,17 @@ import {
   DialogActions,
   Button,
   Tabs,
-  Tab
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Autocomplete,
+  TextField as MuiTextField,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import FolderIcon from '@mui/icons-material/Folder';
+import LinkIcon from '@mui/icons-material/Link';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -391,6 +401,559 @@ const ListActions = ({ files }: { files: any[] }) => {
   );
 };
 
+const MODULES_STRUCTURE = [
+  {
+    name: 'Autenticación',
+    tests: [
+      'Login con usuario y contraseña',
+      'Login con proveedor social (Socialite)',
+      'Logout',
+      'Recuperación de contraseña (forgot password)',
+      'Bienvenida de usuario (establecer contraseña inicial)'
+    ]
+  },
+  {
+    name: 'ORGANIZACIÓN - Copropiedades',
+    tests: [
+      'Listar copropiedades',
+      'Buscar copropiedades',
+      'Crear copropiedades',
+      'Editar copropiedades',
+      'Eliminar copropiedades',
+      'Configurar proveedores'
+    ]
+  },
+  {
+    name: 'ORGANIZACIÓN - Empresas',
+    tests: [
+      'Listar empresas',
+      'Buscar empresas',
+      'Crear empresas',
+      'Editar empresas',
+      'Eliminar empresas',
+      'Exportar usuarios por empresa'
+    ]
+  },
+  {
+    name: 'Roles y permisos',
+    tests: [
+      'Listar roles',
+      'Crear roles',
+      'Editar roles',
+      'Eliminar roles',
+      'Listar permisos',
+      'Cambiar estado on/off de un permiso',
+      'Crear permisos',
+      'Editar permisos',
+      'Eliminar permisos'
+    ]
+  },
+  {
+    name: 'Actividades',
+    tests: [
+      'Listar actividades',
+      'Filtrar actividades',
+      'Exportar actividades'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Resumen',
+    tests: [
+      'Ver resumenes',
+      'Filtrar resumenes'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Usuarios',
+    tests: [
+      'Listar usuarios',
+      'Crear usuarios',
+      'Ver información de usuarios',
+      'Editar usuarios',
+      'Ver vehículos de usuarios',
+      'Desactivar empresa',
+      'Restaurar empresa',
+      'Desactivar copropiedad',
+      'Restaurar copropiedad',
+      'Eliminar permanentemente usuarios',
+      'Desactivar usuarios masivamente',
+      'Importar usuarios desde Directorio Activo',
+      'Importar usuarios desde Excel',
+      'Exportar usuarios'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Visitantes',
+    tests: [
+      'Ver visitantes en modo enfoque',
+      'Listar visitantes',
+      'Ver detalle de visitantes',
+      'Filtrar visitantes',
+      'Importar visitantes',
+      'Crear visitante',
+      'Editar visitante',
+      'Eliminar visitante',
+      'Crear autorización para un visitante (Pre-registro. Anunciar. Autorizar)',
+      'Editar autorización para un visitante',
+      'Denegar autorización para un visitante',
+      'Anunciar autorizaciones'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Vehículos',
+    tests: [
+      'Listar vehículos',
+      'Filtrar vehículos',
+      'Crear vehículos',
+      'Editar vehículos',
+      'Eliminar vehículos'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Historial de accesos',
+    tests: [
+      'Listar historial de accesos',
+      'Filtrar historial de accesos',
+      'Exportar historial de accesos',
+      'Crear comentarios en historial de accesos'
+    ]
+  },
+  {
+    name: 'CONTROL DE ACCESO - Lista restrictiva',
+    tests: [
+      'Listar lista restrictiva',
+      'Agregar registro en lista restrictiva',
+      'Editar registro en lista restrictiva',
+      'Eliminar registro en lista restrictiva'
+    ]
+  },
+  {
+    name: 'ESPACIOS DE TRABAJO - Resumen',
+    tests: [
+      'Ver resumenes',
+      'Filtrar resumenes'
+    ]
+  },
+  {
+    name: 'ESPACIOS DE TRABAJO - Áreas de trabajo',
+    tests: [
+      'Listar áreas de trabajo',
+      'Crear áreas de trabajo',
+      'Ver mapa de un área de trabajo',
+      'Reservar puestos',
+      'Editar áreas de trabajo',
+      'Eliminar áreas de trabajo'
+    ]
+  },
+  {
+    name: 'ESPACIOS DE TRABAJO - Reservaciones',
+    tests: [
+      'Listar reservaciones',
+      'Filtrar reservaciones',
+      'Exportar reservaciones',
+      'Importar reservaciones',
+      'Ver detalle de una reserva',
+      'Ver accesos',
+      'Volver a reservar'
+    ]
+  },
+  {
+    name: 'SALAS - Resumen',
+    tests: [
+      'Ver resumenes',
+      'Filtrar resumenes'
+    ]
+  },
+  {
+    name: 'SALAS - Lista de salas',
+    tests: [
+      'Listar salas',
+      'Filtra salas',
+      'Reserva sala',
+      'Ver reservas'
+    ]
+  },
+  {
+    name: 'SALAS - Disponibilidad de salas',
+    tests: [
+      'Ver disponibilidad de salas',
+      'Configurar pantalla completa',
+      'Filtrar salas'
+    ]
+  },
+  {
+    name: 'LOCKERS',
+    tests: [
+      'Listar lockers',
+      'Bloquear lockers',
+      'Desbloquear lockers',
+      'Filtrar lockers'
+    ]
+  },
+  {
+    name: 'AFOROS',
+    tests: [
+      'Listar zonas con aforo',
+      'Filtrar zonas con aforo',
+      'Ver aforo por empresas'
+    ]
+  },
+  {
+    name: 'COMUNICACIÓN - Formularios de salubridad',
+    tests: [
+      'Listar respuestas de formularios',
+      'Filtrar respuestas de formularios',
+      'Exportar respuestas de formularios'
+    ]
+  },
+  {
+    name: 'COMUNICACIÓN - Formularios de reservas',
+    tests: [
+      'Listar usuarios que respondieron un form de reserva',
+      'Filtrar usuarios que respondieron un form de reserva',
+      'Exportar usuarios que respondieron un form de reserva',
+      'Ver respuestas de un form de reserva de un usuario',
+      'Añadir observaciones a respuestas',
+      'Eliminar respuestas'
+    ]
+  },
+  {
+    name: 'PERFIL DEL USUARIO',
+    tests: [
+      'Ver perfil de usuario',
+      'Actualizar avatar',
+      'Actualizar datos',
+      'Cambiar contraseña'
+    ]
+  }
+];
+
+const MODULE_CHOICES = MODULES_STRUCTURE.map(m => ({ id: m.name, name: m.name }));
+
+const PlaceholderActionModal = ({ 
+  open, 
+  onClose, 
+  testName, 
+  moduleName, 
+  existingTests, 
+  onCreate, 
+  onAssociate 
+}: { 
+  open: boolean, 
+  onClose: () => void, 
+  testName: string, 
+  moduleName: string,
+  existingTests: any[],
+  onCreate: (name: string) => void,
+  onAssociate: (testId: string) => void
+}) => {
+  const [selectedTest, setSelectedTest] = useState<any>(null);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Acción para: {testName}</DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="body1" gutterBottom>
+            Este test es un marcador de posición para el módulo <strong>{moduleName}</strong>.
+          </Typography>
+          
+          <Box sx={{ mt: 4, p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+            <Typography variant="subtitle2" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AddCircleOutlineIcon fontSize="small" /> Opción 1: Crear nuevo test
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Crea un nuevo registro en la base de datos vinculado a este módulo.
+            </Typography>
+            <Button variant="outlined" onClick={() => onCreate(testName)} fullWidth>
+              Crear como nuevo test
+            </Button>
+          </Box>
+
+          <Box sx={{ mt: 3, p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+            <Typography variant="subtitle2" color="secondary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LinkIcon fontSize="small" /> Opción 2: Asociar test existente
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Selecciona un test existente para moverlo a este grupo y renombrarlo como <strong>{testName}</strong>.
+            </Typography>
+            <Autocomplete
+              options={existingTests}
+              getOptionLabel={(option) => option.name}
+              renderInput={(params) => <MuiTextField {...params} label="Buscar test existente..." variant="outlined" size="small" />}
+              onChange={(_, newValue) => setSelectedTest(newValue)}
+              sx={{ mb: 2 }}
+            />
+            <Button 
+              variant="outlined" 
+              color="secondary" 
+              disabled={!selectedTest} 
+              onClick={() => selectedTest && onAssociate(selectedTest.id)}
+              fullWidth
+            >
+              Asociar y mover a este grupo
+            </Button>
+          </Box>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancelar</Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const ModuleDatagrid = ({ 
+  module, 
+  onShowLogs, 
+  onConfigure 
+}: { 
+  module: any, 
+  onShowLogs: (id: string, name: string) => void,
+  onConfigure: (testName: string, moduleName: string) => void
+}) => {
+  return (
+    <Datagrid 
+      data={module.testsData}
+      rowClick={(id, _resource, record) => {
+        if (record.isPlaceholder) return false;
+        onShowLogs(id.toString(), record.name);
+        return false;
+      }}
+      sx={{
+        '& .MuiTableCell-head': { backgroundColor: '#f5f5f5', fontWeight: 700 },
+        '& .MuiTableRow-root:hover': { backgroundColor: record => record.isPlaceholder ? 'transparent' : '#f9f9f9' },
+        '& .MuiTableRow-root': { opacity: record => record.isPlaceholder ? 0.6 : 1 }
+      }}
+      bulkActionButtons={false}
+    >
+      <TextField source="name" label="Nombre" />
+      
+      <FunctionField 
+        label="Archivo de Test" 
+        render={(record: any) => record.isPlaceholder ? (
+          <Button 
+            size="small" 
+            startIcon={<AddCircleOutlineIcon />}
+            onClick={() => onConfigure(record.name, module.name)} 
+            sx={{ textTransform: 'none' }}
+          >
+            Configurar
+          </Button>
+        ) : (
+          <code style={{ backgroundColor: '#eee', padding: '2px 4px', borderRadius: '4px' }}>
+            {(record.test_file || '').replace('.py', '.spec.ts')}
+          </code>
+        )} 
+      />
+
+      <FunctionField
+        label="Último Resultado"
+        render={(record: any) => record.isPlaceholder ? <StatusChip status="no_executed" /> : <StatusChip status={record.last_status} />}
+      />
+
+      <FunctionField
+        label="Duración"
+        render={(record: any) => !record.isPlaceholder && record.last_duration ? (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <TimerIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <Typography variant="body2">{record.last_duration}s</Typography>
+          </Stack>
+        ) : '-'}
+      />
+
+      <FunctionField
+        label="Config"
+        render={(record: any) => (
+          <Chip 
+            label={record.status === 'active' ? 'Activo' : 'Inactivo'} 
+            variant="outlined"
+            size="small"
+            color={record.status === 'active' ? 'success' : 'default'}
+          />
+        )}
+      />
+
+      <FunctionField
+        label="Ejecutar"
+        render={(record: any) => !record.isPlaceholder ? <RunButton record={record} onShowLogs={onShowLogs} /> : null}
+      />
+      <Box sx={{ display: 'flex' }}>
+        <FunctionField render={(record: any) => !record.isPlaceholder ? (
+          <>
+            <EditButton record={record} label="" />
+            <DeleteButton record={record} label="" />
+          </>
+        ) : null} />
+      </Box>
+    </Datagrid>
+  );
+};
+
+const GroupedAutomationList = ({ onShowLogs }: { onShowLogs: (id: string, name: string) => void }) => {
+  const { data, isLoading } = useListContext();
+  const dataProvider = useDataProvider();
+  const notify = useNotify();
+  const refresh = useRefresh();
+  const [update] = useUpdate();
+
+  // Estado para el modal de placeholder
+  const [placeholderModal, setPlaceholderModal] = useState<{ open: boolean, testName: string, moduleName: string }>({
+    open: false,
+    testName: '',
+    moduleName: ''
+  });
+
+  // Función para normalizar nombres y comparar
+  const normalize = (str: string) => str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const groupedData = useMemo(() => {
+    if (!data) return [];
+
+    const assignedIds = new Set();
+    const modules = MODULES_STRUCTURE.map(module => {
+      const moduleTests = [];
+      
+      // 1. Primero, agregar tests que tienen este módulo asignado explícitamente en el campo 'module'
+      const explicitTestsInModule = data.filter(t => !assignedIds.has(t.id) && t.module === module.name);
+      explicitTestsInModule.forEach(t => {
+        assignedIds.add(t.id);
+        moduleTests.push({ ...t, isPlaceholder: false });
+      });
+
+      // 2. Luego, para los nombres de tests definidos en la estructura que aún no están asignados
+      module.tests.forEach(testName => {
+        // Buscar si ya se asignó por el paso 1 (por nombre)
+        const alreadyAssigned = moduleTests.find(t => normalize(t.name) === normalize(testName));
+        if (alreadyAssigned) return;
+
+        // Intentar encontrar un test que no tenga módulo pero coincida por nombre (retrocompatibilidad)
+        const existingTest = data.find(t => {
+          if (assignedIds.has(t.id)) return false;
+          if (t.module && t.module !== 'Otros / Sin Clasificar') return false;
+          
+          const n1 = normalize(t.name);
+          const n2 = normalize(testName);
+          return n1 === n2 || (n1.length > 5 && n2.length > 5 && (n1.includes(n2) || n2.includes(n1)));
+        });
+
+        if (existingTest) {
+          assignedIds.add(existingTest.id);
+          moduleTests.push({ ...existingTest, isPlaceholder: false });
+        } else {
+          // Si no existe, crear el placeholder
+          moduleTests.push({ 
+            id: `placeholder-${testName}`, 
+            name: testName, 
+            status: 'inactive', 
+            last_status: 'no_executed',
+            isPlaceholder: true,
+            module: module.name
+          });
+        }
+      });
+
+      return {
+        ...module,
+        testsData: moduleTests,
+        hasActiveTests: moduleTests.some(t => !t.isPlaceholder && t.status === 'active')
+      };
+    });
+
+    // Agregar tests que no coincidieron con ningún módulo
+    const unassignedTests = data.filter(t => !assignedIds.has(t.id)).map(t => ({ ...t, isPlaceholder: false }));
+    if (unassignedTests.length > 0) {
+      modules.push({
+        name: 'Otros / Sin Clasificar',
+        tests: unassignedTests.map(t => t.name),
+        testsData: unassignedTests,
+        hasActiveTests: unassignedTests.some(t => t.status === 'active')
+      });
+    }
+
+    return modules;
+  }, [data]);
+
+  const handleCreatePlaceholder = async (testName: string) => {
+    try {
+      await dataProvider.create('automation', {
+        data: {
+          name: testName,
+          status: 'inactive',
+          module: placeholderModal.moduleName,
+          description: `Test auto-generado para el módulo ${placeholderModal.moduleName}.`,
+          test_file: `${normalize(testName).replace(/\s+/g, '_')}.spec.ts`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      });
+      notify('Test creado exitosamente', { type: 'success' });
+      setPlaceholderModal(prev => ({ ...prev, open: false }));
+      refresh();
+    } catch (error) {
+      notify('Error al crear el test', { type: 'error' });
+    }
+  };
+
+  const handleAssociateTest = async (testId: string) => {
+    try {
+      await update('automation', {
+        id: testId,
+        data: { 
+          module: placeholderModal.moduleName,
+          name: placeholderModal.testName // Reemplazar el nombre para que coincida con la estructura
+        },
+        previousData: data.find(t => t.id === testId)
+      });
+      notify('Test asociado y renombrado correctamente', { type: 'success' });
+      setPlaceholderModal(prev => ({ ...prev, open: false }));
+      refresh();
+    } catch (error) {
+      notify('Error al asociar el test', { type: 'error' });
+    }
+  };
+
+  // Tests disponibles para asociar (los que están en 'Otros' o no tienen módulo)
+  const availableTestsToAssociate = useMemo(() => {
+    return data?.filter(t => !t.module || t.module === 'Otros / Sin Clasificar') || [];
+  }, [data]);
+
+  if (isLoading) return <CircularProgress />;
+
+  return (
+    <Box>
+      {groupedData.map((module, index) => (
+        <Accordion key={index} defaultExpanded={module.hasActiveTests} sx={{ mb: 1, border: '1px solid #e0e0e0', borderRadius: '8px !important', '&:before': { display: 'none' } }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <FolderIcon color="primary" />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{module.name}</Typography>
+              <Chip size="small" label={`${module.testsData.filter(t => !t.isPlaceholder).length} / ${module.tests.length}`} variant="outlined" />
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 0 }}>
+            <ModuleDatagrid 
+              module={module} 
+              onShowLogs={onShowLogs} 
+              onConfigure={(testName, moduleName) => setPlaceholderModal({ open: true, testName, moduleName })} 
+            />
+          </AccordionDetails>
+        </Accordion>
+      ))}
+
+      <PlaceholderActionModal 
+        open={placeholderModal.open}
+        onClose={() => setPlaceholderModal(prev => ({ ...prev, open: false }))}
+        testName={placeholderModal.testName}
+        moduleName={placeholderModal.moduleName}
+        existingTests={availableTestsToAssociate}
+        onCreate={handleCreatePlaceholder}
+        onAssociate={handleAssociateTest}
+      />
+    </Box>
+  );
+};
+
 export const AutomationRunnerPage = () => {
   const dataProvider = useDataProvider();
   const notify = useNotify();
@@ -473,64 +1036,9 @@ export const AutomationRunnerPage = () => {
           empty={<Empty />}
           filters={automationFilters}
           sort={{ field: 'last_status', order: 'DESC' }}
+          perPage={100}
         >
-          <Datagrid 
-            rowClick={(id, _resource, record) => {
-              handleShowLogs(id.toString(), record.name);
-              return false;
-            }}
-            sx={{
-              '& .MuiTableCell-head': { backgroundColor: '#f5f5f5', fontWeight: 700 },
-              '& .MuiTableRow-root:hover': { backgroundColor: '#f9f9f9' }
-            }}
-          >
-            <TextField source="name" label="Nombre" />
-            
-            <FunctionField 
-              label="Archivo de Test" 
-              render={record => (
-                <code style={{ backgroundColor: '#eee', padding: '2px 4px', borderRadius: '4px' }}>
-                  {(record.test_file || '').replace('.py', '.spec.ts')}
-                </code>
-              )} 
-            />
-
-            <FunctionField
-              label="Último Resultado"
-              render={record => <StatusChip status={record.last_status} />}
-            />
-
-            <FunctionField
-              label="Duración"
-              render={record => record.last_duration ? (
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <TimerIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  <Typography variant="body2">{record.last_duration}s</Typography>
-                </Stack>
-              ) : '-'}
-            />
-
-            <FunctionField
-              label="Config"
-              render={record => (
-                <Chip 
-                  label={record.status === 'active' ? 'Activo' : 'Inactivo'} 
-                  variant="outlined"
-                  size="small"
-                  color={record.status === 'active' ? 'success' : 'default'}
-                />
-              )}
-            />
-
-            <FunctionField
-              label="Ejecutar"
-              render={record => <RunButton record={record} onShowLogs={handleShowLogs} />}
-            />
-            <Box sx={{ display: 'flex' }}>
-              <EditButton label="" />
-              <DeleteButton label="" />
-            </Box>
-          </Datagrid>
+          <GroupedAutomationList onShowLogs={handleShowLogs} />
         </List>
       </TabPanel>
 
@@ -563,6 +1071,7 @@ export const AutomationCaseCreate = (props: any) => {
         <Create {...props} title="Nuevo Caso Automatizado" redirect="list">
           <SimpleForm defaultValues={{ status: 'active' }}>
             <TextInput source="name" label="Nombre" fullWidth required />
+            <SelectInput source="module" label="Módulo / Agrupación" choices={MODULE_CHOICES} fullWidth />
             <TextInput source="description" label="Descripción" multiline fullWidth />
             
             {loading ? (
@@ -609,6 +1118,7 @@ export const AutomationCaseEdit = (props: any) => {
         <Edit {...props} title="Editar Caso Automatizado">
           <SimpleForm>
             <TextInput source="name" label="Nombre" fullWidth required />
+            <SelectInput source="module" label="Módulo / Agrupación" choices={MODULE_CHOICES} fullWidth />
             <TextInput source="description" label="Descripción" multiline fullWidth />
             
             {loading ? (
