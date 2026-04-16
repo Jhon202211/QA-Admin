@@ -946,7 +946,7 @@ const GroupedAutomationList = ({ onShowLogs }: { onShowLogs: (id: string, name: 
   return (
     <Box>
       {groupedData.map((module, index) => (
-        <Accordion key={index} defaultExpanded={module.hasActiveTests} sx={{ mb: 1, border: '1px solid #e0e0e0', borderRadius: '8px !important', '&:before': { display: 'none' } }}>
+        <Accordion key={index} defaultExpanded={false} sx={{ mb: 1, border: '1px solid #e0e0e0', borderRadius: '8px !important', '&:before': { display: 'none' } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Stack direction="row" spacing={2} alignItems="center">
               <FolderIcon color="primary" />
