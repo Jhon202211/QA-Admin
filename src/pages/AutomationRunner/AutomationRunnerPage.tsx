@@ -725,62 +725,75 @@ const ModuleDatagrid = ({
         '& .MuiTableRow-root': {
           '&:hover': {
             backgroundColor: '#f9f9f9',
-          },
-          '&.is-placeholder': {
-            opacity: 0.6,
-            '&:hover': {
-              backgroundColor: 'transparent',
-            },
           }
         }
       }}
-      rowClassName={(record: any) => record.isPlaceholder ? 'is-placeholder' : ''}
       bulkActionButtons={false}
     >
-      <TextField source="name" label="Nombre" />
+      <TextField 
+        source="name" 
+        label="Nombre" 
+        sx={{
+          opacity: (record: any) => record.isPlaceholder ? 0.6 : 1
+        }}
+      />
       
       <FunctionField 
         label="Archivo de Test" 
-        render={(record: any) => record.isPlaceholder ? (
-          <Button 
-            size="small" 
-            startIcon={<AddCircleOutlineIcon />}
-            onClick={() => onConfigure(record.name, module.name)} 
-            sx={{ textTransform: 'none' }}
-          >
-            Configurar
-          </Button>
-        ) : (
-          <code style={{ backgroundColor: '#eee', padding: '2px 4px', borderRadius: '4px' }}>
-            {(record.test_file || '').replace('.py', '.spec.ts')}
-          </code>
+        render={(record: any) => (
+          <Box sx={{ opacity: record.isPlaceholder ? 0.6 : 1 }}>
+            {record.isPlaceholder ? (
+              <Button 
+                size="small" 
+                startIcon={<AddCircleOutlineIcon />}
+                onClick={() => onConfigure(record.name, module.name)} 
+                sx={{ textTransform: 'none' }}
+              >
+                Configurar
+              </Button>
+            ) : (
+              <code style={{ backgroundColor: '#eee', padding: '2px 4px', borderRadius: '4px' }}>
+                {(record.test_file || '').replace('.py', '.spec.ts')}
+              </code>
+            )}
+          </Box>
         )} 
       />
 
       <FunctionField
         label="Último Resultado"
-        render={(record: any) => record.isPlaceholder ? <StatusChip status="no_executed" /> : <StatusChip status={record.last_status} />}
+        render={(record: any) => (
+          <Box sx={{ opacity: record.isPlaceholder ? 0.6 : 1 }}>
+            {record.isPlaceholder ? <StatusChip status="no_executed" /> : <StatusChip status={record.last_status} />}
+          </Box>
+        )}
       />
 
       <FunctionField
         label="Duración"
-        render={(record: any) => !record.isPlaceholder && record.last_duration ? (
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <TimerIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-            <Typography variant="body2">{record.last_duration}s</Typography>
-          </Stack>
-        ) : '-'}
+        render={(record: any) => (
+          <Box sx={{ opacity: record.isPlaceholder ? 0.6 : 1 }}>
+            {!record.isPlaceholder && record.last_duration ? (
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <TimerIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                <Typography variant="body2">{record.last_duration}s</Typography>
+              </Stack>
+            ) : '-'}
+          </Box>
+        )}
       />
 
       <FunctionField
         label="Config"
         render={(record: any) => (
-          <Chip 
-            label={record.status === 'active' ? 'Activo' : 'Inactivo'} 
-            variant="outlined"
-            size="small"
-            color={record.status === 'active' ? 'success' : 'default'}
-          />
+          <Box sx={{ opacity: record.isPlaceholder ? 0.6 : 1 }}>
+            <Chip 
+              label={record.status === 'active' ? 'Activo' : 'Inactivo'} 
+              variant="outlined"
+              size="small"
+              color={record.status === 'active' ? 'success' : 'default'}
+            />
+          </Box>
         )}
       />
 
@@ -790,10 +803,10 @@ const ModuleDatagrid = ({
       />
       <Box sx={{ display: 'flex' }}>
         <FunctionField render={(record: any) => !record.isPlaceholder ? (
-          <>
+          <Box sx={{ display: 'flex' }}>
             <EditButton record={record} label="" />
             <DeleteButton record={record} label="" />
-          </>
+          </Box>
         ) : null} />
       </Box>
     </Datagrid>
