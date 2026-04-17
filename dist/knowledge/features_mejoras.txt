@@ -1,0 +1,96 @@
+================================================================================
+BASE DE CONOCIMIENTO: NUEVAS CARACTERÍSTICAS Y MEJORAS (FEATURES & IMPROVEMENTS)
+Actualizado hasta: v29.2.0 (16/04/2026)
+================================================================================
+
+Este documento contiene la evolución funcional de la plataforma, organizada por módulos. Utilizar esta información para validar el comportamiento esperado del sistema y diseñar casos de prueba positivos.
+
+================================================================================
+MÓDULO: CONTROL DE ACCESO (FACIAL, RFID, LPR, HARDWARE)
+================================================================================
+  • [v29.1.0] Setting en zonas para permitir acceso sin turno activo en Queo Resources.
+  • [v29.0.1] Inclusión de campo RFID en reportes de usuarios y reservaciones.
+  • [v27.9.1] Compresión automática de avatares (<200KB) para optimizar sincronización facial.
+  • [v27.6.0] Gestión de settings faciales desde el módulo de usuarios e importaciones (DA/Excel).
+  • [v27.5.0] Atributo RFID integrado en sincronización facial para dispositivos Suprema.
+  • [v27.4.0] Refactorización del modelo de datos RFID para mejorar tiempos de respuesta.
+  • [v26.26.0] Integración con broker EMQX para sincronización facial en tiempo real.
+  • [v26.15.0] Mensajería MQTT para acceso QR con información de placa LPR.
+  • [v26.9.1] Soporte de acceso manual y QR para migración a nuevo broker.
+  • [v26.1.1] Habilitación de acceso facial para visitantes con autorizaciones vigentes.
+  • [v26.0.0] Nuevo tipo de acceso "Biométrico" en el historial de accesos (MQTT).
+  • [v24.0.0] Implementación de acceso por placa vehicular.
+  • [v23.2.0] Soporte para accesos con puertas compartidas mediante cualquier método.
+  • [v23.0.1] Principio de idempotencia en comandos de acceso MQTT para evitar duplicidad.
+  • [v20.2.0] Almacenamiento y búsqueda por Tag UHF en accesos MQTT.
+
+================================================================================
+MÓDULO: RESERVACIONES Y ESPACIOS DE TRABAJO (QUEO SPACES)
+================================================================================
+  • [v29.2.0] Restricciones de reserva por roles y empresas específicas en espacios de trabajo.
+  • [v29.0.8] Estado "En proceso" para reservas de puestos; conteo de accesos en puertas de área.
+  • [v27.4.3] Estrategia de bloqueo (locking) en BD para evitar traslape de reservas simultáneas.
+  • [v26.18.0] Configuración de duración mínima/máxima para reservas de salas; invitación masiva por email.
+  • [v21.3.0] Configuración de tiempo mínimo de reserva de puestos por copropiedad.
+  • [v20.4.0] Integración de formularios de ingreso de placa en reservas de espacios.
+  • [v19.0.0] Soporte para reservas multidía en puestos y salas.
+  • [v18.8.1] Estado de "Confirmación anticipada" (Pre-checkin) y Fast Track para accesos.
+  • [v17.7.0] Opción de realizar check-in de reservas desde la interfaz web.
+  • [v16.6.0] Métricas avanzadas: ocupación, salas más reservadas, top de usuarios, gráficas de estado.
+  • [v16.5.0] Restricciones de reservas futuras (días/semanas/meses) y validación de simultaneidad.
+  • [v15.0.0] Habilitación de reservas recurrentes para puestos y salas.
+
+================================================================================
+MÓDULO: GESTIÓN DE VISITANTES
+================================================================================
+  • [v29.0.7] Importación de visitantes filtrada por las puertas/grupos del usuario que importa.
+  • [v29.0.3] Validación de fotos de visitantes por tenant (copropiedad).
+  • [v28.1.0] Setting para habilitar la carga de documentos de identidad de visitantes.
+  • [v28.0.0] Validación de hora de entrada y salida de forma diaria en autorizaciones.
+  • [v27.9.1] Configuración de puertas por defecto para autorizaciones por copropiedad.
+  • [v26.24.0] Opción para dibujar firma digital en la tarjeta de acceso de visitantes.
+  • [v26.23.0] Creación y asociación de vehículos directamente desde la importación de visitantes.
+  • [v26.17.0] Control de pre-registro/autorización automática al importar visitantes.
+  • [v26.14.0] Setting para controlar el acceso de visitantes por reconocimiento facial.
+  • [v26.7.0] Barra de progreso en importación; términos y condiciones personalizados en correos.
+  • [v26.1.0] Soporte para accesos simultáneos con empresas diferentes; filtros por próxima fecha de acceso.
+  • [v23.1.0] Gestión de acompañantes para visitantes (Backend y flujo de registro).
+
+================================================================================
+MÓDULO: USUARIOS Y ORGANIZACIÓN
+================================================================================
+  • [v28.0.5] Ordenamiento inteligente en búsqueda por DNI (prioriza coincidencia exacta).
+  • [v27.9.0] Exportación de usuarios habilitada para el rol Property Owner.
+  • [v27.5.3] Búsqueda de usuarios con 90% de similitud en DNI para tolerar errores de digitación.
+  • [v27.3.0] Control de firma de usuarios y enlazamiento con Habeas Data.
+  • [v27.2.2] Parámetro configurable de tiempo de inactividad para eliminación automática (default 12 meses).
+  • [v27.0.0] Flujo multitenant completo en gestión e importación de usuarios.
+  • [v26.22.0] Importación y exportación de opciones para campos personalizados.
+  • [v26.16.0] Comandos automáticos de limpieza para usuarios y copropiedades inactivas.
+  • [v26.9.0] Barra de progreso visual para la importación masiva de usuarios.
+  • [v23.0.0] Implementación de campos personalizados (formularios) para usuarios.
+
+================================================================================
+MÓDULO: INTEGRACIONES Y SISTEMA
+================================================================================
+  • [v28.1.6] Integración con SINCH para envío de SMS (incluye recuperación de contraseña).
+  • [v28.0.6] Widget de Voiceflow para soporte y apertura de tickets.
+  • [v27.8.0] Integración con Queo Resources (sincronización de turnos y usuarios).
+  • [v27.5.1] Tracking analítico con GTM y GA4 en Historial de Accesos.
+  • [v26.24.1] Integración con API de Sistecredito para generación de incidencias desde check-in.
+  • [v26.3.6] Servicios SQS y SNS para el envío y gestión de logs de accesos.
+  • [v20.0.0] Importación de Directorio Activo (DA) optimizada mediante colas y grupos.
+  • [v16.4.3] Implementación de Laravel Horizon para gestión visual de jobs.
+
+================================================================================
+MÓDULO: UI/UX Y NAVEGACIÓN
+================================================================================
+  • [v28.2.0] Rediseño del Navbar; navegación basada en permisos almacenados en BD.
+  • [v28.1.7] Renombramiento del módulo "Aforos" a "Parqueaderos" (término "Cupos").
+  • [v27.9.0] Rediseño de las interfaces de Login y "Olvidé mi contraseña".
+  • [v27.7.0] Refactorización completa del módulo de Empresas (Listado y Creación).
+  • [v19.1.0] Configuración de visibilidad de módulos por copropiedad.
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

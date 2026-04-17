@@ -413,7 +413,6 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
   const [autoStatus, setAutoStatus] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
-  const pollingRefs = useRef<Record<string, any>>({});
   const notify = useNotify();
 
   // Estados para logs en vivo
