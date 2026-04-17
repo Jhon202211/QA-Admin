@@ -422,6 +422,11 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
   const [activeTestName, setActiveTestName] = useState('');
   const [activeStatus, setActiveStatus] = useState<'idle' | 'running'>('idle');
 
+  // Cargamos los tests de automatización para tener los nombres y archivos correctos (Mover antes de useEffect para evitar ReferenceError)
+  const { data: automationTests = [] } = useGetList('automation', {
+    pagination: { page: 1, perPage: 1000 },
+  });
+
   useEffect(() => {
     const socket = io(SOCKET_URL);
 
@@ -431,68 +436,90 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
     socket.on('test-finished', async (data) => {
       setActiveStatus('idle');
-      notify(`Test finalizado: ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { 
-        type: data.status === 'passed' ? 'success' : 'error' 
-      });
       
       // Actualizar el estado local para reflejar que terminó
-      if (data.test_file) {
-        // Intentar encontrar el testId por el archivo o nombre
-        const testId = Object.keys(autoStatus).find(id => {
-          const testRecord = automationTests.find((t: any) => t.id === id);
-          return id.includes(data.test_file) || data.test_file.includes(id) || 
-                 (testRecord && (testRecord.test_file === data.test_file || testRecord.name === data.name));
+      // Prioridad 1: Usar caseId si viene en la respuesta (el método más fiable)
+      if (data.caseId) {
+        setAutoStatus(prev => ({ ...prev, [data.caseId]: data.status }));
+        notify(`Test "${data.name || 'finalizado'}": ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { 
+          type: data.status === 'passed' ? 'success' : 'error' 
         });
-        
-        if (testId) {
-          setAutoStatus(prev => {
-            const newState = { ...prev };
-            newState[testId] = data.status;
-            return newState;
+      } 
+      // Prioridad 2: Buscar por archivo/nombre (retrocompatibilidad o fallback)
+      else if (data.test_file) {
+        const matchingTestId = plan.automatedTests?.find((id: string) => {
+          const testRecord = automationTests.find((t: any) => t.id === id);
+          if (!testRecord) return false;
+          
+          const normalize = (str: string) => str?.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\.[^/.]+$/, "");
+          const rFile = normalize(data.test_file);
+          const tFile = normalize(testRecord.test_file);
+          const tName = normalize(testRecord.name);
+          const rName = normalize(data.name);
+          
+          return rFile === tFile || rName === tName || rFile === tName;
+        });
+
+        if (matchingTestId) {
+          setAutoStatus(prev => ({ ...prev, [matchingTestId]: data.status }));
+          notify(`Test "${data.name || 'finalizado'}": ${data.status === 'passed' ? 'Éxito' : 'Fallo'}`, { 
+            type: data.status === 'passed' ? 'success' : 'error' 
           });
         }
       }
 
-      // Limpiar el estado de "running" global si todos terminaron (para handleRunAll)
-      setRunning(false);
-
-      // Forzar un refetch de los resultados para que getAutoStatus obtenga el último
+      // Refrescar datos de la BD tras un breve delay para que Firestore se actualice
       setTimeout(() => {
-        onSaved(); // Esto dispara el refetch en el padre
-      }, 1000);
+        onSaved(); 
+      }, 1500);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [notify, autoStatus]);
+  }, [notify, plan.automatedTests, automationTests, onSaved]);
 
   const manualGrouped = groupCasesByHierarchy(plan.manualTestCases || [], allCases);
 
-  const { data: automationTests = [] } = useGetList('automation', {
-    pagination: { page: 1, perPage: 1000 },
-  });
-
   const getAutoStatus = (testId: string) => {
+    // Si ya tenemos un resultado en el estado local de esta sesión, usarlo
+    if (autoStatus[testId] && autoStatus[testId] !== 'running') {
+      return autoStatus[testId];
+    }
+
     const testRecord = automationTests.find((t: any) => t.id === testId);
     if (!testRecord) return null;
     
-    const baseName = testId.replace('.py', '').replace('.spec.ts', '');
-    const aliases = [baseName, testRecord.name];
+    const normalize = (str: string) => str?.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\.[^/.]+$/, "");
+    const testFileName = normalize(testRecord.test_file);
+    const testName = normalize(testRecord.name);
     
-    let results = testResults.filter((r: any) => {
-      const rName = (r.name || '').replace('.py', '').replace('.spec.ts', '');
-      return r.planId === plan.id && (aliases.includes(rName) || r.name === testRecord.name);
+    // 1. Prioridad: Buscar resultados para ESTE PLAN y ESTE TEST
+    const resultsForThisPlan = testResults.filter((r: any) => {
+      if (r.planId !== plan.id) return false;
+      
+      const rName = normalize(r.name);
+      const rFile = normalize(r.test_file);
+      
+      return rName === testName || rFile === testFileName || rFile === testName || rName === testFileName;
     });
 
-    if (results.length === 0) {
-      results = testResults.filter((r: any) => {
-        const rName = (r.name || '').replace('.py', '').replace('.spec.ts', '');
-        return aliases.includes(rName) || r.name === testRecord.name;
-      });
+    if (resultsForThisPlan.length > 0) {
+      return resultsForThisPlan.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].status;
     }
-    if (results.length === 0) return null;
-    return results.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].status;
+
+    // 2. Fallback: Buscar cualquier resultado previo para este test en general
+    const generalResults = testResults.filter((r: any) => {
+      const rName = normalize(r.name);
+      const rFile = normalize(r.test_file);
+      return rName === testName || rFile === testFileName || rFile === testName || rName === testFileName;
+    });
+
+    if (generalResults.length > 0) {
+      return generalResults.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].status;
+    }
+
+    return null;
   };
 
   const handleRunTest = async (testId: string) => {
@@ -512,7 +539,9 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
         body: JSON.stringify({ 
           test_file: testRecord.test_file || testId, 
           planId: plan.id, 
-          caseId: testId 
+          caseId: testId,
+          executionType: 'automated',
+          planName: plan.name
         }),
       });
       const data = await res.json();
@@ -536,25 +565,23 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
       setAutoStatus(s => ({ ...s, [testId]: 'running' }));
       try {
-        const res = await fetch('http://localhost:9000/api/tests/execute', {
+        await fetch('http://localhost:9000/api/tests/execute', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid_token' },
           body: JSON.stringify({ 
             test_file: testRecord.test_file || testId, 
             planId: plan.id, 
-            caseId: testId 
+            caseId: testId,
+            executionType: 'automated',
+            planName: plan.name // Aseguramos que se envía el nombre del plan
           }),
         });
-        const data = await res.json();
-        // En ejecución masiva no abrimos el modal automáticamente para cada uno,
-        // pero el socket actualizará los estados.
       } catch { 
         setAutoStatus(s => ({ ...s, [testId]: 'error' })); 
       }
-      // Pequeña espera entre ejecuciones para no saturar
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
     }
-    setRunning(false);
+    // No ponemos setRunning(false) aquí porque el socket se encargará de resetear los estados individuales
   };
 
   const handleSaveManuals = async () => {
@@ -696,8 +723,9 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
                   {running ? 'Ejecutando...' : 'Ejecutar todos'}
                 </Button>
 
-                  {(plan.automatedTests || []).map((testId: string, idx: number) => {
-                  const status = autoStatus[testId] === 'running' ? 'running' : getAutoStatus(testId);
+                {(plan.automatedTests || []).map((testId: string, idx: number) => {
+                  const dbStatus = getAutoStatus(testId);
+                  const status = autoStatus[testId] || dbStatus;
                   const testRecord = automationTests.find((t: any) => t.id === testId);
                   const name = testRecord?.name || testId.replace('test_', '').replace('.py', '').replace('.spec.ts', '').replace(/_/g, ' ');
                   const resultInfo = status && RESULT_LABELS[status];
@@ -772,7 +800,13 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 function TestPlanningCardList({ showArchived = false }: { showArchived?: boolean }) {
   const { data, isLoading } = useListContext();
   const { data: allCases = [] } = useGetList('test_cases', { pagination: { page: 1, perPage: 1000 } });
-  const { data: testResults = [], refetch } = useGetList('test_results');
+  
+  // Cargamos una gran cantidad de resultados ordenados por fecha para que getAutoStatus funcione bien
+  const { data: testResults = [], refetch } = useGetList('test_results', { 
+    pagination: { page: 1, perPage: 1000 },
+    sort: { field: 'date', order: 'DESC' }
+  });
+  
   const [runPlan, setRunPlan] = useState<any>(null);
   const [update] = useUpdate();
   const notify = useNotify();
@@ -914,7 +948,7 @@ function TestPlanningCardList({ showArchived = false }: { showArchived?: boolean
           allCases={allCases as any[]}
           testResults={testResults as any[]}
           onClose={() => setRunPlan(null)}
-          onSaved={() => { refetch(); setRunPlan(null); }}
+          onSaved={() => { refetch(); }}
         />
       )}
     </>

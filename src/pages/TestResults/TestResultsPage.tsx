@@ -193,8 +193,14 @@ export const TestResultsList = ({ hideTitle = false }: { hideTitle?: boolean }) 
             label="Plan de Pruebas"
             render={record => {
               if (!record) return '-';
-              const planName = planIdToName[record.planId];
-              if (planName) return planName;
+              // 1. Prioridad: Nombre guardado directamente en el resultado
+              if (record.planName && record.planName !== 'Cargando...') return record.planName;
+              
+              // 2. Fallback: Buscar en la lista de planes cargada
+              const planNameFromId = planIdToName[record.planId];
+              if (planNameFromId) return planNameFromId;
+              
+              // 3. Fallback final
               if (record.planId && record.planId !== '-') return record.planId;
               return 'Sin plan de pruebas';
             }}

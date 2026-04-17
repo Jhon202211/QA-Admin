@@ -66,7 +66,7 @@ app.get('/api/tests/files', (req, res) => {
 });
 
 app.post('/api/tests/execute', (req, res) => {
-  const { test_file } = req.body;
+  const { test_file, planId, planName, caseId } = req.body;
 
   if (!test_file) {
     return res.status(400).json({ error: 'Falta el nombre del archivo de test' });
@@ -78,7 +78,7 @@ app.post('/api/tests/execute', (req, res) => {
     return res.status(404).json({ error: `El archivo de test no existe: ${test_file}` });
   }
 
-  console.log(`Ejecutando test: ${test_file}`);
+  console.log(`Ejecutando test: ${test_file} (Plan: ${planName || 'Ninguno'})`);
 
   // Comando para ejecutar Playwright
   const command = `npx playwright test automation/tests/${test_file} --project=chromium -c playwright.config.ts`;
@@ -99,25 +99,27 @@ app.post('/api/tests/execute', (req, res) => {
   process.on('close', async (code) => {
     const duration = Math.round((Date.now() - startTime) / 1000);
     const status = code === 0 ? 'passed' : 'failed';
+    const testNameClean = test_file.replace('.spec.ts', '').replace(/_/g, ' ');
     
     console.log(`Test ${test_file} finalizado con estado: ${status} en ${duration}s`);
     
-    io.emit('test-finished', { status, duration });
+    io.emit('test-finished', { 
+      status, 
+      duration, 
+      test_file,
+      name: testNameClean,
+      planId: planId || null,
+      caseId: caseId || null
+    });
 
     // 1. Buscar screenshot si falló
     let screenshotUrl = null;
-    let errorMessage = null;
     
     if (status === 'failed') {
       const testName = test_file.replace('.spec.ts', '');
       const screenshotsDir = path.join(__dirname, 'test-results', `${testName}-chromium`, 'test-failed-1.png');
-      // Nota: Playwright por defecto guarda en test-results/nombre-del-test-project/test-failed-1.png si se configura
-      // Intentamos buscar el archivo más reciente en test-results si existe
       try {
-        // Por ahora simulamos o buscamos una ruta estándar si el usuario tiene configurado screenshots en playwright.config.ts
         if (fs.existsSync(screenshotsDir)) {
-          // En un entorno real, esto se subiría a Firebase Storage. 
-          // Como es ejecución local, podríamos servirlo desde una ruta estática o convertir a base64 (pesado pero directo)
           const screenshotBuffer = fs.readFileSync(screenshotsDir);
           screenshotUrl = `data:image/png;base64,${screenshotBuffer.toString('base64')}`;
         }
@@ -126,19 +128,24 @@ app.post('/api/tests/execute', (req, res) => {
       }
     }
 
-    // 2. Guardar resultado en la colección 'test_results' para el Dashboard
+    // 2. Guardar resultado en la colección 'test_results'
     try {
-      await addDoc(collection(db, 'test_results'), {
-        name: test_file.replace('.spec.ts', '').replace(/_/g, ' '),
+      const resultData = {
+        name: testNameClean,
+        test_file: test_file,
         status: status,
         duration: duration,
         date: new Date().toISOString(),
         executionType: 'automated',
+        planId: planId || '-',
+        planName: planName || (planId ? 'Cargando...' : 'Sin plan de pruebas'),
         createdAt: Timestamp.now(),
-        screenshotUrl: screenshotUrl, // Guardamos la evidencia si existe
-        error: status === 'failed' ? 'Revisa los logs para más detalles. Fallo en la ejecución de Playwright.' : null
-      });
-      console.log('Resultado guardado en test_results');
+        screenshotUrl: screenshotUrl,
+        error: status === 'failed' ? 'Fallo en la ejecución de Playwright. Revisa los logs.' : null
+      };
+      
+      await addDoc(collection(db, 'test_results'), resultData);
+      console.log(`Resultado guardado en test_results para el plan: ${planName || 'Ninguno'}`);
     } catch (e) {
       console.error('Error al guardar en test_results:', e);
     }
