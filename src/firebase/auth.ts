@@ -85,7 +85,7 @@ export const authProvider = {
       return Promise.reject(error);
     }
   },
-  logout: async () => {
+  logout: async (): Promise<string | false | void> => {
     try {
       if (hasActiveExecutionDrafts()) {
         const confirmLogout = window.confirm(
