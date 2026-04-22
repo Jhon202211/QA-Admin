@@ -1114,22 +1114,22 @@ export const AutomationCaseCreate = (props: any) => {
 
   // Clave para el draft en localStorage
   const draftKey = useMemo(() => 
-    record?.id ? `automation_edit_draft_${record.id}` : (props.mode === 'create' ? 'automation_create_draft' : null)
-  , [record?.id, props.mode]);
+    props.record?.id ? `automation_edit_draft_${props.record.id}` : (props.mode === 'create' ? 'automation_create_draft' : null)
+  , [props.record?.id, props.mode]);
 
   useEffect(() => {
-    if (record && !initialized && draftKey) {
+    if (props.record && !initialized && draftKey) {
       const savedDraft = localStorage.getItem(draftKey);
       if (savedDraft) {
         try {
-          const draftData = JSON.parse(savedDraft);
+          // const draftData = JSON.parse(savedDraft);
           // Solo aplicamos si el draft es reciente (opcional)
           // Aquí react-admin maneja el form, pero podemos usar defaultValues o reset
         } catch (e) { console.error(e); }
       }
       setInitialized(true);
     }
-  }, [record, initialized, draftKey]);
+  }, [props.record, initialized, draftKey]);
 
   return (
     <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>

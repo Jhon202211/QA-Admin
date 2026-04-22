@@ -993,6 +993,8 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
   });
   const [initialized, setInitialized] = useState(false);
 
+  const saving = mode === 'edit' ? editSaving : raSaving;
+
   // Clave para el draft en localStorage
   const draftKey = useMemo(() => 
     record?.id ? `plan_draft_${record.id}` : (mode === 'create' ? 'plan_draft_new' : null)

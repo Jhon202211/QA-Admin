@@ -81,12 +81,22 @@ This is an administration dashboard for quality assurance (QA) test management b
 - Document important architectural decisions
 - Comment complex or non-obvious code
 
+## Deployment and Build Validation Rules
+
+### 17. Pre-Deployment Checks
+- **TypeScript Validation**: ALWAYS run `npx tsc --noEmit` before suggesting or performing a `git push`. Deployment will fail if there are any type errors.
+- **Reference Errors**: Ensure all variables used in JSX or effects (like `record`, `props`, `saving`) are correctly defined and in scope. Common errors include using `record` instead of `props.record` in sub-components.
+- **Syntax Errors**: Double-check nesting of braces `{}` and parentheses `()` in server-side code (`automation-server.js`) and complex React components.
+- **Unused Variables**: Clean up unused imports and variables that might cause linting or build warnings/errors.
+- **Draft System**: When modifying forms in "Pruebas Manuales", "Automation Runner", or "Test Planning", ensure the `localStorage` draft system is maintained and doesn't break the component initialization.
+
 ### 12. Git and Versioning
 - Use conventional commits for descriptive messages
 - Create feature branches for new functionality
 - Make small and frequent commits
 - Use pull requests for code review
 - Keep git history clean
+- **Deployment Push**: When pushing changes, always push to both `master` and `agentqa` branches if required by the workflow: `git push origin master && git push origin master:agentqa`.
 
 ### 13. QA Domain-Specific Features
 - Implement quality metrics in the dashboard
