@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SaveIcon from '@mui/icons-material/Save';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useGetList, useRefresh } from 'react-admin';
 import { useState, useEffect } from 'react';
 import { TestExecutionModal } from '../TestCases/TestExecutionModal';
@@ -31,6 +32,18 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const refresh = useRefresh();
 
+  const syncDraftIds = () => {
+    const ids: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('execution_draft_')) {
+        ids.push(key.replace('execution_draft_', ''));
+      }
+    }
+    setDraftIds(ids);
+    return ids;
+  };
+
   // Obtener todos los casos de prueba para filtrar los que tienen drafts
   const { data: testCases, isLoading } = useGetList('test_cases', {
     pagination: { page: 1, perPage: 1000 },
@@ -38,14 +51,7 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
 
   useEffect(() => {
     if (open) {
-      const ids: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('execution_draft_')) {
-          ids.push(key.replace('execution_draft_', ''));
-        }
-      }
-      setDraftIds(ids);
+      syncDraftIds();
     }
   }, [open]);
 
@@ -58,18 +64,31 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
   const handleCloseExecution = () => {
     setSelectedTestCase(null);
     // Actualizar la lista de drafts después de cerrar el modal de ejecución
-    const ids: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('execution_draft_')) {
-        ids.push(key.replace('execution_draft_', ''));
-      }
-    }
-    setDraftIds(ids);
+    const ids = syncDraftIds();
     if (ids.length === 0) {
       onClose();
     }
     refresh();
+  };
+
+  const handleClearDraft = (testCaseId: string) => {
+    localStorage.removeItem(`execution_draft_${testCaseId}`);
+    const ids = syncDraftIds();
+    if (selectedTestCase?.id === testCaseId) {
+      setSelectedTestCase(null);
+    }
+    if (ids.length === 0) {
+      onClose();
+    }
+  };
+
+  const handleClearAllDrafts = () => {
+    draftIds.forEach((id) => {
+      localStorage.removeItem(`execution_draft_${id}`);
+    });
+    setSelectedTestCase(null);
+    setDraftIds([]);
+    onClose();
   };
 
   return (
@@ -82,7 +101,7 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
         <DialogContent dividers>
           <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
             Las siguientes ejecuciones tienen cambios locales que no han sido guardados en la base de datos.
-            Selecciona una para revisarla y guardarla.
+            Selecciona una para revisarla y guardarla, o limpia el borrador si ya no lo necesitas.
           </Typography>
           {isLoading ? (
             <Typography variant="body2">Cargando...</Typography>
@@ -96,11 +115,18 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
                 <ListItem
                   key={tc.id}
                   secondaryAction={
-                    <Tooltip title="Continuar ejecución">
-                      <IconButton edge="end" onClick={() => handleOpenExecution(tc)} sx={{ color: '#43A047' }}>
-                        <PlayArrowIcon />
-                      </IconButton>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Tooltip title="Continuar ejecución">
+                        <IconButton edge="end" onClick={() => handleOpenExecution(tc)} sx={{ color: '#43A047' }}>
+                          <PlayArrowIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Limpiar borrador">
+                        <IconButton edge="end" onClick={() => handleClearDraft(tc.id)} sx={{ color: '#E53935' }}>
+                          <DeleteOutlineIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   }
                   sx={{
                     border: '1px solid',
@@ -135,6 +161,11 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
           )}
         </DialogContent>
         <DialogActions>
+          {draftCases.length > 0 && (
+            <Button color="error" onClick={handleClearAllDrafts}>
+              Limpiar todos
+            </Button>
+          )}
           <Button onClick={onClose}>Cerrar</Button>
         </DialogActions>
       </Dialog>
