@@ -1140,14 +1140,20 @@ export const AutomationCaseCreate = (props: any) => {
         Nuevo Caso Automatizado
       </Typography>
       <Paper sx={{ p: 3, mt: 3 }}>
-        <Create {...props} title="Nuevo Caso Automatizado" redirect="list">
+        <Create
+          {...props}
+          title="Nuevo Caso Automatizado"
+          redirect="list"
+          mutationOptions={{
+            onSuccess: () => {
+              if (draftKey) localStorage.removeItem(draftKey);
+            },
+          }}
+        >
           <SimpleForm 
             defaultValues={{ status: 'active' }}
             onChange={(values) => {
               if (draftKey) localStorage.setItem(draftKey, JSON.stringify(values));
-            }}
-            onSubmit={() => {
-              if (draftKey) localStorage.removeItem(draftKey);
             }}
           >
             <TextInput source="name" label="Nombre" fullWidth required />
@@ -1188,6 +1194,10 @@ export const AutomationCaseCreate = (props: any) => {
 
 export const AutomationCaseEdit = (props: any) => {
   const { files, loading } = useTestFiles();
+  const draftKey = useMemo(() => {
+    const id = props.id || window.location.hash.split('/').pop();
+    return id ? `automation_edit_draft_${id}` : null;
+  }, [props.id]);
 
   return (
     <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
@@ -1195,15 +1205,18 @@ export const AutomationCaseEdit = (props: any) => {
         Editar Caso Automatizado
       </Typography>
       <Paper sx={{ p: 3, mt: 3 }}>
-        <Edit {...props} title="Editar Caso Automatizado">
+        <Edit
+          {...props}
+          title="Editar Caso Automatizado"
+          mutationOptions={{
+            onSuccess: () => {
+              if (draftKey) localStorage.removeItem(draftKey);
+            },
+          }}
+        >
           <SimpleForm
             onChange={(values) => {
-              const id = props.id || (window.location.hash.split('/').pop());
-              if (id) localStorage.setItem(`automation_edit_draft_${id}`, JSON.stringify(values));
-            }}
-            onSubmit={() => {
-              const id = props.id || (window.location.hash.split('/').pop());
-              if (id) localStorage.removeItem(`automation_edit_draft_${id}`);
+              if (draftKey) localStorage.setItem(draftKey, JSON.stringify(values));
             }}
           >
             <TextInput source="name" label="Nombre" fullWidth required />
