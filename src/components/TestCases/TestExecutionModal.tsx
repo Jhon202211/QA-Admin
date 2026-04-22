@@ -86,6 +86,7 @@ export const TestExecutionModal = ({
   const [noStepsActualResult, setNoStepsActualResult] = useState('');
   const [noStepsEvidences, setNoStepsEvidences] = useState<EvidenceFile[]>([]);
   const noStepsFileInputRef = useRef<HTMLInputElement>(null);
+  const [draftStatus, setDraftStatus] = useState<'borrador' | 'terminado' | null>(null);
 
   // Clave para el draft en localStorage
   const draftKey = useMemo(() => 
@@ -99,19 +100,53 @@ export const TestExecutionModal = ({
     hasSteps: boolean;
     isUploading: boolean;
   } | null>(null);
+  const persistedDraftSnapshotRef = useRef('');
+  const isDraftSyncReadyRef = useRef(false);
+
+  const buildPersistedDraftData = (currentTestCase: TestCase) => ({
+    steps: (currentTestCase.steps || []).map((step, index) => ({
+      id: step.id || `step-${index}`,
+      status: step.status || 'not_executed',
+      actualResult: step.actualResult || '',
+    })),
+    activeStepIndex: 0,
+    notes: currentTestCase.notes || '',
+    noStepsStatus: (currentTestCase.executionResult as TestStep['status']) || 'not_executed',
+    noStepsActualResult: currentTestCase.actualResult || '',
+  });
+
+  const buildCurrentDraftData = () => ({
+    steps: steps.map((step) => ({
+      id: step.id,
+      status: step.status || 'not_executed',
+      actualResult: step.actualResult || '',
+    })),
+    activeStepIndex,
+    notes: executionNotes,
+    noStepsStatus,
+    noStepsActualResult,
+  });
 
   useEffect(() => {
     if (!open || !testCase || !draftKey) return;
-    
-    // Intentar cargar draft desde localStorage
+
+    isDraftSyncReadyRef.current = false;
+    const persistedDraftData = buildPersistedDraftData(testCase);
+    persistedDraftSnapshotRef.current = JSON.stringify(persistedDraftData);
+
     const savedDraft = localStorage.getItem(draftKey);
-    let draftData = null;
+    let draftData = persistedDraftData;
     if (savedDraft) {
       try {
-        draftData = JSON.parse(savedDraft);
+        draftData = { ...persistedDraftData, ...JSON.parse(savedDraft) };
+        setDraftStatus('borrador');
       } catch (e) {
         console.error('Error parsing draft:', e);
+        localStorage.removeItem(draftKey);
+        setDraftStatus(testCase.tags?.includes('terminado') ? 'terminado' : null);
       }
+    } else {
+      setDraftStatus(testCase.tags?.includes('terminado') ? 'terminado' : null);
     }
 
     setSteps(
@@ -134,22 +169,30 @@ export const TestExecutionModal = ({
     setNoStepsStatus(draftData?.noStepsStatus || (testCase.executionResult as TestStep['status']) || 'not_executed');
     setNoStepsActualResult(draftData?.noStepsActualResult || testCase.actualResult || '');
     setNoStepsEvidences((testCase as any).generalEvidences || []);
+    isDraftSyncReadyRef.current = true;
   }, [open, testCase, draftKey]);
 
   // Guardar draft automáticamente cuando cambian los datos
   useEffect(() => {
-    if (!open || !draftKey) return;
+    if (!open || !draftKey || !testCase || !isDraftSyncReadyRef.current) return;
 
-    const draftData = {
-      steps: steps.map(s => ({ id: s.id, status: s.status, actualResult: s.actualResult })),
-      activeStepIndex,
-      notes: executionNotes,
-      noStepsStatus,
-      noStepsActualResult,
-      updatedAt: new Date().toISOString()
-    };
+    const draftData = buildCurrentDraftData();
+    const currentSnapshot = JSON.stringify(draftData);
+    const hasUnsavedChanges = currentSnapshot !== persistedDraftSnapshotRef.current;
 
-    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    if (hasUnsavedChanges) {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          ...draftData,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+      setDraftStatus('borrador');
+    } else {
+      localStorage.removeItem(draftKey);
+      setDraftStatus(testCase.tags?.includes('terminado') ? 'terminado' : null);
+    }
 
     // Refrescar token de Firebase proactivamente al detectar actividad en el modal
     // para evitar que la sesión expire mientras el usuario está trabajando
@@ -159,7 +202,7 @@ export const TestExecutionModal = ({
         user.getIdToken(false).catch(() => {});
       }
     });
-  }, [steps, activeStepIndex, executionNotes, noStepsStatus, noStepsActualResult, open, draftKey]);
+  }, [steps, activeStepIndex, executionNotes, noStepsStatus, noStepsActualResult, open, draftKey, testCase]);
 
   const hasSteps = steps.length > 0;
   const activeStep = steps[activeStepIndex];
@@ -316,6 +359,13 @@ export const TestExecutionModal = ({
 
   const handleSaveExecution = async () => {
     try {
+      const currentTags = testCase.tags || [];
+      // Eliminar tags de estado previos y añadir "terminado"
+      const updatedTags = [...currentTags.filter(t => t !== 'borrador' && t !== 'test guardado' && t !== 'terminado')];
+      if (!updatedTags.includes('terminado')) {
+        updatedTags.push('terminado');
+      }
+
       const dataToSave = hasSteps
         ? {
             steps,
@@ -333,13 +383,22 @@ export const TestExecutionModal = ({
                       : '',
             executionResult,
             notes: executionNotes,
+            tags: updatedTags,
           }
         : {
             executionResult: noStepsStatus,
             actualResult: noStepsActualResult,
             generalEvidences: noStepsEvidences,
             notes: executionNotes,
+            tags: updatedTags,
           };
+
+      persistedDraftSnapshotRef.current = JSON.stringify(buildCurrentDraftData());
+      setDraftStatus('terminado');
+
+      if (draftKey) {
+        localStorage.removeItem(draftKey);
+      }
 
       await update('test_cases', {
         id: testCase.id,
@@ -347,11 +406,7 @@ export const TestExecutionModal = ({
         previousData: testCase,
       });
 
-      // Limpiar draft al guardar exitosamente
-      if (draftKey) {
-        localStorage.removeItem(draftKey);
-      }
-
+      testCase.tags = updatedTags;
       notify('Ejecución guardada exitosamente', { type: 'success' });
       onExecuted?.();
       onClose();
@@ -370,9 +425,26 @@ export const TestExecutionModal = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <PlayArrowIcon sx={{ color: '#FF6B35' }} />
-        Ejecutar caso de prueba
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <PlayArrowIcon sx={{ color: '#FF6B35' }} />
+          Ejecutar caso de prueba
+        </Box>
+        {draftStatus && (
+          <Chip
+            size="small"
+            label={draftStatus}
+            variant="outlined"
+            sx={{
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              fontSize: '0.75rem',
+              borderColor: draftStatus === 'borrador' ? '#FF6B35' : '#3CCF91',
+              color: draftStatus === 'borrador' ? '#FF6B35' : '#3CCF91',
+              backgroundColor: draftStatus === 'borrador' ? 'rgba(255,107,53,0.05)' : 'rgba(60,207,145,0.05)',
+            }}
+          />
+        )}
       </DialogTitle>
       <DialogContent dividers sx={{ p: 0 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '320px 1fr' }, minHeight: 540 }}>
@@ -392,6 +464,20 @@ export const TestExecutionModal = ({
                 label={getExecutionLabel(executionResult)}
                 sx={{ backgroundColor: getExecutionColor(executionResult), color: '#fff', fontWeight: 700 }}
               />
+              {testCase.tags?.filter(tag => tag !== 'borrador' && tag !== 'test guardado' && tag !== 'terminado').map((tag) => (
+                <Chip
+                  key={tag}
+                  size="small"
+                  label={tag}
+                  variant="outlined"
+                  sx={{ 
+                    fontWeight: 600,
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                    backgroundColor: 'transparent'
+                  }}
+                />
+              ))}
             </Stack>
 
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -478,7 +564,7 @@ export const TestExecutionModal = ({
                       Técnicas aplicadas
                     </Typography>
                     <Stack direction="row" spacing={0.8} sx={{ flexWrap: 'wrap', rowGap: 0.8 }}>
-                      {techniqueTags.map((tag) => (
+                      {techniqueTags.filter(tag => tag !== 'borrador' && tag !== 'test guardado' && tag !== 'terminado').map((tag) => (
                         <Chip key={tag} label={tag} size="small" variant="outlined" color="secondary" />
                       ))}
                     </Stack>
