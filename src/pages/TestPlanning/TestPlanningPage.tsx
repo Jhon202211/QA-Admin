@@ -527,9 +527,8 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
     setActiveTestName(testRecord.name);
     setLogs([]);
-    setShowLogs(true);
     setActiveStatus('running');
-    setAutoStatus(s => ({ ...s, [testId]: 'running' }));
+    // No abrimos el modal ni ponemos autoStatus a running todavía
 
     try {
       const res = await fetch('http://localhost:9000/api/tests/execute', {
@@ -544,14 +543,35 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
         }),
       });
       const data = await res.json();
-      if (data.status !== 'started') {
+      
+      if (data.status === 'started') {
+        setShowLogs(true);
+        setAutoStatus(s => ({ ...s, [testId]: 'running' }));
+      } else {
         notify(data.message || 'Error al iniciar el test', { type: 'error' });
-        setAutoStatus(s => ({ ...s, [testId]: 'failed' }));
         setActiveStatus('idle');
+        // Si es error de navegador, podrías mostrar un mensaje más específico aquí
+        if (data.error_type === 'browser_missing') {
+          notify(`Navegador no encontrado. Ejecuta: ${data.suggestion}`, { type: 'error', autoHideDuration: 10000 });
+        }
       }
     } catch (error) {
       notify('Error de conexión con el servidor', { type: 'error' });
-      setAutoStatus(s => ({ ...s, [testId]: 'failed' }));
+      setActiveStatus('idle');
+    }
+  };
+
+  const handleCloseLogs = () => {
+    setShowLogs(false);
+    if (activeStatus === 'running') {
+      // Buscamos si hay algún test que realmente esté en estado 'running' en nuestro estado local
+      const runningTestId = Object.keys(autoStatus).find(id => autoStatus[id] === 'running');
+      
+      if (runningTestId) {
+        // En el contexto de planes, solo marcamos como fallido si el socket no ha respondido aún
+        // (activeStatus === 'running' garantiza que el socket no ha puesto idle el estado global del modal)
+        setAutoStatus(prev => ({ ...prev, [runningTestId]: 'failed' }));
+      }
       setActiveStatus('idle');
     }
   };
@@ -774,7 +794,7 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
       <ExecutionLogsModal 
         open={showLogs} 
-        onClose={() => setShowLogs(false)} 
+        onClose={handleCloseLogs} 
         logs={logs} 
         testName={activeTestName}
         status={activeStatus}

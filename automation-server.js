@@ -83,20 +83,32 @@ app.post('/api/tests/execute', (req, res) => {
   // Comando para ejecutar Playwright
   const command = `npx playwright test automation/tests/${test_file} --project=chromium -c playwright.config.ts`;
 
-  res.json({ status: 'started', message: `Ejecución de ${test_file} iniciada` });
+  // Validar si Chromium está instalado antes de ejecutar
+  exec('npx playwright install --with-deps chromium --dry-run', (err) => {
+    if (err) {
+      console.error('Chromium no está instalado o faltan dependencias');
+      return res.status(400).json({ 
+        status: 'error', 
+        error_type: 'browser_missing',
+        message: 'Chromium no está instalado. Por favor, ejecuta: npx playwright install chromium',
+        suggestion: 'npx playwright install chromium'
+      });
+    }
 
-  const startTime = Date.now();
-  const process = exec(command);
+    res.json({ status: 'started', message: `Ejecución de ${test_file} iniciada` });
 
-  process.stdout.on('data', (data) => {
-    io.emit('test-log', { type: 'stdout', data: data.toString() });
-  });
+    const startTime = Date.now();
+    const process = exec(command);
 
-  process.stderr.on('data', (data) => {
-    io.emit('test-log', { type: 'stderr', data: data.toString() });
-  });
+    process.stdout.on('data', (data) => {
+      io.emit('test-log', { type: 'stdout', data: data.toString() });
+    });
 
-  process.on('close', async (code) => {
+    process.stderr.on('data', (data) => {
+      io.emit('test-log', { type: 'stderr', data: data.toString() });
+    });
+
+    process.on('close', async (code) => {
     const duration = Math.round((Date.now() - startTime) / 1000);
     const status = code === 0 ? 'passed' : 'failed';
     const testNameClean = test_file.replace('.spec.ts', '').replace(/_/g, ' ');

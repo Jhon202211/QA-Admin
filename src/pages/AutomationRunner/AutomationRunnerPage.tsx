@@ -135,6 +135,7 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
   const [running, setRunning] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
   const [showServerModal, setShowServerModal] = useState(false);
+  const [browserError, setBrowserError] = useState<{ message: string, command: string } | null>(null);
   const notify = useNotify();
   const [update] = useUpdate();
 
@@ -145,18 +146,9 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
       return;
     }
 
+    setBrowserError(null);
     setRunning(true);
-    onShowLogs(record.id, record.name);
-    
-    try {
-      await update('automation', {
-        id: record.id,
-        data: { last_status: 'running' },
-        previousData: record,
-      });
-    } catch (e) {
-      console.error('Error updating status to running:', e);
-    }
+    // No llamamos a onShowLogs todavía para evitar que cuente como test ejecutado si falla la validación inicial
     
     try {
       const response = await fetch(`${API_BASE_URL}/execute`, {
@@ -172,52 +164,53 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
       });
 
       if (!response.ok) {
-        let errorMessage = `Error del servidor (${response.status})`;
+        const data = await response.json().catch(() => ({}));
+        
+        if (data.error_type === 'browser_missing') {
+          setBrowserError({ message: data.message, command: data.suggestion });
+          setShowServerModal(true);
+          setRunning(false);
+          return;
+        }
+
+        let errorMessage = data.message || `Error del servidor (${response.status})`;
         setSnackbar({ open: true, message: errorMessage, severity: 'error' });
         notify(errorMessage, { type: 'error' });
-        
-        await update('automation', {
-          id: record.id,
-          data: { last_status: 'failed' },
-          previousData: record,
-        });
+        setRunning(false);
         return;
       }
 
       const data = await response.json();
 
       if (data.status === 'started') {
+        // Ahora sí actualizamos el estado a running y mostramos los logs
+        onShowLogs(record.id, record.name);
         setSnackbar({ open: true, message: 'Ejecución iniciada correctamente', severity: 'success' });
+        
+        await update('automation', {
+          id: record.id,
+          data: { last_status: 'running' },
+          previousData: record,
+        });
       } else {
         const errorMsg = data.message || 'Error al iniciar la ejecución';
         setSnackbar({ open: true, message: errorMsg, severity: 'error' });
         notify(errorMsg, { type: 'error' });
-        
-        await update('automation', {
-          id: record.id,
-          data: { last_status: 'failed' },
-          previousData: record,
-        });
+        setRunning(false);
       }
     } catch (error: any) {
       console.error('Error en handleRun:', error);
+      setRunning(false);
       
       // Detectar si es un error de conexión (servidor apagado)
       if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        setBrowserError(null);
         setShowServerModal(true);
       } else {
         const errorMessage = error.message || 'Error de conexión.';
         setSnackbar({ open: true, message: errorMessage, severity: 'error' });
         notify(errorMessage, { type: 'error' });
       }
-      
-      await update('automation', {
-        id: record.id,
-        data: { last_status: 'failed' },
-        previousData: record,
-      });
-    } finally {
-      setRunning(false);
     }
   };
 
@@ -235,21 +228,25 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
         </Tooltip>
       )}
 
-      {/* Modal de sugerencia de servidor */}
+      {/* Modal de sugerencia de servidor / navegador */}
       <Dialog open={showServerModal} onClose={() => setShowServerModal(false)}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <WarningAmberIcon color="warning" />
-          Servidor de Automatización Apagado
+          {browserError ? 'Navegador no encontrado' : 'Servidor de Automatización Apagado'}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            No se pudo establecer conexión con el servidor de automatización en <strong>localhost:9000</strong>.
+            {browserError 
+              ? browserError.message 
+              : `No se pudo establecer conexión con el servidor de automatización en localhost:9000.`}
           </Typography>
           <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 1, position: 'relative' }}>
             <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-              Para ejecutar tests automáticos, debes iniciar el servidor local ejecutando:
+              {browserError 
+                ? 'Para instalar Chromium y sus dependencias, ejecuta:' 
+                : 'Para ejecutar tests automáticos, debes iniciar el servidor local ejecutando:'}
               <Box component="code" sx={{ display: 'block', mt: 1, fontWeight: 'bold', color: '#d32f2f' }}>
-                npm run automation:server
+                {browserError ? browserError.command : 'npm run automation:server'}
               </Box>
             </Typography>
             <Tooltip title="Copiar comando">
@@ -257,7 +254,8 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
                 size="small" 
                 sx={{ position: 'absolute', top: 8, right: 8 }}
                 onClick={() => {
-                  navigator.clipboard.writeText('npm run automation:server');
+                  const cmd = browserError ? browserError.command : 'npm run automation:server';
+                  navigator.clipboard.writeText(cmd);
                   notify('Comando copiado al portapapeles', { type: 'info' });
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -271,11 +269,14 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
           <Button onClick={() => setShowServerModal(false)}>Cerrar</Button>
           <Button 
             variant="contained" 
-            startIcon={<SettingsRemoteIcon />}
+            startIcon={browserError ? <PlayArrowIcon /> : <SettingsRemoteIcon />}
             sx={{ bgcolor: '#FF6B35', '&:hover': { bgcolor: '#E55A2B' } }}
             onClick={() => {
               setShowServerModal(false);
-              notify('Por favor, ejecuta "npm run automation:server" en tu terminal.', { type: 'info' });
+              const msg = browserError 
+                ? `Ejecuta "${browserError.command}" en tu terminal.`
+                : 'Por favor, ejecuta "npm run automation:server" en tu terminal.';
+              notify(msg, { type: 'info' });
             }}
           >
             Entendido
@@ -1019,6 +1020,30 @@ export const AutomationRunnerPage = () => {
     setActiveStatus('running');
   };
 
+  const handleCloseLogs = async () => {
+    setShowLogs(false);
+    if (activeStatus === 'running' && activeTest) {
+      // Si se cierra mientras está ejecutando, marcar como fallido/interrumpido
+      // pero SOLO si el estado sigue siendo 'running' (es decir, no ha llegado 'test-finished')
+      try {
+        // Obtenemos el registro actual para validar su estado real en la BD
+        const record = await dataProvider.getOne('automation', { id: activeTest.id });
+        
+        if (record.data.last_status === 'running') {
+          await update('automation', {
+            id: activeTest.id,
+            data: { last_status: 'failed' },
+            previousData: record.data,
+          });
+          setActiveStatus('idle');
+          refresh();
+        }
+      } catch (e) {
+        console.error('Error updating status on modal close:', e);
+      }
+    }
+  };
+
   useEffect(() => {
     const initializeDefaultCases = async () => {
       if (initialized) return;
@@ -1073,7 +1098,7 @@ export const AutomationRunnerPage = () => {
 
       <ExecutionLogsModal 
         open={showLogs} 
-        onClose={() => setShowLogs(false)} 
+        onClose={handleCloseLogs} 
         logs={logs} 
         testName={activeTest?.name || ''}
         status={activeStatus}
