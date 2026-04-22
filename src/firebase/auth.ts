@@ -14,7 +14,7 @@ const REMEMBERED_EMAIL_KEY = 'qa_remembered_email';
 const CHECK_AUTH_MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutos
 
 /** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
-const TOKEN_REFRESH_INTERVAL_MS = 45 * 60 * 1000;
+const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Reducido a 20 min para mayor seguridad
 
 /**
  * Mantiene el token válido cuando la pestaña vuelve al frente o tras largos periodos inactivos.
@@ -24,6 +24,7 @@ export function setupAuthSessionMaintenance(): () => void {
   const refresh = () => {
     const user = auth.currentUser;
     if (user) {
+      // Forzar refresco del token para extender la sesión de Firebase
       user.getIdToken(true).catch(() => {
         /* red / revocación: siguiente lectura de Firestore o checkAuth lo gestionarán */
       });

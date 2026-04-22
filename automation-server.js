@@ -109,75 +109,76 @@ app.post('/api/tests/execute', (req, res) => {
     });
 
     process.on('close', async (code) => {
-    const duration = Math.round((Date.now() - startTime) / 1000);
-    const status = code === 0 ? 'passed' : 'failed';
-    const testNameClean = test_file.replace('.spec.ts', '').replace(/_/g, ' ');
-    
-    console.log(`Test ${test_file} finalizado con estado: ${status} en ${duration}s`);
-    
-    io.emit('test-finished', { 
-      status, 
-      duration, 
-      test_file,
-      name: testNameClean,
-      planId: planId || null,
-      caseId: caseId || null
-    });
-
-    // 1. Buscar screenshot si falló
-    let screenshotUrl = null;
-    
-    if (status === 'failed') {
-      const testName = test_file.replace('.spec.ts', '');
-      const screenshotsDir = path.join(__dirname, 'test-results', `${testName}-chromium`, 'test-failed-1.png');
-      try {
-        if (fs.existsSync(screenshotsDir)) {
-          const screenshotBuffer = fs.readFileSync(screenshotsDir);
-          screenshotUrl = `data:image/png;base64,${screenshotBuffer.toString('base64')}`;
-        }
-      } catch (e) {
-        console.error('Error al leer screenshot:', e);
-      }
-    }
-
-    // 2. Guardar resultado en la colección 'test_results'
-    try {
-      const resultData = {
+      const duration = Math.round((Date.now() - startTime) / 1000);
+      const status = code === 0 ? 'passed' : 'failed';
+      const testNameClean = test_file.replace('.spec.ts', '').replace(/_/g, ' ');
+      
+      console.log(`Test ${test_file} finalizado con estado: ${status} en ${duration}s`);
+      
+      io.emit('test-finished', { 
+        status, 
+        duration, 
+        test_file,
         name: testNameClean,
-        test_file: test_file,
-        status: status,
-        duration: duration,
-        date: new Date().toISOString(),
-        executionType: 'automated',
-        planId: planId || '-',
-        planName: planName || (planId ? 'Cargando...' : 'Sin plan de pruebas'),
-        createdAt: Timestamp.now(),
-        screenshotUrl: screenshotUrl,
-        error: status === 'failed' ? 'Fallo en la ejecución de Playwright. Revisa los logs.' : null
-      };
-      
-      await addDoc(collection(db, 'test_results'), resultData);
-      console.log(`Resultado guardado en test_results para el plan: ${planName || 'Ninguno'}`);
-    } catch (e) {
-      console.error('Error al guardar en test_results:', e);
-    }
-
-    // 2. Actualizar el caso en la colección 'automation'
-    try {
-      const q = query(collection(db, 'automation'), where('test_file', '==', test_file));
-      const querySnapshot = await getDocs(q);
-      
-      querySnapshot.forEach(async (docSnap) => {
-        await updateDoc(doc(db, 'automation', docSnap.id), {
-          last_status: status,
-          last_duration: duration,
-          updatedAt: Timestamp.now()
-        });
+        planId: planId || null,
+        caseId: caseId || null
       });
-      console.log('Caso de automatización actualizado');
-    } catch (e) {
-      console.error('Error al actualizar caso en automation:', e);
-    }
+
+      // 1. Buscar screenshot si falló
+      let screenshotUrl = null;
+      
+      if (status === 'failed') {
+        const testName = test_file.replace('.spec.ts', '');
+        const screenshotsDir = path.join(__dirname, 'test-results', `${testName}-chromium`, 'test-failed-1.png');
+        try {
+          if (fs.existsSync(screenshotsDir)) {
+            const screenshotBuffer = fs.readFileSync(screenshotsDir);
+            screenshotUrl = `data:image/png;base64,${screenshotBuffer.toString('base64')}`;
+          }
+        } catch (e) {
+          console.error('Error al leer screenshot:', e);
+        }
+      }
+
+      // 2. Guardar resultado en la colección 'test_results'
+      try {
+        const resultData = {
+          name: testNameClean,
+          test_file: test_file,
+          status: status,
+          duration: duration,
+          date: new Date().toISOString(),
+          executionType: 'automated',
+          planId: planId || '-',
+          planName: planName || (planId ? 'Cargando...' : 'Sin plan de pruebas'),
+          createdAt: Timestamp.now(),
+          screenshotUrl: screenshotUrl,
+          error: status === 'failed' ? 'Fallo en la ejecución de Playwright. Revisa los logs.' : null
+        };
+        
+        await addDoc(collection(db, 'test_results'), resultData);
+        console.log(`Resultado guardado en test_results para el plan: ${planName || 'Ninguno'}`);
+      } catch (e) {
+        console.error('Error al guardar en test_results:', e);
+      }
+
+      // 2. Actualizar el caso en la colección 'automation'
+      try {
+        const q = query(collection(db, 'automation'), where('test_file', '==', test_file));
+        const querySnapshot = await getDocs(q);
+        
+        querySnapshot.forEach(async (docSnap) => {
+          await updateDoc(doc(db, 'automation', docSnap.id), {
+            last_status: status,
+            last_duration: duration,
+            updatedAt: Timestamp.now()
+          });
+        });
+        console.log('Caso de automatización actualizado');
+      } catch (e) {
+        console.error('Error al actualizar caso en automation:', e);
+      }
+    });
   });
 });
 

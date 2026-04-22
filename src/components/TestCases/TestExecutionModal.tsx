@@ -87,6 +87,11 @@ export const TestExecutionModal = ({
   const [noStepsEvidences, setNoStepsEvidences] = useState<EvidenceFile[]>([]);
   const noStepsFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Clave para el draft en localStorage
+  const draftKey = useMemo(() => 
+    testCase ? `execution_draft_${testCase.id}` : null
+  , [testCase]);
+
   // Ref con los handlers actuales para el listener de paste (evita closures obsoletos)
   const uploadHandlerRef = useRef<{
     forStep: (f: File) => Promise<void>;
@@ -96,24 +101,56 @@ export const TestExecutionModal = ({
   } | null>(null);
 
   useEffect(() => {
-    if (!open || !testCase) return;
+    if (!open || !testCase || !draftKey) return;
+    
+    // Intentar cargar draft desde localStorage
+    const savedDraft = localStorage.getItem(draftKey);
+    let draftData = null;
+    if (savedDraft) {
+      try {
+        draftData = JSON.parse(savedDraft);
+      } catch (e) {
+        console.error('Error parsing draft:', e);
+      }
+    }
+
     setSteps(
-      (testCase.steps || []).map((step, index) => ({
-        ...step,
-        id: step.id || `step-${index}`,
-        order: step.order || index + 1,
-        status: step.status || 'not_executed',
-        actualResult: step.actualResult || '',
-        evidences: step.evidences || [],
-      }))
+      (testCase.steps || []).map((step, index) => {
+        const draftStep = draftData?.steps?.find((s: any) => s.id === step.id);
+        return {
+          ...step,
+          id: step.id || `step-${index}`,
+          order: step.order || index + 1,
+          status: draftStep?.status || step.status || 'not_executed',
+          actualResult: draftStep?.actualResult || step.actualResult || '',
+          evidences: step.evidences || [], // Las evidencias no se guardan en draft por seguridad/complejidad
+        };
+      })
     );
-    setActiveStepIndex(0);
-    setExecutionNotes(testCase.notes || '');
+    
+    setActiveStepIndex(draftData?.activeStepIndex || 0);
+    setExecutionNotes(draftData?.notes || testCase.notes || '');
     setUploadProgress(null);
-    setNoStepsStatus((testCase.executionResult as TestStep['status']) || 'not_executed');
-    setNoStepsActualResult(testCase.actualResult || '');
+    setNoStepsStatus(draftData?.noStepsStatus || (testCase.executionResult as TestStep['status']) || 'not_executed');
+    setNoStepsActualResult(draftData?.noStepsActualResult || testCase.actualResult || '');
     setNoStepsEvidences((testCase as any).generalEvidences || []);
-  }, [open, testCase]);
+  }, [open, testCase, draftKey]);
+
+  // Guardar draft automáticamente cuando cambian los datos
+  useEffect(() => {
+    if (!open || !draftKey) return;
+
+    const draftData = {
+      steps: steps.map(s => ({ id: s.id, status: s.status, actualResult: s.actualResult })),
+      activeStepIndex,
+      notes: executionNotes,
+      noStepsStatus,
+      noStepsActualResult,
+      updatedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+  }, [steps, activeStepIndex, executionNotes, noStepsStatus, noStepsActualResult, open, draftKey]);
 
   const hasSteps = steps.length > 0;
   const activeStep = steps[activeStepIndex];
@@ -300,6 +337,11 @@ export const TestExecutionModal = ({
         data: dataToSave,
         previousData: testCase,
       });
+
+      // Limpiar draft al guardar exitosamente
+      if (draftKey) {
+        localStorage.removeItem(draftKey);
+      }
 
       notify('Ejecución guardada exitosamente', { type: 'success' });
       onExecuted?.();

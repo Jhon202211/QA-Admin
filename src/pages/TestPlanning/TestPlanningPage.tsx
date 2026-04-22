@@ -993,22 +993,54 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
   });
   const [initialized, setInitialized] = useState(false);
 
-  const saving = mode === 'edit' ? editSaving : raSaving;
+  // Clave para el draft en localStorage
+  const draftKey = useMemo(() => 
+    record?.id ? `plan_draft_${record.id}` : (mode === 'create' ? 'plan_draft_new' : null)
+  , [record?.id, mode]);
 
   useEffect(() => {
-    if (record && !initialized) {
+    if (record && !initialized && draftKey) {
+      // Intentar cargar draft desde localStorage
+      const savedDraft = localStorage.getItem(draftKey);
+      let draftData = null;
+      if (savedDraft) {
+        try {
+          draftData = JSON.parse(savedDraft);
+        } catch (e) {
+          console.error('Error parsing plan draft:', e);
+        }
+      }
+
       setForm({
-        name: record.name || '',
-        description: record.description || '',
-        status: record.status || 'draft',
-        startDate: record.startDate || '',
-        endDate: record.endDate || '',
-        manualTestCases: record.manualTestCases || [],
-        automatedTests: record.automatedTests || [],
+        name: draftData?.name || record.name || '',
+        description: draftData?.description || record.description || '',
+        status: draftData?.status || record.status || 'draft',
+        startDate: draftData?.startDate || record.startDate || '',
+        endDate: draftData?.endDate || record.endDate || '',
+        manualTestCases: draftData?.manualTestCases || record.manualTestCases || [],
+        automatedTests: draftData?.automatedTests || record.automatedTests || [],
       });
+      
+      if (draftData?.step !== undefined) {
+        setStep(draftData.step);
+      }
+      
       setInitialized(true);
     }
-  }, [record, initialized]);
+  }, [record, initialized, draftKey]);
+
+  // Guardar draft automáticamente cuando cambia el formulario
+  useEffect(() => {
+    if (!initialized || !draftKey) return;
+
+    const draftData = {
+      ...form,
+      step,
+      updatedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+  }, [form, step, initialized, draftKey]);
 
   const validate1 = () => {
     const e: Record<string, string> = {};
@@ -1034,6 +1066,12 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
           previousData: record,
         });
         notify('Plan guardado correctamente', { type: 'success' });
+        
+        // Limpiar draft al guardar exitosamente
+        if (draftKey) {
+          localStorage.removeItem(draftKey);
+        }
+        
         redirect('list', 'test_planning');
       } catch (error: any) {
         notify(`Error al guardar: ${error?.message || 'Error desconocido'}`, { type: 'error' });
@@ -1042,7 +1080,15 @@ function PlanWizardContent({ mode }: { mode: 'create' | 'edit' }) {
         setEditSaving(false);
       }
     } else {
-      save(form, { onSuccess: () => redirect('list', 'test_planning') });
+      save(form, { 
+        onSuccess: () => {
+          // Limpiar draft al guardar exitosamente
+          if (draftKey) {
+            localStorage.removeItem(draftKey);
+          }
+          redirect('list', 'test_planning');
+        }
+      });
     }
   };
 

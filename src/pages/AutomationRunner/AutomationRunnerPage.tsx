@@ -1110,6 +1110,27 @@ export const AutomationRunnerPage = () => {
 export const AutomationCaseCreate = (props: any) => {
   const { files, loading } = useTestFiles();
 
+  const [initialized, setInitialized] = useState(false);
+
+  // Clave para el draft en localStorage
+  const draftKey = useMemo(() => 
+    record?.id ? `automation_edit_draft_${record.id}` : (props.mode === 'create' ? 'automation_create_draft' : null)
+  , [record?.id, props.mode]);
+
+  useEffect(() => {
+    if (record && !initialized && draftKey) {
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        try {
+          const draftData = JSON.parse(savedDraft);
+          // Solo aplicamos si el draft es reciente (opcional)
+          // Aquí react-admin maneja el form, pero podemos usar defaultValues o reset
+        } catch (e) { console.error(e); }
+      }
+      setInitialized(true);
+    }
+  }, [record, initialized, draftKey]);
+
   return (
     <Box sx={{ pt: '20px', pr: '20px', pb: '20px', pl: 0 }}>
       <Typography variant="h4" gutterBottom>
@@ -1117,7 +1138,15 @@ export const AutomationCaseCreate = (props: any) => {
       </Typography>
       <Paper sx={{ p: 3, mt: 3 }}>
         <Create {...props} title="Nuevo Caso Automatizado" redirect="list">
-          <SimpleForm defaultValues={{ status: 'active' }}>
+          <SimpleForm 
+            defaultValues={{ status: 'active' }}
+            onChange={(values) => {
+              if (draftKey) localStorage.setItem(draftKey, JSON.stringify(values));
+            }}
+            onSubmit={() => {
+              if (draftKey) localStorage.removeItem(draftKey);
+            }}
+          >
             <TextInput source="name" label="Nombre" fullWidth required />
             <SelectInput source="module" label="Módulo / Agrupación" choices={MODULE_CHOICES} fullWidth />
             <TextInput source="description" label="Descripción" multiline fullWidth />
@@ -1164,7 +1193,16 @@ export const AutomationCaseEdit = (props: any) => {
       </Typography>
       <Paper sx={{ p: 3, mt: 3 }}>
         <Edit {...props} title="Editar Caso Automatizado">
-          <SimpleForm>
+          <SimpleForm
+            onChange={(values) => {
+              const id = props.id || (window.location.hash.split('/').pop());
+              if (id) localStorage.setItem(`automation_edit_draft_${id}`, JSON.stringify(values));
+            }}
+            onSubmit={() => {
+              const id = props.id || (window.location.hash.split('/').pop());
+              if (id) localStorage.removeItem(`automation_edit_draft_${id}`);
+            }}
+          >
             <TextInput source="name" label="Nombre" fullWidth required />
             <SelectInput source="module" label="Módulo / Agrupación" choices={MODULE_CHOICES} fullWidth />
             <TextInput source="description" label="Descripción" multiline fullWidth />
