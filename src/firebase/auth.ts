@@ -16,6 +16,21 @@ const CHECK_AUTH_MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutos
 /** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
 const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Reducido a 20 min para mayor seguridad
 
+/** Verifica si hay borradores (drafts) activos de ejecuciones de pruebas manuales */
+export function hasActiveExecutionDrafts(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('execution_draft_')) {
+        return true;
+      }
+    }
+  } catch (e) {
+    console.error('Error checking drafts:', e);
+  }
+  return false;
+}
+
 /**
  * Mantiene el token válido cuando la pestaña vuelve al frente o tras largos periodos inactivos.
  * Firebase renueva solo, pero el throttling del navegador en pestañas ocultas puede retrasarlo.
@@ -35,11 +50,21 @@ export function setupAuthSessionMaintenance(): () => void {
     if (document.visibilityState === 'visible') refresh();
   };
 
+  const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (hasActiveExecutionDrafts()) {
+      e.preventDefault();
+      e.returnValue = 'Tienes una ejecución de prueba en curso. Si sales ahora, los cambios no guardados se mantendrán solo localmente.';
+      return e.returnValue;
+    }
+  };
+
   document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('beforeunload', onBeforeUnload);
   const intervalId = window.setInterval(refresh, TOKEN_REFRESH_INTERVAL_MS);
 
   return () => {
     document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('beforeunload', onBeforeUnload);
     window.clearInterval(intervalId);
   };
 }
@@ -62,6 +87,14 @@ export const authProvider = {
   },
   logout: async () => {
     try {
+      if (hasActiveExecutionDrafts()) {
+        const confirmLogout = window.confirm(
+          'Tienes ejecuciones de prueba pendientes de guardar. ¿Estás seguro de que deseas cerrar sesión?'
+        );
+        if (!confirmLogout) {
+          return Promise.reject('Logout cancelado por el usuario');
+        }
+      }
       await signOut(auth);
       return Promise.resolve();
     } catch (error) {

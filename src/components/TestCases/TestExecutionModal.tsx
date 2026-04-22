@@ -150,6 +150,15 @@ export const TestExecutionModal = ({
     };
 
     localStorage.setItem(draftKey, JSON.stringify(draftData));
+
+    // Refrescar token de Firebase proactivamente al detectar actividad en el modal
+    // para evitar que la sesión expire mientras el usuario está trabajando
+    import('../../firebase/config').then(({ auth }) => {
+      const user = auth.currentUser;
+      if (user) {
+        user.getIdToken(false).catch(() => {});
+      }
+    });
   }, [steps, activeStepIndex, executionNotes, noStepsStatus, noStepsActualResult, open, draftKey]);
 
   const hasSteps = steps.length > 0;
