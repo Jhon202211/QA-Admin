@@ -1022,6 +1022,9 @@ export const AutomationRunnerPage = () => {
 
   const handleCloseLogs = async () => {
     setShowLogs(false);
+    // Refrescar la página después de cerrar el modal de logs para ver los resultados actualizados
+    refresh();
+    
     if (activeStatus === 'running' && activeTest) {
       // Si se cierra mientras está ejecutando, marcar como fallido/interrumpido
       // pero SOLO si el estado sigue siendo 'running' (es decir, no ha llegado 'test-finished')
