@@ -15,6 +15,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 import { useSidebarState } from 'react-admin';
+import { useState, useEffect } from 'react';
 
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
@@ -25,6 +26,7 @@ import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from '
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { AppMenu } from './components/navigation/AppMenu';
+import { DraftsListModal } from './components/navigation/DraftsListModal';
 import { ReliabilityDashboardPage } from './pages/Reliability/ReliabilityDashboardPage';
 import { ReliabilityAnalysisPage } from './pages/Reliability/ReliabilityAnalysisPage';
 import { SystemIncidentCreate, SystemIncidentEdit, SystemIncidentsPage } from './pages/Reliability/SystemIncidentsPage';
@@ -65,6 +67,15 @@ const CustomLayout = (props: any) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [draftsModalOpen, setDraftsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleLogoutCancelled = () => {
+      setDraftsModalOpen(true);
+    };
+    window.addEventListener('logout-cancelled-with-drafts', handleLogoutCancelled);
+    return () => window.removeEventListener('logout-cancelled-with-drafts', handleLogoutCancelled);
+  }, []);
 
   return (
     <>
@@ -161,6 +172,7 @@ const CustomLayout = (props: any) => {
           },
         }}
       />
+      <DraftsListModal open={draftsModalOpen} onClose={() => setDraftsModalOpen(false)} />
     </>
   );
 };

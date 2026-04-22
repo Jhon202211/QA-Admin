@@ -92,6 +92,8 @@ export const authProvider = {
           'Tienes ejecuciones de prueba pendientes de guardar. ¿Estás seguro de que deseas cerrar sesión?'
         );
         if (!confirmLogout) {
+          // Disparamos un evento personalizado para que la UI pueda reaccionar
+          window.dispatchEvent(new CustomEvent('logout-cancelled-with-drafts'));
           return Promise.reject('Logout cancelado por el usuario');
         }
       }
