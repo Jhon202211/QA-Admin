@@ -15,6 +15,7 @@ const CHECK_AUTH_MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutos
 
 /** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
 const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Reducido a 20 min para mayor seguridad
+const EXECUTION_DRAFTS_MODAL_REQUEST_KEY = 'execution_drafts_modal_requested';
 
 /** Verifica si hay borradores (drafts) activos de ejecuciones de pruebas manuales */
 export function hasActiveExecutionDrafts(): boolean {
@@ -29,6 +30,11 @@ export function hasActiveExecutionDrafts(): boolean {
     console.error('Error checking drafts:', e);
   }
   return false;
+}
+
+function notifyExecutionDraftsAvailable() {
+  sessionStorage.setItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY, '1');
+  window.dispatchEvent(new CustomEvent('execution-drafts-available'));
 }
 
 /**
@@ -93,7 +99,7 @@ export const authProvider = {
         );
         if (!confirmLogout) {
           // Mantener la sesión activa y abrir el modal con los borradores pendientes.
-          window.dispatchEvent(new CustomEvent('logout-cancelled-with-drafts'));
+          notifyExecutionDraftsAvailable();
           return Promise.resolve(false);
         }
       }
@@ -105,6 +111,9 @@ export const authProvider = {
   },
   checkError: ({ status }: { status: number }) => {
     if (status === 401 || status === 403) {
+      if (hasActiveExecutionDrafts()) {
+        notifyExecutionDraftsAvailable();
+      }
       return Promise.reject();
     }
     return Promise.resolve();
@@ -121,7 +130,12 @@ export const authProvider = {
         unsubscribe();
         clearTimeout(timer);
         if (user) resolve();
-        else reject();
+        else {
+          if (hasActiveExecutionDrafts()) {
+            notifyExecutionDraftsAvailable();
+          }
+          reject();
+        }
       };
 
       const unsubscribe = onAuthStateChanged(auth, (user) => {

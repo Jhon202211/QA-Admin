@@ -17,10 +17,10 @@ import {
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { useGetList, useRefresh } from 'react-admin';
 import { useState, useEffect } from 'react';
 import { TestExecutionModal } from '../TestCases/TestExecutionModal';
 import type { TestCase } from '../../types/testCase';
+import { dataProvider } from '../../firebase/dataProvider';
 
 interface DraftsListModalProps {
   open: boolean;
@@ -30,7 +30,9 @@ interface DraftsListModalProps {
 export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
   const [draftIds, setDraftIds] = useState<string[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
-  const refresh = useRefresh();
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const syncDraftIds = () => {
     const ids: string[] = [];
@@ -44,18 +46,46 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
     return ids;
   };
 
-  // Obtener todos los casos de prueba para filtrar los que tienen drafts
-  const { data: testCases, isLoading } = useGetList('test_cases', {
-    pagination: { page: 1, perPage: 1000 },
-  });
-
   useEffect(() => {
-    if (open) {
-      syncDraftIds();
-    }
+    if (!open) return;
+
+    syncDraftIds();
+    setIsLoading(true);
+    setError(null);
+
+    dataProvider.getList('test_cases', {
+      pagination: { page: 1, perPage: 1000 },
+    })
+      .then((response) => {
+        setTestCases(response.data as TestCase[]);
+      })
+      .catch((err: unknown) => {
+        setTestCases([]);
+        setError(err instanceof Error ? err : new Error('No se pudieron cargar los casos de prueba'));
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [open]);
 
   const draftCases = testCases?.filter((tc) => draftIds.includes(tc.id)) || [];
+  const fallbackDrafts = draftIds
+    .filter((id) => !draftCases.some((tc) => tc.id === id))
+    .map((id) => {
+      const rawDraft = localStorage.getItem(`execution_draft_${id}`);
+      let updatedAt: string | null = null;
+
+      if (rawDraft) {
+        try {
+          const parsedDraft = JSON.parse(rawDraft);
+          updatedAt = parsedDraft?.updatedAt ?? null;
+        } catch (e) {
+          console.error('Error parsing fallback draft:', e);
+        }
+      }
+
+      return { id, updatedAt };
+    });
 
   const handleOpenExecution = (testCase: TestCase) => {
     setSelectedTestCase(testCase);
@@ -68,7 +98,6 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
     if (ids.length === 0) {
       onClose();
     }
-    refresh();
   };
 
   const handleClearDraft = (testCaseId: string) => {
@@ -103,9 +132,14 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
             Las siguientes ejecuciones tienen cambios locales que no han sido guardados en la base de datos.
             Selecciona una para revisarla y guardarla, o limpia el borrador si ya no lo necesitas.
           </Typography>
+          {error && draftIds.length > 0 && (
+            <Typography variant="body2" sx={{ mb: 2, color: '#FF6B35' }}>
+              La sesión ya no es válida o no se pudieron cargar los casos. Tus borradores siguen disponibles en este navegador.
+            </Typography>
+          )}
           {isLoading ? (
             <Typography variant="body2">Cargando...</Typography>
-          ) : draftCases.length === 0 ? (
+          ) : draftCases.length === 0 && fallbackDrafts.length === 0 ? (
             <Typography variant="body2" sx={{ py: 2, textAlign: 'center' }}>
               No se encontraron ejecuciones pendientes.
             </Typography>
@@ -157,11 +191,54 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
                   />
                 </ListItem>
               ))}
+              {fallbackDrafts.map((draft) => (
+                <ListItem
+                  key={draft.id}
+                  secondaryAction={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Tooltip title="Limpiar borrador">
+                        <IconButton edge="end" onClick={() => handleClearDraft(draft.id)} sx={{ color: '#E53935' }}>
+                          <DeleteOutlineIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  }
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    mb: 1,
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' },
+                  }}
+                >
+                  <ListItemIcon>
+                    <SaveIcon sx={{ color: '#FF6B35' }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={`Borrador local - ${draft.id}`}
+                    secondary={
+                      <Box sx={{ mt: 0.5, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {draft.updatedAt
+                            ? `Ultima actualizacion: ${new Date(draft.updatedAt).toLocaleString()}`
+                            : 'Disponible para recuperar cuando vuelvas a iniciar sesion'}
+                        </Typography>
+                        <Chip
+                          label="Borrador local"
+                          size="small"
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: '0.65rem', color: '#FF6B35', borderColor: '#FF6B35' }}
+                        />
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
             </List>
           )}
         </DialogContent>
         <DialogActions>
-          {draftCases.length > 0 && (
+          {(draftCases.length > 0 || fallbackDrafts.length > 0) && (
             <Button color="error" onClick={handleClearAllDrafts}>
               Limpiar todos
             </Button>

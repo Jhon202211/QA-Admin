@@ -31,6 +31,8 @@ import { ReliabilityDashboardPage } from './pages/Reliability/ReliabilityDashboa
 import { ReliabilityAnalysisPage } from './pages/Reliability/ReliabilityAnalysisPage';
 import { SystemIncidentCreate, SystemIncidentEdit, SystemIncidentsPage } from './pages/Reliability/SystemIncidentsPage';
 
+const EXECUTION_DRAFTS_MODAL_REQUEST_KEY = 'execution_drafts_modal_requested';
+
 const CustomAppBar = (props: any) => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
@@ -67,15 +69,6 @@ const CustomLayout = (props: any) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [draftsModalOpen, setDraftsModalOpen] = useState(false);
-
-  useEffect(() => {
-    const handleLogoutCancelled = () => {
-      setDraftsModalOpen(true);
-    };
-    window.addEventListener('logout-cancelled-with-drafts', handleLogoutCancelled);
-    return () => window.removeEventListener('logout-cancelled-with-drafts', handleLogoutCancelled);
-  }, []);
 
   return (
     <>
@@ -172,9 +165,34 @@ const CustomLayout = (props: any) => {
           },
         }}
       />
-      <DraftsListModal open={draftsModalOpen} onClose={() => setDraftsModalOpen(false)} />
     </>
   );
+};
+
+const GlobalDraftsModalManager = () => {
+  const [draftsModalOpen, setDraftsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleDraftsAvailable = () => {
+      setDraftsModalOpen(true);
+    };
+
+    if (sessionStorage.getItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY) === '1') {
+      setDraftsModalOpen(true);
+      sessionStorage.removeItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY);
+    }
+
+    window.addEventListener('execution-drafts-available', handleDraftsAvailable);
+    return () => window.removeEventListener('execution-drafts-available', handleDraftsAvailable);
+  }, []);
+
+  useEffect(() => {
+    if (!draftsModalOpen) {
+      sessionStorage.removeItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY);
+    }
+  }, [draftsModalOpen]);
+
+  return <DraftsListModal open={draftsModalOpen} onClose={() => setDraftsModalOpen(false)} />;
 };
 
 const Footer = () => {
@@ -229,6 +247,7 @@ function App() {
           />
           <Resource name="configuration" list={ConfigurationPage} icon={SettingsIcon} options={{ label: 'Configuración' }} />
         </Admin>
+        <GlobalDraftsModalManager />
         <Footer />
       </BrowserRouter>
     </ErrorBoundary>
