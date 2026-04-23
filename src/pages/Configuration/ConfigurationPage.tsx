@@ -54,7 +54,7 @@ const S3_CORS_POLICY = `[
 const TabPanel = ({ children, value, index }: { children: React.ReactNode; value: number; index: number }) => {
   return (
     <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+      <Box sx={{ pt: 3, display: value === index ? 'block' : 'none' }}>{children}</Box>
     </div>
   );
 };
@@ -139,9 +139,13 @@ export const ConfigurationPage = () => {
     }
   }, []);
 
-  const GeneralSettings = () => (
+  const handleConfigChange = (field: string, value: any) => {
+    setConfig(prev => ({ ...prev, [field]: value }));
+  };
+
+  const GeneralSettings = (
     <Grid container spacing={3}>
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid item xs={12} md={6}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -152,14 +156,14 @@ export const ConfigurationPage = () => {
               fullWidth
               label="Nombre de la Aplicación"
               value={config.appName}
-              onChange={(e) => setConfig({ ...config, appName: e.target.value })}
+              onChange={(e) => handleConfigChange('appName', e.target.value)}
               sx={{ mb: 2 }}
             />
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Idioma</InputLabel>
               <Select
                 value={config.language}
-                onChange={(e) => setConfig({ ...config, language: e.target.value })}
+                onChange={(e) => handleConfigChange('language', e.target.value)}
                 label="Idioma"
               >
                 <MenuItem value="es">Español</MenuItem>
@@ -170,7 +174,7 @@ export const ConfigurationPage = () => {
               <InputLabel>Zona Horaria</InputLabel>
               <Select
                 value={config.timezone}
-                onChange={(e) => setConfig({ ...config, timezone: e.target.value })}
+                onChange={(e) => handleConfigChange('timezone', e.target.value)}
                 label="Zona Horaria"
               >
                 <MenuItem value="America/Bogota">Bogotá (GMT-5)</MenuItem>
@@ -183,7 +187,7 @@ export const ConfigurationPage = () => {
               <InputLabel>Formato de Fecha</InputLabel>
               <Select
                 value={config.dateFormat}
-                onChange={(e) => setConfig({ ...config, dateFormat: e.target.value })}
+                onChange={(e) => handleConfigChange('dateFormat', e.target.value)}
                 label="Formato de Fecha"
               >
                 <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
@@ -195,7 +199,7 @@ export const ConfigurationPage = () => {
         </Card>
       </Grid>
 
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid item xs={12} md={6}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -206,7 +210,7 @@ export const ConfigurationPage = () => {
               control={
                 <Switch
                   checked={config.autoSaveTestResults}
-                  onChange={(e) => setConfig({ ...config, autoSaveTestResults: e.target.checked })}
+                  onChange={(e) => handleConfigChange('autoSaveTestResults', e.target.checked)}
                 />
               }
               label="Guardar resultados automáticamente"
@@ -216,7 +220,7 @@ export const ConfigurationPage = () => {
               <InputLabel>Prioridad por Defecto</InputLabel>
               <Select
                 value={config.defaultTestPriority}
-                onChange={(e) => setConfig({ ...config, defaultTestPriority: e.target.value })}
+                onChange={(e) => handleConfigChange('defaultTestPriority', e.target.value)}
                 label="Prioridad por Defecto"
               >
                 <MenuItem value="Alta">Alta</MenuItem>
@@ -228,7 +232,7 @@ export const ConfigurationPage = () => {
               <InputLabel>Categoría por Defecto</InputLabel>
               <Select
                 value={config.defaultTestCategory}
-                onChange={(e) => setConfig({ ...config, defaultTestCategory: e.target.value })}
+                onChange={(e) => handleConfigChange('defaultTestCategory', e.target.value)}
                 label="Categoría por Defecto"
               >
                 <MenuItem value="Smoke">Smoke</MenuItem>
@@ -243,7 +247,7 @@ export const ConfigurationPage = () => {
               type="number"
               label="Duración Máxima de Prueba (segundos)"
               value={config.maxTestDuration}
-              onChange={(e) => setConfig({ ...config, maxTestDuration: parseInt(e.target.value) || 300 })}
+              onChange={(e) => handleConfigChange('maxTestDuration', parseInt(e.target.value) || 300)}
             />
           </CardContent>
         </Card>
@@ -251,9 +255,9 @@ export const ConfigurationPage = () => {
     </Grid>
   );
 
-  const NotificationSettings = () => (
+  const NotificationSettings = (
     <Grid container spacing={3}>
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid item xs={12} md={6}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -264,7 +268,7 @@ export const ConfigurationPage = () => {
               control={
                 <Switch
                   checked={config.emailNotifications}
-                  onChange={(e) => setConfig({ ...config, emailNotifications: e.target.checked })}
+                  onChange={(e) => handleConfigChange('emailNotifications', e.target.checked)}
                 />
               }
               label="Activar notificaciones por email"
@@ -274,7 +278,7 @@ export const ConfigurationPage = () => {
               control={
                 <Switch
                   checked={config.notificationOnFailure}
-                  onChange={(e) => setConfig({ ...config, notificationOnFailure: e.target.checked })}
+                  onChange={(e) => handleConfigChange('notificationOnFailure', e.target.checked)}
                   disabled={!config.emailNotifications}
                 />
               }
@@ -285,7 +289,7 @@ export const ConfigurationPage = () => {
               control={
                 <Switch
                   checked={config.notificationOnSuccess}
-                  onChange={(e) => setConfig({ ...config, notificationOnSuccess: e.target.checked })}
+                  onChange={(e) => handleConfigChange('notificationOnSuccess', e.target.checked)}
                   disabled={!config.emailNotifications}
                 />
               }
@@ -296,7 +300,7 @@ export const ConfigurationPage = () => {
         </Card>
       </Grid>
 
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid item xs={12} md={6}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -307,7 +311,7 @@ export const ConfigurationPage = () => {
               control={
                 <Switch
                   checked={config.slackNotifications}
-                  onChange={(e) => setConfig({ ...config, slackNotifications: e.target.checked })}
+                  onChange={(e) => handleConfigChange('slackNotifications', e.target.checked)}
                 />
               }
               label="Activar notificaciones por Slack"
@@ -319,9 +323,9 @@ export const ConfigurationPage = () => {
     </Grid>
   );
 
-  const ReportSettings = () => (
+  const ReportSettings = (
     <Grid container spacing={3}>
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid item xs={12} md={6}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -332,7 +336,7 @@ export const ConfigurationPage = () => {
               control={
                 <Switch
                   checked={config.autoGenerateReports}
-                  onChange={(e) => setConfig({ ...config, autoGenerateReports: e.target.checked })}
+                  onChange={(e) => handleConfigChange('autoGenerateReports', e.target.checked)}
                 />
               }
               label="Generar reportes automáticamente"
@@ -342,7 +346,7 @@ export const ConfigurationPage = () => {
               <InputLabel>Formato de Reporte</InputLabel>
               <Select
                 value={config.reportFormat}
-                onChange={(e) => setConfig({ ...config, reportFormat: e.target.value })}
+                onChange={(e) => handleConfigChange('reportFormat', e.target.value)}
                 label="Formato de Reporte"
               >
                 <MenuItem value="PDF">PDF</MenuItem>
@@ -354,7 +358,7 @@ export const ConfigurationPage = () => {
               control={
                 <Switch
                   checked={config.includeScreenshots}
-                  onChange={(e) => setConfig({ ...config, includeScreenshots: e.target.checked })}
+                  onChange={(e) => handleConfigChange('includeScreenshots', e.target.checked)}
                 />
               }
               label="Incluir capturas de pantalla en reportes"
@@ -366,446 +370,364 @@ export const ConfigurationPage = () => {
     </Grid>
   );
 
-  const IntegrationSettings = () => (
-    <Grid container spacing={3}>
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
-              Integración con Jira
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.jiraIntegration}
-                  onChange={(e) => setConfig({ ...config, jiraIntegration: e.target.checked })}
-                />
-              }
-              label="Activar integración con Jira"
-              sx={{ mb: 2, display: 'block' }}
-            />
-            <TextField
-              fullWidth
-              label="URL de Jira"
-              value={config.jiraUrl}
-              onChange={(e) => setConfig({ ...config, jiraUrl: e.target.value })}
-              disabled={!config.jiraIntegration}
-              sx={{ mb: 2 }}
-              placeholder="https://tu-empresa.atlassian.net"
-            />
-            <TextField
-              fullWidth
-              label="Clave del Proyecto"
-              value={config.jiraProjectKey}
-              onChange={(e) => setConfig({ ...config, jiraProjectKey: e.target.value })}
-              disabled={!config.jiraIntegration}
-              placeholder="PROJ"
-            />
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid size={{ xs: 12 }}>
-        <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
-          <CardContent>
-            {/* Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <AutoAwesomeIcon sx={{ color: '#FF6B35' }} />
-              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                Agente IA — QA Test Case Architect
+  const IntegrationSettings = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Grid container spacing={3}>
+        {/* Fila 1: Jira y GitHub */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '100%', backgroundColor: isDark ? '#2B2D42' : '#FFFFFF', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flexGrow: 1 }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                Integración con Jira
               </Typography>
-            </Box>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-              Selecciona el proveedor LLM para la generación de casos de prueba con RAG (BM25).
-              Las API keys se guardan localmente y nunca se comparten.
-            </Typography>
-            <Divider sx={{ mb: 3 }} />
-
-            {/* Activar agente */}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.llmEnabled}
-                  onChange={(e) =>
-                    setConfig({ ...config, llmEnabled: e.target.checked, openaiEnabled: e.target.checked })
-                  }
+              <Divider sx={{ my: 2 }} />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={config.jiraIntegration}
+                    onChange={(e) => handleConfigChange('jiraIntegration', e.target.checked)}
+                  />
+                }
+                label="Activar integración con Jira"
+                sx={{ mb: 2, display: 'block' }}
+              />
+              <Stack spacing={2}>
+                <TextField
+                  fullWidth
+                  label="URL de Jira"
+                  value={config.jiraUrl}
+                  onChange={(e) => handleConfigChange('jiraUrl', e.target.value)}
+                  disabled={!config.jiraIntegration}
+                  placeholder="https://tu-empresa.atlassian.net"
                 />
-              }
-              label="Activar Agente IA"
-              sx={{ mb: 3, display: 'block' }}
-            />
+                <TextField
+                  fullWidth
+                  label="Clave del Proyecto"
+                  value={config.jiraProjectKey}
+                  onChange={(e) => handleConfigChange('jiraProjectKey', e.target.value)}
+                  disabled={!config.jiraIntegration}
+                  placeholder="PROJ"
+                />
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
 
-            {/* Selector de proveedor */}
-            <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
-              {(
-                [
-                  { value: 'openai',       label: 'OpenAI',       color: '#10A37F', desc: 'GPT-4o · GPT-4o Mini' },
-                  { value: 'ollama_cloud', label: 'Ollama Cloud',  color: '#FF6B35', desc: 'LLaMA · Qwen · Mistral' },
-                  { value: 'deepseek',     label: 'DeepSeek',      color: '#4F94EF', desc: 'DeepSeek Chat · Reasoner' },
-                ] as const
-              ).map((p) => (
-                <Card
-                  key={p.value}
-                  onClick={() => config.llmEnabled && setConfig({ ...config, llmProvider: p.value })}
-                  sx={{
-                    flex: '1 1 160px',
-                    cursor: config.llmEnabled ? 'pointer' : 'default',
-                    border: `2px solid ${config.llmProvider === p.value && config.llmEnabled ? p.color : 'transparent'}`,
-                    backgroundColor:
-                      config.llmProvider === p.value && config.llmEnabled
-                        ? isDark ? '#1A1C2E' : '#F5F5F5'
-                        : isDark ? '#1A1C2E' : '#FAFAFA',
-                    opacity: config.llmEnabled ? 1 : 0.5,
-                    transition: 'border-color 0.15s',
-                    '&:hover': config.llmEnabled ? { borderColor: p.color } : {},
-                  }}
-                >
-                  <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        {p.label}
-                      </Typography>
-                      {config.llmProvider === p.value && config.llmEnabled && (
-                        <Chip label="activo" size="small" sx={{ backgroundColor: p.color, color: '#fff', height: 18, fontSize: '0.65rem' }} />
-                      )}
-                    </Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {p.desc}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-
-            {/* Campos dinámicos por proveedor */}
-            {config.llmEnabled && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-
-                {/* ── OpenAI ── */}
-                {config.llmProvider === 'openai' && (
-                  <>
-                    <TextField
-                      fullWidth
-                      type="password"
-                      label="API Key de OpenAI"
-                      value={config.openaiApiKey}
-                      onChange={(e) => setConfig({ ...config, openaiApiKey: e.target.value })}
-                      placeholder="sk-..."
-                      helperText="Obtén tu API key en platform.openai.com/api-keys"
-                    />
-                    <FormControl fullWidth>
-                      <InputLabel>Modelo</InputLabel>
-                      <Select
-                        value={config.openaiModel}
-                        onChange={(e) => setConfig({ ...config, openaiModel: e.target.value })}
-                        label="Modelo"
-                      >
-                        <MenuItem value="gpt-4o-mini">GPT-4o Mini — rápido y económico (recomendado)</MenuItem>
-                        <MenuItem value="gpt-4o">GPT-4o — máxima capacidad</MenuItem>
-                        <MenuItem value="gpt-4-turbo">GPT-4 Turbo</MenuItem>
-                        <MenuItem value="gpt-3.5-turbo">GPT-3.5 Turbo — más económico</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </>
-                )}
-
-                {/* ── Ollama Cloud ── */}
-                {config.llmProvider === 'ollama_cloud' && (
-                  <>
-                    <TextField
-                      fullWidth
-                      type="password"
-                      label="API Key de Ollama"
-                      value={config.ollamaApiKey}
-                      onChange={(e) => setConfig({ ...config, ollamaApiKey: e.target.value })}
-                      placeholder="ollama_..."
-                      helperText="Obtén tu API key en ollama.com/settings/keys"
-                    />
-                    <TextField
-                      fullWidth
-                      label="Modelo"
-                      value={config.ollamaModel}
-                      onChange={(e) => setConfig({ ...config, ollamaModel: e.target.value })}
-                      placeholder="llama3.2"
-                      helperText="Escribe el nombre exacto del modelo. Ej: llama3.2, llama3.1, qwen2.5, mistral"
-                    />
-                    <TextField
-                      fullWidth
-                      label="URL base (opcional)"
-                      value={config.ollamaBaseUrl}
-                      onChange={(e) => setConfig({ ...config, ollamaBaseUrl: e.target.value })}
-                      helperText="Por defecto: https://ollama.com/v1"
-                    />
-                  </>
-                )}
-
-                {/* ── DeepSeek ── */}
-                {config.llmProvider === 'deepseek' && (
-                  <>
-                    <TextField
-                      fullWidth
-                      type="password"
-                      label="API Key de DeepSeek"
-                      value={config.deepseekApiKey}
-                      onChange={(e) => setConfig({ ...config, deepseekApiKey: e.target.value })}
-                      placeholder="sk-..."
-                      helperText="Obtén tu API key en platform.deepseek.com"
-                    />
-                    <FormControl fullWidth>
-                      <InputLabel>Modelo</InputLabel>
-                      <Select
-                        value={config.deepseekModel}
-                        onChange={(e) => setConfig({ ...config, deepseekModel: e.target.value })}
-                        label="Modelo"
-                      >
-                        <MenuItem value="deepseek-chat">DeepSeek Chat — generación estándar (recomendado)</MenuItem>
-                        <MenuItem value="deepseek-reasoner">DeepSeek Reasoner — razonamiento avanzado (R1)</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <TextField
-                      fullWidth
-                      label="URL base (opcional)"
-                      value={config.deepseekBaseUrl}
-                      onChange={(e) => setConfig({ ...config, deepseekBaseUrl: e.target.value })}
-                      helperText="Por defecto: https://api.deepseek.com/v1"
-                    />
-                  </>
-                )}
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* ── AWS S3 ── */}
-      <Grid size={{ xs: 12 }}>
-        <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <CloudIcon sx={{ color: '#FF9900' }} />
-              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                Almacenamiento de Evidencias — AWS S3
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '100%', backgroundColor: isDark ? '#2B2D42' : '#FFFFFF', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flexGrow: 1 }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                Integración con GitHub
               </Typography>
-              {config.awsS3Enabled && (
-                <Chip label="activo" size="small" sx={{ backgroundColor: '#FF9900', color: '#fff', height: 20, fontSize: '0.65rem', ml: 1 }} />
-              )}
-            </Box>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-              Conecta un bucket de Amazon S3 para almacenar las imágenes y videos de evidencias de tus pruebas.
-              Las credenciales se guardan localmente en el navegador.
-            </Typography>
-            <Divider sx={{ mb: 3 }} />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.awsS3Enabled}
-                  onChange={(e) => setConfig({ ...config, awsS3Enabled: e.target.checked })}
-                />
-              }
-              label="Activar almacenamiento en AWS S3"
-              sx={{ mb: 3, display: 'block' }}
-            />
-
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-                gap: 2,
-                opacity: config.awsS3Enabled ? 1 : 0.45,
-                pointerEvents: config.awsS3Enabled ? 'auto' : 'none',
-              }}
-            >
+              <Divider sx={{ my: 2 }} />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={config.githubIntegration}
+                    onChange={(e) => handleConfigChange('githubIntegration', e.target.checked)}
+                  />
+                }
+                label="Activar integración con GitHub"
+                sx={{ mb: 2, display: 'block' }}
+              />
               <TextField
                 fullWidth
-                label="Access Key ID"
-                value={config.awsAccessKeyId}
-                onChange={(e) => setConfig({ ...config, awsAccessKeyId: e.target.value })}
-                placeholder="AKIAIOSFODNN7EXAMPLE"
-                helperText="Clave de acceso de tu usuario IAM"
-                InputLabelProps={{ shrink: true }}
+                label="Repositorio de GitHub"
+                value={config.githubRepo}
+                onChange={(e) => handleConfigChange('githubRepo', e.target.value)}
+                disabled={!config.githubIntegration}
+                placeholder="usuario/repositorio"
               />
+            </CardContent>
+          </Card>
+        </Grid>
 
-              <TextField
-                fullWidth
-                label="Secret Access Key"
-                type={showSecretKey ? 'text' : 'password'}
-                value={config.awsSecretAccessKey}
-                onChange={(e) => setConfig({ ...config, awsSecretAccessKey: e.target.value })}
-                placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-                helperText="Clave secreta de tu usuario IAM"
-                InputLabelProps={{ shrink: true }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setShowSecretKey((v) => !v)} edge="end">
-                        {showSecretKey ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Bucket Name"
-                value={config.awsS3Bucket}
-                onChange={(e) => setConfig({ ...config, awsS3Bucket: e.target.value })}
-                placeholder="mi-bucket-de-evidencias"
-                helperText="Nombre exacto del bucket S3"
-                InputLabelProps={{ shrink: true }}
-              />
-
-              <FormControl fullWidth>
-                <InputLabel shrink>Región</InputLabel>
-                <Select
-                  value={config.awsRegion}
-                  onChange={(e) => setConfig({ ...config, awsRegion: e.target.value })}
-                  label="Región"
-                  notched
-                >
-                  <MenuItem value="us-east-1">us-east-1 — EE.UU. Este (Norte de Virginia)</MenuItem>
-                  <MenuItem value="us-east-2">us-east-2 — EE.UU. Este (Ohio)</MenuItem>
-                  <MenuItem value="us-west-1">us-west-1 — EE.UU. Oeste (Norte de California)</MenuItem>
-                  <MenuItem value="us-west-2">us-west-2 — EE.UU. Oeste (Oregón)</MenuItem>
-                  <MenuItem value="sa-east-1">sa-east-1 — Sudamérica (São Paulo)</MenuItem>
-                  <MenuItem value="eu-west-1">eu-west-1 — Europa (Irlanda)</MenuItem>
-                  <MenuItem value="eu-central-1">eu-central-1 — Europa (Fráncfort)</MenuItem>
-                  <MenuItem value="ap-southeast-1">ap-southeast-1 — Asia Pacífico (Singapur)</MenuItem>
-                  <MenuItem value="ap-northeast-1">ap-northeast-1 — Asia Pacífico (Tokio)</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-
-            {config.awsS3Enabled && (!config.awsAccessKeyId || !config.awsSecretAccessKey || !config.awsS3Bucket) && (
-              <Box sx={{ mt: 2, p: 1.5, borderRadius: 1.5, backgroundColor: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.3)' }}>
-                <Typography variant="caption" sx={{ color: '#FF9900' }}>
-                  ⚠ Completa los campos Access Key ID, Secret Access Key y Bucket Name para activar S3 como destino de evidencias.
-                </Typography>
-              </Box>
-            )}
-
-            {/* ── Instrucciones CORS ── */}
-            {config.awsS3Enabled && (
-              <Box sx={{ mt: 3 }}>
-                <Alert
-                  severity="warning"
-                  icon={<InfoOutlinedIcon />}
-                  sx={{ mb: 2, borderRadius: 2 }}
-                >
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    Paso obligatorio: configura la política CORS en tu bucket S3
+        {/* Fila 2: Agente IA (Ancho completo) */}
+        <Grid item xs={12}>
+          <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AutoAwesomeIcon sx={{ color: '#FF6B35' }} />
+                  <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                    Agente IA — QA Test Case Architect
                   </Typography>
-                  <Typography variant="body2">
-                    Para que el navegador pueda subir archivos directamente a S3, debes añadir
-                    la siguiente política CORS en tu bucket. Sin esto, todas las subidas
-                    fallarán con error <strong>Access-Control-Allow-Origin</strong>.
-                  </Typography>
-                </Alert>
-
-                <Accordion
-                  disableGutters
-                  sx={{
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: '8px !important',
-                    '&:before': { display: 'none' },
-                  }}
-                >
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
-                    component="div"
-                    sx={{ cursor: 'pointer' }}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <CloudIcon sx={{ color: '#FF9900', fontSize: 18 }} />
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        Ver política CORS requerida para el bucket
-                      </Typography>
-                    </Stack>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ p: 0 }}>
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        backgroundColor: isDark ? '#0d1117' : '#f6f8fa',
-                        borderTop: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: '0 0 8px 8px',
-                        p: 2,
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={config.llmEnabled}
+                      onChange={(e) => {
+                        handleConfigChange('llmEnabled', e.target.checked);
+                        handleConfigChange('openaiEnabled', e.target.checked);
                       }}
-                    >
-                      <Tooltip title="Copiar política CORS">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            navigator.clipboard.writeText(S3_CORS_POLICY);
-                            notify('Política CORS copiada al portapapeles', { type: 'success' });
-                          }}
-                          sx={{ position: 'absolute', top: 8, right: 8, bgcolor: isDark ? '#2B2D42' : '#fff' }}
-                        >
-                          <ContentCopyIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Typography
-                        component="pre"
+                    />
+                  }
+                  label="Activar Agente"
+                  labelPlacement="start"
+                />
+              </Box>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                Selecciona el proveedor LLM para la generación de casos de prueba con RAG (BM25).
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={4}>
+                  <Stack spacing={1.5}>
+                    {(
+                      [
+                        { value: 'openai',       label: 'OpenAI',       color: '#10A37F', desc: 'GPT-4o · GPT-4o Mini' },
+                        { value: 'ollama_cloud', label: 'Ollama Cloud',  color: '#FF6B35', desc: 'LLaMA · Qwen · Mistral' },
+                        { value: 'deepseek',     label: 'DeepSeek',      color: '#4F94EF', desc: 'DeepSeek Chat · Reasoner' },
+                      ] as const
+                    ).map((p) => (
+                      <Card
+                        key={p.value}
+                        onClick={() => config.llmEnabled && handleConfigChange('llmProvider', p.value)}
                         sx={{
-                          fontFamily: "'Courier New', monospace",
-                          fontSize: '0.75rem',
-                          whiteSpace: 'pre',
-                          overflowX: 'auto',
-                          m: 0,
-                          color: isDark ? '#e6edf3' : '#24292f',
+                          cursor: config.llmEnabled ? 'pointer' : 'default',
+                          border: `2px solid ${config.llmProvider === p.value && config.llmEnabled ? p.color : 'transparent'}`,
+                          backgroundColor:
+                            config.llmProvider === p.value && config.llmEnabled
+                              ? isDark ? '#1A1C2E' : '#F5F5F5'
+                              : isDark ? '#1A1C2E' : '#FAFAFA',
+                          opacity: config.llmEnabled ? 1 : 0.5,
+                          transition: 'all 0.2s ease',
+                          '&:hover': config.llmEnabled ? { borderColor: p.color, transform: 'translateY(-2px)' } : {},
                         }}
                       >
-                        {S3_CORS_POLICY}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        <strong>Cómo aplicarla:</strong> Ve a AWS Console → S3 → tu bucket →
-                        pestaña <em>Permissions</em> → sección <em>Cross-origin resource sharing (CORS)</em>
-                        → haz clic en <em>Edit</em> y pega el JSON anterior.
-                      </Typography>
-                    </Box>
-                  </AccordionDetails>
-                </Accordion>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
+                        <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                              {p.label}
+                            </Typography>
+                            {config.llmProvider === p.value && config.llmEnabled && (
+                              <Chip label="activo" size="small" sx={{ backgroundColor: p.color, color: '#fff', height: 18, fontSize: '0.65rem' }} />
+                            )}
+                          </Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {p.desc}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Grid>
 
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
-              Integración con GitHub
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.githubIntegration}
-                  onChange={(e) => setConfig({ ...config, githubIntegration: e.target.checked })}
+                <Grid item xs={12} md={8}>
+                  {config.llmEnabled ? (
+                    <Box sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {config.llmProvider === 'openai' && (
+                          <>
+                            <TextField
+                              fullWidth
+                              type="password"
+                              label="API Key de OpenAI"
+                              value={config.openaiApiKey}
+                              onChange={(e) => handleConfigChange('openaiApiKey', e.target.value)}
+                              placeholder="sk-..."
+                              helperText="Obtén tu API key en platform.openai.com/api-keys"
+                            />
+                            <FormControl fullWidth>
+                              <InputLabel>Modelo</InputLabel>
+                              <Select
+                                value={config.openaiModel}
+                                onChange={(e) => handleConfigChange('openaiModel', e.target.value)}
+                                label="Modelo"
+                              >
+                                <MenuItem value="gpt-4o-mini">GPT-4o Mini — rápido y económico</MenuItem>
+                                <MenuItem value="gpt-4o">GPT-4o — máxima capacidad</MenuItem>
+                                <MenuItem value="gpt-4-turbo">GPT-4 Turbo</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </>
+                        )}
+
+                        {config.llmProvider === 'ollama_cloud' && (
+                          <>
+                            <TextField
+                              fullWidth
+                              type="password"
+                              label="API Key de Ollama"
+                              value={config.ollamaApiKey}
+                              onChange={(e) => handleConfigChange('ollamaApiKey', e.target.value)}
+                              placeholder="ollama_..."
+                            />
+                            <TextField
+                              fullWidth
+                              label="Modelo"
+                              value={config.ollamaModel}
+                              onChange={(e) => handleConfigChange('ollamaModel', e.target.value)}
+                              placeholder="llama3.2"
+                            />
+                            <TextField
+                              fullWidth
+                              label="URL base (opcional)"
+                              value={config.ollamaBaseUrl}
+                              onChange={(e) => handleConfigChange('ollamaBaseUrl', e.target.value)}
+                            />
+                          </>
+                        )}
+
+                        {config.llmProvider === 'deepseek' && (
+                          <>
+                            <TextField
+                              fullWidth
+                              type="password"
+                              label="API Key de DeepSeek"
+                              value={config.deepseekApiKey}
+                              onChange={(e) => handleConfigChange('deepseekApiKey', e.target.value)}
+                              placeholder="sk-..."
+                            />
+                            <FormControl fullWidth>
+                              <InputLabel>Modelo</InputLabel>
+                              <Select
+                                value={config.deepseekModel}
+                                onChange={(e) => handleConfigChange('deepseekModel', e.target.value)}
+                                label="Modelo"
+                              >
+                                <MenuItem value="deepseek-chat">DeepSeek Chat</MenuItem>
+                                <MenuItem value="deepseek-reasoner">DeepSeek Reasoner</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </>
+                        )}
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed', borderColor: 'divider', borderRadius: 2, p: 4 }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+                        Activa el Agente IA para configurar el proveedor de lenguaje.
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Fila 3: AWS S3 (Ancho completo) */}
+        <Grid item xs={12}>
+          <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CloudIcon sx={{ color: '#FF9900' }} />
+                  <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                    Almacenamiento de Evidencias — AWS S3
+                  </Typography>
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={config.awsS3Enabled}
+                      onChange={(e) => handleConfigChange('awsS3Enabled', e.target.checked)}
+                    />
+                  }
+                  label="Activar S3"
+                  labelPlacement="start"
                 />
-              }
-              label="Activar integración con GitHub"
-              sx={{ mb: 2, display: 'block' }}
-            />
-            <TextField
-              fullWidth
-              label="Repositorio de GitHub"
-              value={config.githubRepo}
-              onChange={(e) => setConfig({ ...config, githubRepo: e.target.value })}
-              disabled={!config.githubIntegration}
-              placeholder="usuario/repositorio"
-            />
-          </CardContent>
-        </Card>
+              </Box>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                Almacena imágenes y videos de evidencias en un bucket de Amazon S3.
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={8}>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                      gap: 2,
+                      opacity: config.awsS3Enabled ? 1 : 0.45,
+                      pointerEvents: config.awsS3Enabled ? 'auto' : 'none',
+                    }}
+                  >
+                    <TextField
+                      fullWidth
+                      label="Access Key ID"
+                      value={config.awsAccessKeyId}
+                      onChange={(e) => handleConfigChange('awsAccessKeyId', e.target.value)}
+                      placeholder="AKIA..."
+                      InputLabelProps={{ shrink: true }}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Secret Access Key"
+                      type={showSecretKey ? 'text' : 'password'}
+                      value={config.awsSecretAccessKey}
+                      onChange={(e) => handleConfigChange('awsSecretAccessKey', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setShowSecretKey((v) => !v)} edge="end">
+                              {showSecretKey ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Bucket Name"
+                      value={config.awsS3Bucket}
+                      onChange={(e) => handleConfigChange('awsS3Bucket', e.target.value)}
+                      placeholder="mi-bucket"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                    <FormControl fullWidth>
+                      <InputLabel shrink>Región</InputLabel>
+                      <Select
+                        value={config.awsRegion}
+                        onChange={(e) => handleConfigChange('awsRegion', e.target.value)}
+                        label="Región"
+                        notched
+                      >
+                        <MenuItem value="us-east-1">us-east-1 — Virginia</MenuItem>
+                        <MenuItem value="us-east-2">us-east-2 — Ohio</MenuItem>
+                        <MenuItem value="us-west-1">us-west-1 — California</MenuItem>
+                        <MenuItem value="sa-east-1">sa-east-1 — São Paulo</MenuItem>
+                        <MenuItem value="eu-west-1">eu-west-1 — Irlanda</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  {config.awsS3Enabled && (
+                    <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ borderRadius: 2, height: '100%' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                        Configuración CORS
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
+                        Asegúrate de configurar la política CORS en tu bucket para permitir subidas directas.
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          navigator.clipboard.writeText(S3_CORS_POLICY);
+                          notify('Política CORS copiada', { type: 'success' });
+                        }}
+                        startIcon={<ContentCopyIcon sx={{ fontSize: 14 }} />}
+                        sx={{ fontSize: '0.65rem', textTransform: 'none' }}
+                      >
+                        Copiar Política
+                      </Button>
+                    </Alert>
+                  )}
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
-    </Grid>
+    </Box>
   );
 
   return (
@@ -824,16 +746,16 @@ export const ConfigurationPage = () => {
       </Box>
 
       <TabPanel value={tabValue} index={0}>
-        <GeneralSettings />
+        {GeneralSettings}
       </TabPanel>
       <TabPanel value={tabValue} index={1}>
-        <NotificationSettings />
+        {NotificationSettings}
       </TabPanel>
       <TabPanel value={tabValue} index={2}>
-        <ReportSettings />
+        {ReportSettings}
       </TabPanel>
       <TabPanel value={tabValue} index={3}>
-        <IntegrationSettings />
+        {IntegrationSettings}
       </TabPanel>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
@@ -855,4 +777,3 @@ export const ConfigurationPage = () => {
     </Box>
   );
 };
-

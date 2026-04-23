@@ -194,7 +194,7 @@ const Footer = () => {
       background: 'transparent', 
       fontFamily: "'Ubuntu Sans', sans-serif" 
     }}>
-      © 2026 QAScope - Suite de pruebas | v2.5
+      © 2026 QAScope - Suite de pruebas | v2.5.3
     </Box>
   );
 };
