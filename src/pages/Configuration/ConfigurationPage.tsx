@@ -5,7 +5,7 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
+  Grid2 as Grid,
   TextField,
   Button,
   Switch,
@@ -24,18 +24,13 @@ import SaveIcon from '@mui/icons-material/Save';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloudIcon from '@mui/icons-material/Cloud';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Chip from '@mui/material/Chip';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
 import Alert from '@mui/material/Alert';
-import Tooltip from '@mui/material/Tooltip';
 import { useNotify } from 'react-admin';
 
 const S3_CORS_POLICY = `[
@@ -145,7 +140,7 @@ export const ConfigurationPage = () => {
 
   const GeneralSettings = (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -199,7 +194,7 @@ export const ConfigurationPage = () => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -257,7 +252,7 @@ export const ConfigurationPage = () => {
 
   const NotificationSettings = (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -300,7 +295,7 @@ export const ConfigurationPage = () => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -325,7 +320,7 @@ export const ConfigurationPage = () => {
 
   const ReportSettings = (
     <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
@@ -374,7 +369,7 @@ export const ConfigurationPage = () => {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Grid container spacing={3}>
         {/* Fila 1: Jira y GitHub */}
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: '100%', backgroundColor: isDark ? '#2B2D42' : '#FFFFFF', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flexGrow: 1 }}>
               <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -413,7 +408,7 @@ export const ConfigurationPage = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: '100%', backgroundColor: isDark ? '#2B2D42' : '#FFFFFF', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flexGrow: 1 }}>
               <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -443,7 +438,7 @@ export const ConfigurationPage = () => {
         </Grid>
 
         {/* Fila 2: Agente IA (Ancho completo) */}
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -473,7 +468,7 @@ export const ConfigurationPage = () => {
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Stack spacing={1.5}>
                     {(
                       [
@@ -515,7 +510,7 @@ export const ConfigurationPage = () => {
                   </Stack>
                 </Grid>
 
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   {config.llmEnabled ? (
                     <Box sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', height: '100%' }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -610,7 +605,7 @@ export const ConfigurationPage = () => {
         </Grid>
 
         {/* Fila 3: AWS S3 (Ancho completo) */}
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Card sx={{ backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -637,7 +632,7 @@ export const ConfigurationPage = () => {
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={3}>
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <Box
                     sx={{
                       display: 'grid',
@@ -691,14 +686,14 @@ export const ConfigurationPage = () => {
                         <MenuItem value="us-east-1">us-east-1 — Virginia</MenuItem>
                         <MenuItem value="us-east-2">us-east-2 — Ohio</MenuItem>
                         <MenuItem value="us-west-1">us-west-1 — California</MenuItem>
-                        <MenuItem value="sa-east-1">sa-east-1 — São Paulo</MenuItem>
-                        <MenuItem value="eu-west-1">eu-west-1 — Irlanda</MenuItem>
+                        <MenuItem value="sa-east-1">sa-east-1 — Sudamérica (São Paulo)</MenuItem>
+                        <MenuItem value="eu-west-1">eu-west-1 — Europa (Irlanda)</MenuItem>
                       </Select>
                     </FormControl>
                   </Box>
                 </Grid>
 
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   {config.awsS3Enabled && (
                     <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ borderRadius: 2, height: '100%' }}>
                       <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
