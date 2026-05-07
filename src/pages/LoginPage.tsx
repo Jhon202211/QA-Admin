@@ -158,7 +158,7 @@ export default function LoginPage() {
                     }}
                   />
                 }
-                label="Recordar usuario"
+                label="Recordar correo"
                 sx={{ color: '#2B2D42', fontSize: '0.875rem' }}
               />
               <Typography

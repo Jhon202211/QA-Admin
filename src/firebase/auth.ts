@@ -4,8 +4,8 @@ import {
   signOut,
   setPersistence,
   browserLocalPersistence,
-  browserSessionPersistence,
   onAuthStateChanged,
+  onIdTokenChanged,
 } from 'firebase/auth';
 
 const REMEMBERED_EMAIL_KEY = 'qa_remembered_email';
@@ -16,6 +16,7 @@ const CHECK_AUTH_MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutos
 /** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
 const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Reducido a 20 min para mayor seguridad
 const EXECUTION_DRAFTS_MODAL_REQUEST_KEY = 'execution_drafts_modal_requested';
+const ACTIVITY_REFRESH_THROTTLE_MS = 5 * 60 * 1000;
 
 /** Verifica si hay borradores (drafts) activos de ejecuciones de pruebas manuales */
 export function hasActiveExecutionDrafts(): boolean {
@@ -42,18 +43,30 @@ function notifyExecutionDraftsAvailable() {
  * Firebase renueva solo, pero el throttling del navegador en pestañas ocultas puede retrasarlo.
  */
 export function setupAuthSessionMaintenance(): () => void {
-  const refresh = () => {
+  setPersistence(auth, browserLocalPersistence).catch(() => {
+    /* Si IndexedDB no está disponible, Firebase usará el fallback posible del navegador. */
+  });
+
+  let lastActivityRefresh = 0;
+
+  const refresh = (force = false) => {
     const user = auth.currentUser;
     if (user) {
-      // Forzar refresco del token para extender la sesión de Firebase
-      user.getIdToken(true).catch(() => {
+      user.getIdToken(force).catch(() => {
         /* red / revocación: siguiente lectura de Firestore o checkAuth lo gestionarán */
       });
     }
   };
 
   const onVisibility = () => {
-    if (document.visibilityState === 'visible') refresh();
+    if (document.visibilityState === 'visible') refresh(true);
+  };
+
+  const onActivity = () => {
+    const now = Date.now();
+    if (now - lastActivityRefresh < ACTIVITY_REFRESH_THROTTLE_MS) return;
+    lastActivityRefresh = now;
+    refresh(false);
   };
 
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -65,12 +78,26 @@ export function setupAuthSessionMaintenance(): () => void {
   };
 
   document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('focus', onActivity);
+  window.addEventListener('online', onActivity);
+  window.addEventListener('mousemove', onActivity, { passive: true });
+  window.addEventListener('keydown', onActivity);
   window.addEventListener('beforeunload', onBeforeUnload);
-  const intervalId = window.setInterval(refresh, TOKEN_REFRESH_INTERVAL_MS);
+  const unsubscribeToken = onIdTokenChanged(auth, (user) => {
+    if (user) {
+      user.getIdToken(false).catch(() => {});
+    }
+  });
+  const intervalId = window.setInterval(() => refresh(false), TOKEN_REFRESH_INTERVAL_MS);
 
   return () => {
     document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('focus', onActivity);
+    window.removeEventListener('online', onActivity);
+    window.removeEventListener('mousemove', onActivity);
+    window.removeEventListener('keydown', onActivity);
     window.removeEventListener('beforeunload', onBeforeUnload);
+    unsubscribeToken();
     window.clearInterval(intervalId);
   };
 }
@@ -78,8 +105,8 @@ export function setupAuthSessionMaintenance(): () => void {
 export const authProvider = {
   login: async ({ username, password, remember }: { username: string; password: string; remember?: boolean }) => {
     try {
-      // Persistencia según preferencia: localStorage = sesión permanente, sessionStorage = solo esta pestaña
-      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+      // La sesión debe sobrevivir inactividad y nuevas pestañas; el checkbox solo recuerda el correo.
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, username, password);
       if (remember) {
         localStorage.setItem(REMEMBERED_EMAIL_KEY, username);
@@ -119,7 +146,12 @@ export const authProvider = {
     return Promise.resolve();
   },
   checkAuth: async () => {
-    if (auth.currentUser) return Promise.resolve();
+    if (auth.currentUser) {
+      await auth.currentUser.getIdToken(false).catch(() => {
+        /* No cerrar sesión por fallos transitorios de red; Firestore reportará si realmente no hay acceso. */
+      });
+      return Promise.resolve();
+    }
 
     return new Promise<void>((resolve, reject) => {
       let settled = false;

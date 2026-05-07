@@ -54,6 +54,7 @@ import {
   validateEvidence,
 } from '../../services/evidenceService';
 import { EvidencePreview } from './EvidencePreview';
+import { executionDraftService } from '../../services/executionDraftService';
 
 interface TestExecutionModalProps {
   open: boolean;
@@ -102,17 +103,20 @@ export const TestExecutionModal = ({
   } | null>(null);
   const persistedDraftSnapshotRef = useRef('');
   const isDraftSyncReadyRef = useRef(false);
+  const remoteDraftSaveTimeoutRef = useRef<number | null>(null);
 
   const buildPersistedDraftData = (currentTestCase: TestCase) => ({
     steps: (currentTestCase.steps || []).map((step, index) => ({
       id: step.id || `step-${index}`,
       status: step.status || 'not_executed',
       actualResult: step.actualResult || '',
+      evidences: step.evidences || [],
     })),
     activeStepIndex: 0,
     notes: currentTestCase.notes || '',
     noStepsStatus: (currentTestCase.executionResult as TestStep['status']) || 'not_executed',
     noStepsActualResult: currentTestCase.actualResult || '',
+    noStepsEvidences: (currentTestCase as any).generalEvidences || [],
   });
 
   const buildCurrentDraftData = () => ({
@@ -120,12 +124,22 @@ export const TestExecutionModal = ({
       id: step.id,
       status: step.status || 'not_executed',
       actualResult: step.actualResult || '',
+      evidences: step.evidences || [],
     })),
     activeStepIndex,
     notes: executionNotes,
     noStepsStatus,
     noStepsActualResult,
+    noStepsEvidences,
   });
+
+  const getDraftUpdatedAtTime = (value: any) => {
+    if (!value) return 0;
+    if (typeof value === 'string') return new Date(value).getTime() || 0;
+    if (typeof value?.toDate === 'function') return value.toDate().getTime();
+    if (value instanceof Date) return value.getTime();
+    return 0;
+  };
 
   useEffect(() => {
     if (!open || !testCase || !draftKey) return;
@@ -133,43 +147,81 @@ export const TestExecutionModal = ({
     isDraftSyncReadyRef.current = false;
     const persistedDraftData = buildPersistedDraftData(testCase);
     persistedDraftSnapshotRef.current = JSON.stringify(persistedDraftData);
+    let cancelled = false;
 
-    const savedDraft = localStorage.getItem(draftKey);
-    let draftData = persistedDraftData;
-    if (savedDraft) {
-      try {
-        draftData = { ...persistedDraftData, ...JSON.parse(savedDraft) };
-        setDraftStatus('borrador');
-      } catch (e) {
-        console.error('Error parsing draft:', e);
-        localStorage.removeItem(draftKey);
-        setDraftStatus(testCase.tags?.includes('terminado') ? 'terminado' : null);
+    const hydrate = (draftData: any, hasDraft: boolean) => {
+      if (cancelled) return;
+
+      setDraftStatus(hasDraft ? 'borrador' : testCase.tags?.includes('terminado') ? 'terminado' : null);
+      setSteps(
+        (testCase.steps || []).map((step, index) => {
+          const stepId = step.id || `step-${index}`;
+          const draftStep = draftData?.steps?.find((s: any) => s.id === stepId || s.id === step.id);
+          return {
+            ...step,
+            id: stepId,
+            order: step.order || index + 1,
+            status: draftStep?.status || step.status || 'not_executed',
+            actualResult: draftStep?.actualResult || step.actualResult || '',
+            evidences: draftStep?.evidences || step.evidences || [],
+          };
+        })
+      );
+      
+      setActiveStepIndex(draftData?.activeStepIndex || 0);
+      setExecutionNotes(draftData?.notes || testCase.notes || '');
+      setUploadProgress(null);
+      setNoStepsStatus(draftData?.noStepsStatus || (testCase.executionResult as TestStep['status']) || 'not_executed');
+      setNoStepsActualResult(draftData?.noStepsActualResult || testCase.actualResult || '');
+      setNoStepsEvidences(draftData?.noStepsEvidences || (testCase as any).generalEvidences || []);
+      isDraftSyncReadyRef.current = true;
+    };
+
+    const loadDraft = async () => {
+      let draftData = persistedDraftData;
+      let hasDraft = false;
+      let localUpdatedAt = 0;
+
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        try {
+          const parsedDraft = JSON.parse(savedDraft);
+          draftData = { ...persistedDraftData, ...parsedDraft };
+          localUpdatedAt = getDraftUpdatedAtTime(parsedDraft?.updatedAt);
+          hasDraft = true;
+        } catch (e) {
+          console.error('Error parsing draft:', e);
+          localStorage.removeItem(draftKey);
+        }
       }
-    } else {
-      setDraftStatus(testCase.tags?.includes('terminado') ? 'terminado' : null);
-    }
 
-    setSteps(
-      (testCase.steps || []).map((step, index) => {
-        const draftStep = draftData?.steps?.find((s: any) => s.id === step.id);
-        return {
-          ...step,
-          id: step.id || `step-${index}`,
-          order: step.order || index + 1,
-          status: draftStep?.status || step.status || 'not_executed',
-          actualResult: draftStep?.actualResult || step.actualResult || '',
-          evidences: step.evidences || [], // Las evidencias no se guardan en draft por seguridad/complejidad
-        };
-      })
-    );
-    
-    setActiveStepIndex(draftData?.activeStepIndex || 0);
-    setExecutionNotes(draftData?.notes || testCase.notes || '');
-    setUploadProgress(null);
-    setNoStepsStatus(draftData?.noStepsStatus || (testCase.executionResult as TestStep['status']) || 'not_executed');
-    setNoStepsActualResult(draftData?.noStepsActualResult || testCase.actualResult || '');
-    setNoStepsEvidences((testCase as any).generalEvidences || []);
-    isDraftSyncReadyRef.current = true;
+      try {
+        const remoteDraft = await executionDraftService.get(testCase.id);
+        const remoteUpdatedAt = getDraftUpdatedAtTime(remoteDraft?.updatedAt);
+        if (remoteDraft?.data && remoteUpdatedAt >= localUpdatedAt) {
+          draftData = { ...persistedDraftData, ...remoteDraft.data };
+          hasDraft = true;
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({
+              ...remoteDraft.data,
+              updatedAt: remoteUpdatedAt ? new Date(remoteUpdatedAt).toISOString() : new Date().toISOString(),
+            })
+          );
+        }
+      } catch (e) {
+        console.error('Error loading remote execution draft:', e);
+      }
+
+      hydrate(draftData, hasDraft);
+    };
+
+    void loadDraft();
+
+    return () => {
+      cancelled = true;
+      isDraftSyncReadyRef.current = false;
+    };
   }, [open, testCase, draftKey]);
 
   // Guardar draft automáticamente cuando cambian los datos
@@ -181,17 +233,31 @@ export const TestExecutionModal = ({
     const hasUnsavedChanges = currentSnapshot !== persistedDraftSnapshotRef.current;
 
     if (hasUnsavedChanges) {
-      localStorage.setItem(
-        draftKey,
-        JSON.stringify({
-          ...draftData,
-          updatedAt: new Date().toISOString(),
-        })
-      );
+      const draftWithTimestamp = {
+        ...draftData,
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draftWithTimestamp));
       setDraftStatus('borrador');
+
+      if (remoteDraftSaveTimeoutRef.current) {
+        window.clearTimeout(remoteDraftSaveTimeoutRef.current);
+      }
+      remoteDraftSaveTimeoutRef.current = window.setTimeout(() => {
+        executionDraftService.save(testCase.id, draftWithTimestamp).catch((e) => {
+          console.error('Error saving remote execution draft:', e);
+        });
+      }, 800);
     } else {
       localStorage.removeItem(draftKey);
       setDraftStatus(testCase.tags?.includes('terminado') ? 'terminado' : null);
+      if (remoteDraftSaveTimeoutRef.current) {
+        window.clearTimeout(remoteDraftSaveTimeoutRef.current);
+        remoteDraftSaveTimeoutRef.current = null;
+      }
+      executionDraftService.remove(testCase.id).catch((e) => {
+        console.error('Error removing remote execution draft:', e);
+      });
     }
 
     // Refrescar token de Firebase proactivamente al detectar actividad en el modal
@@ -202,7 +268,7 @@ export const TestExecutionModal = ({
         user.getIdToken(false).catch(() => {});
       }
     });
-  }, [steps, activeStepIndex, executionNotes, noStepsStatus, noStepsActualResult, open, draftKey, testCase]);
+  }, [steps, activeStepIndex, executionNotes, noStepsStatus, noStepsActualResult, noStepsEvidences, open, draftKey, testCase]);
 
   const hasSteps = steps.length > 0;
   const activeStep = steps[activeStepIndex];
@@ -242,6 +308,12 @@ export const TestExecutionModal = ({
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
   }, [open]);
+
+  useEffect(() => () => {
+    if (remoteDraftSaveTimeoutRef.current) {
+      window.clearTimeout(remoteDraftSaveTimeoutRef.current);
+    }
+  }, []);
 
   if (!testCase) return null;
 
@@ -395,9 +467,9 @@ export const TestExecutionModal = ({
 
       persistedDraftSnapshotRef.current = JSON.stringify(buildCurrentDraftData());
       setDraftStatus('terminado');
-
-      if (draftKey) {
-        localStorage.removeItem(draftKey);
+      if (remoteDraftSaveTimeoutRef.current) {
+        window.clearTimeout(remoteDraftSaveTimeoutRef.current);
+        remoteDraftSaveTimeoutRef.current = null;
       }
 
       await update('test_cases', {
@@ -405,6 +477,11 @@ export const TestExecutionModal = ({
         data: dataToSave,
         previousData: testCase,
       });
+
+      if (draftKey) {
+        localStorage.removeItem(draftKey);
+      }
+      await executionDraftService.remove(testCase.id);
 
       testCase.tags = updatedTags;
       notify('Ejecución guardada exitosamente', { type: 'success' });

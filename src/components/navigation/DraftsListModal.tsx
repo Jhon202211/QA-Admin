@@ -21,6 +21,7 @@ import { useState, useEffect } from 'react';
 import { TestExecutionModal } from '../TestCases/TestExecutionModal';
 import type { TestCase } from '../../types/testCase';
 import { dataProvider } from '../../firebase/dataProvider';
+import { executionDraftService, type ExecutionDraftRecord } from '../../services/executionDraftService';
 
 interface DraftsListModalProps {
   open: boolean;
@@ -31,10 +32,11 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
   const [draftIds, setDraftIds] = useState<string[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [remoteDrafts, setRemoteDrafts] = useState<ExecutionDraftRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const syncDraftIds = () => {
+  const getLocalDraftIds = () => {
     const ids: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -42,6 +44,11 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
         ids.push(key.replace('execution_draft_', ''));
       }
     }
+    return ids;
+  };
+
+  const syncDraftIds = (drafts = remoteDrafts) => {
+    const ids = Array.from(new Set([...getLocalDraftIds(), ...drafts.map((draft) => draft.testCaseId)]));
     setDraftIds(ids);
     return ids;
   };
@@ -49,9 +56,20 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
   useEffect(() => {
     if (!open) return;
 
-    syncDraftIds();
+    const localIds = syncDraftIds();
     setIsLoading(true);
     setError(null);
+
+    executionDraftService.list()
+      .then((drafts) => {
+        setRemoteDrafts(drafts);
+        const ids = Array.from(new Set([...localIds, ...drafts.map((draft) => draft.testCaseId)]));
+        setDraftIds(ids);
+      })
+      .catch((err: unknown) => {
+        console.error('Error loading remote execution drafts:', err);
+        setRemoteDrafts([]);
+      });
 
     dataProvider.getList('test_cases', {
       pagination: { page: 1, perPage: 1000 },
@@ -73,6 +91,7 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
     .filter((id) => !draftCases.some((tc) => tc.id === id))
     .map((id) => {
       const rawDraft = localStorage.getItem(`execution_draft_${id}`);
+      const remoteDraft = remoteDrafts.find((draft) => draft.testCaseId === id);
       let updatedAt: string | null = null;
 
       if (rawDraft) {
@@ -82,6 +101,9 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
         } catch (e) {
           console.error('Error parsing fallback draft:', e);
         }
+      }
+      if (!updatedAt && remoteDraft?.updatedAt?.toDate) {
+        updatedAt = remoteDraft.updatedAt.toDate().toISOString();
       }
 
       return { id, updatedAt };
@@ -94,15 +116,22 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
   const handleCloseExecution = () => {
     setSelectedTestCase(null);
     // Actualizar la lista de drafts después de cerrar el modal de ejecución
-    const ids = syncDraftIds();
+    const remainingRemoteDrafts = remoteDrafts.filter((draft) => localStorage.getItem(`execution_draft_${draft.testCaseId}`));
+    setRemoteDrafts(remainingRemoteDrafts);
+    const ids = syncDraftIds(remainingRemoteDrafts);
     if (ids.length === 0) {
       onClose();
     }
   };
 
-  const handleClearDraft = (testCaseId: string) => {
+  const handleClearDraft = async (testCaseId: string) => {
     localStorage.removeItem(`execution_draft_${testCaseId}`);
-    const ids = syncDraftIds();
+    await executionDraftService.remove(testCaseId).catch((err) => {
+      console.error('Error removing remote execution draft:', err);
+    });
+    const remainingRemoteDrafts = remoteDrafts.filter((draft) => draft.testCaseId !== testCaseId);
+    setRemoteDrafts(remainingRemoteDrafts);
+    const ids = syncDraftIds(remainingRemoteDrafts);
     if (selectedTestCase?.id === testCaseId) {
       setSelectedTestCase(null);
     }
@@ -111,11 +140,15 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
     }
   };
 
-  const handleClearAllDrafts = () => {
+  const handleClearAllDrafts = async () => {
+    await Promise.all(draftIds.map((id) => executionDraftService.remove(id).catch((err) => {
+      console.error('Error removing remote execution draft:', err);
+    })));
     draftIds.forEach((id) => {
       localStorage.removeItem(`execution_draft_${id}`);
     });
     setSelectedTestCase(null);
+    setRemoteDrafts([]);
     setDraftIds([]);
     onClose();
   };
@@ -129,12 +162,12 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
         </DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-            Las siguientes ejecuciones tienen cambios locales que no han sido guardados en la base de datos.
+            Las siguientes ejecuciones tienen cambios pendientes guardados como borrador.
             Selecciona una para revisarla y guardarla, o limpia el borrador si ya no lo necesitas.
           </Typography>
           {error && draftIds.length > 0 && (
             <Typography variant="body2" sx={{ mb: 2, color: '#FF6B35' }}>
-              La sesión ya no es válida o no se pudieron cargar los casos. Tus borradores siguen disponibles en este navegador.
+              No se pudieron cargar los casos. Tus borradores siguen disponibles para recuperarlos al volver a iniciar sesión.
             </Typography>
           )}
           {isLoading ? (
@@ -181,7 +214,7 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
                           {tc.testProject}
                         </Typography>
                         <Chip
-                          label="Borrador local"
+                          label={remoteDrafts.some((draft) => draft.testCaseId === tc.id) ? 'Borrador Firebase' : 'Borrador local'}
                           size="small"
                           variant="outlined"
                           sx={{ height: 20, fontSize: '0.65rem', color: '#FF6B35', borderColor: '#FF6B35' }}
@@ -215,7 +248,7 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
                     <SaveIcon sx={{ color: '#FF6B35' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary={`Borrador local - ${draft.id}`}
+                    primary={`Borrador pendiente - ${draft.id}`}
                     secondary={
                       <Box sx={{ mt: 0.5, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -224,7 +257,7 @@ export const DraftsListModal = ({ open, onClose }: DraftsListModalProps) => {
                             : 'Disponible para recuperar cuando vuelvas a iniciar sesion'}
                         </Typography>
                         <Chip
-                          label="Borrador local"
+                          label={remoteDrafts.some((remoteDraft) => remoteDraft.testCaseId === draft.id) ? 'Borrador Firebase' : 'Borrador local'}
                           size="small"
                           variant="outlined"
                           sx={{ height: 20, fontSize: '0.65rem', color: '#FF6B35', borderColor: '#FF6B35' }}
