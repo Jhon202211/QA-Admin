@@ -9,14 +9,189 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { useNavigate } from 'react-router-dom';
 import { useGetList, useRefresh, useUpdateMany, useDeleteMany, useNotify, useCreate } from 'react-admin';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
+import { doc, writeBatch } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
 import { AIAgent } from './AIAgent';
 import { TestExecutionModal } from './TestExecutionModal';
 import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from './testCaseUi';
 import type { TestCase, TestCaseCategory } from '../../types/testCase';
+
+const SortableTestCaseItem = ({ 
+  testCase, 
+  isDark, 
+  onExecute, 
+  onClone, 
+  onEdit, 
+  isCloning 
+}: { 
+  testCase: TestCase; 
+  isDark: boolean; 
+  onExecute: (tc: TestCase) => void;
+  onClone: (tc: TestCase) => void;
+  onEdit: (id: string) => void;
+  isCloning: boolean;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: testCase.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 1000 : 'auto',
+    opacity: isDragging ? 0.5 : 1,
+    position: 'relative' as const,
+  };
+
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        p: 1.5,
+        mb: 1,
+        borderRadius: '8px',
+        backgroundColor: isDark ? '#2B2D42' : '#FFFFFF',
+        border: `1px solid ${isDark ? '#4A4D6B' : '#E0E0E0'}`,
+        boxShadow: isDragging ? '0 5px 15px rgba(0,0,0,0.3)' : 'none',
+        '&:hover': {
+          backgroundColor: isDark ? '#4A4D6B' : '#F5F5F5',
+          cursor: 'pointer',
+        },
+      }}
+      onClick={() => onExecute(testCase)}
+    >
+      <Box 
+        {...attributes} 
+        {...listeners} 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          cursor: 'grab', 
+          color: 'text.disabled',
+          p: 0.5,
+          '&:hover': { color: 'text.primary' }
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DragIndicatorIcon fontSize="small" />
+      </Box>
+      <Box sx={{ flex: 1 }}>
+        <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }}>
+          {testCase.caseKey} - {testCase.name}
+        </Typography>
+        {(testCase.module || testCase.submodule) && (
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+            {testCase.module && testCase.submodule 
+              ? `${testCase.module} > ${testCase.submodule}`
+              : testCase.module || testCase.submodule}
+          </Typography>
+        )}
+        {testCase.tags?.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 0.5, mt: 0.75, flexWrap: 'wrap' }}>
+            {testCase.tags.slice(0, 2).map((tag) => (
+              <Chip
+                key={tag}
+                size="small"
+                label={tag}
+                variant="outlined"
+                sx={{ fontSize: '0.68rem', height: 20 }}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
+      <Chip
+        label={getPriorityLabel(testCase.priority)}
+        size="small"
+        sx={{
+          backgroundColor: getPriorityColor(testCase.priority),
+          color: '#fff',
+          fontWeight: 600,
+        }}
+      />
+      <Chip
+        label={getExecutionLabel(testCase.executionResult)}
+        size="small"
+        sx={{
+          backgroundColor: getExecutionColor(testCase.executionResult),
+          color: '#fff',
+          fontWeight: 600,
+        }}
+      />
+      <Tooltip title="Clonar caso de prueba">
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClone(testCase);
+          }}
+          disabled={isCloning}
+          sx={{ color: '#9C27B0' }}
+        >
+          {isCloning ? (
+            <CircularProgress size={18} color="inherit" />
+          ) : (
+            <ContentCopyIcon fontSize="small" />
+          )}
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Ejecutar caso de prueba">
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onExecute(testCase);
+          }}
+          sx={{ color: '#43A047' }}
+        >
+          <PlayArrowIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <IconButton
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit(testCase.id);
+        }}
+        sx={{ color: '#FF6B35' }}
+      >
+        <EditIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+};
 
 export const HierarchicalView = () => {
   const theme = useTheme();
@@ -38,6 +213,17 @@ export const HierarchicalView = () => {
   const [deleteCategoryDialog, setDeleteCategoryDialog] = useState<{ open: boolean; project: string; category: string; count: number }>({ open: false, project: '', category: '', count: 0 });
   const [archiveProjectDialog, setArchiveProjectDialog] = useState<{ open: boolean; project: string; count: number }>({ open: false, project: '', count: 0 });
   
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const refresh = useRefresh();
   const { data: testCases = [], isLoading } = useGetList('test_cases', {
     pagination: { page: 1, perPage: 10000 },
@@ -46,19 +232,30 @@ export const HierarchicalView = () => {
 
   // Agrupar casos de prueba activos (no archivados) por proyecto y categoría
   const activeCases = testCases.filter((tc: TestCase) => !tc.projectArchived);
-  const groupedData = activeCases.reduce((acc: any, testCase: TestCase) => {
-    const project = testCase.testProject || 'Sin proyecto';
-    const category = testCase.category || 'Sin categoría';
-    
-    if (!acc[project]) {
-      acc[project] = {};
-    }
-    if (!acc[project][category]) {
-      acc[project][category] = [];
-    }
-    acc[project][category].push(testCase);
-    return acc;
-  }, {});
+  const groupedData = useMemo(() => {
+    const data = activeCases.reduce((acc: any, testCase: TestCase) => {
+      const project = testCase.testProject || 'Sin proyecto';
+      const category = testCase.category || 'Sin categoría';
+      
+      if (!acc[project]) {
+        acc[project] = {};
+      }
+      if (!acc[project][category]) {
+        acc[project][category] = [];
+      }
+      acc[project][category].push(testCase);
+      return acc;
+    }, {});
+
+    // Ordenar cada categoría por el campo 'order'
+    Object.keys(data).forEach(project => {
+      Object.keys(data[project]).forEach(category => {
+        data[project][category].sort((a: TestCase, b: TestCase) => (a.order ?? 0) - (b.order ?? 0));
+      });
+    });
+
+    return data;
+  }, [activeCases]);
 
     const [create] = useCreate();
     const [isCloning, setIsCloning] = useState<string | null>(null);
@@ -258,6 +455,31 @@ export const HierarchicalView = () => {
       refresh();
     } catch (error) {
       notify('Error al eliminar la categoría', { type: 'error' });
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent, project: string, category: string) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const categoryCases = groupedData[project][category];
+    const oldIndex = categoryCases.findIndex((tc: TestCase) => tc.id === active.id);
+    const newIndex = categoryCases.findIndex((tc: TestCase) => tc.id === over.id);
+
+    const reorderedCases: TestCase[] = arrayMove(categoryCases, oldIndex, newIndex);
+    
+    // Persistir el nuevo orden en Firestore
+    try {
+      const batch = writeBatch(db);
+      reorderedCases.forEach((tc, index) => {
+        const docRef = doc(db, 'test_cases', tc.id);
+        batch.update(docRef, { order: index });
+      });
+      await batch.commit();
+      refresh();
+    } catch (error) {
+      console.error('Error al guardar el nuevo orden:', error);
+      notify('Error al guardar el nuevo orden', { type: 'error' });
     }
   };
 
@@ -484,111 +706,31 @@ export const HierarchicalView = () => {
                         </Tooltip>
                       </Box>
                     </AccordionSummary>
-                    <AccordionDetails>
-                      <Box sx={{ pl: 2 }}>
-                        {cases.map((testCase: TestCase) => (
-                          <Box
-                            key={testCase.id}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 2,
-                              p: 1.5,
-                              mb: 1,
-                              borderRadius: '8px',
-                              backgroundColor: isDark ? '#2B2D42' : '#FFFFFF',
-                              border: `1px solid ${isDark ? '#4A4D6B' : '#E0E0E0'}`,
-                              '&:hover': {
-                                backgroundColor: isDark ? '#4A4D6B' : '#F5F5F5',
-                                cursor: 'pointer',
-                              },
-                            }}
-                            onClick={() => setExecutionCase(testCase)}
+                    <AccordionDetails sx={{ p: 0 }}>
+                      <Box sx={{ pl: 2, pr: 1, py: 1 }}>
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={(event) => handleDragEnd(event, project, category)}
+                          modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
+                        >
+                          <SortableContext
+                            items={cases.map((c: TestCase) => c.id)}
+                            strategy={verticalListSortingStrategy}
                           >
-                            <Box sx={{ flex: 1 }}>
-                              <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }}>
-                                {testCase.caseKey} - {testCase.name}
-                              </Typography>
-                              {(testCase.module || testCase.submodule) && (
-                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                                  {testCase.module && testCase.submodule 
-                                    ? `${testCase.module} > ${testCase.submodule}`
-                                    : testCase.module || testCase.submodule}
-                                </Typography>
-                              )}
-                              {testCase.tags?.length > 0 && (
-                                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.75, flexWrap: 'wrap' }}>
-                                  {testCase.tags.slice(0, 2).map((tag) => (
-                                    <Chip
-                                      key={tag}
-                                      size="small"
-                                      label={tag}
-                                      variant="outlined"
-                                      sx={{ fontSize: '0.68rem', height: 20 }}
-                                    />
-                                  ))}
-                                </Box>
-                              )}
-                            </Box>
-                            <Chip
-                              label={getPriorityLabel(testCase.priority)}
-                              size="small"
-                              sx={{
-                                backgroundColor: getPriorityColor(testCase.priority),
-                                color: '#fff',
-                                fontWeight: 600,
-                              }}
-                            />
-                            <Chip
-                              label={getExecutionLabel(testCase.executionResult)}
-                              size="small"
-                              sx={{
-                                backgroundColor: getExecutionColor(testCase.executionResult),
-                                color: '#fff',
-                                fontWeight: 600,
-                              }}
-                            />
-                            <Tooltip title="Clonar caso de prueba">
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCloneTestCase(testCase);
-                                }}
-                                disabled={isCloning === testCase.id}
-                                sx={{ color: '#9C27B0' }}
-                              >
-                                {isCloning === testCase.id ? (
-                                  <CircularProgress size={18} color="inherit" />
-                                ) : (
-                                  <ContentCopyIcon fontSize="small" />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Ejecutar caso de prueba">
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExecutionCase(testCase);
-                                }}
-                                sx={{ color: '#43A047' }}
-                              >
-                                <PlayArrowIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/test_cases/${testCase.id}/edit`);
-                              }}
-                              sx={{ color: '#FF6B35' }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        ))}
+                            {cases.map((testCase: TestCase) => (
+                              <SortableTestCaseItem
+                                key={testCase.id}
+                                testCase={testCase}
+                                isDark={isDark}
+                                onExecute={setExecutionCase}
+                                onClone={handleCloneTestCase}
+                                onEdit={(id) => navigate(`/test_cases/${id}/edit`)}
+                                isCloning={isCloning === testCase.id}
+                              />
+                            ))}
+                          </SortableContext>
+                        </DndContext>
                       </Box>
                     </AccordionDetails>
                   </Accordion>
@@ -663,7 +805,7 @@ export const HierarchicalView = () => {
           <Button 
             onClick={handleConfirmDeleteProject} 
             variant="contained" 
-            color="error"
+            color="error" 
             sx={{ '&:hover': { backgroundColor: '#C62828' } }}
           >
             Eliminar
@@ -749,4 +891,3 @@ export const HierarchicalView = () => {
     </Box>
   );
 };
-
