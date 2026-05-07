@@ -33,6 +33,7 @@ interface StepItem {
   order: number;
   description: string;
   expectedResult: string;
+  [key: string]: any;
 }
 
 const PRIORITY_CHOICES = ['Alta', 'Media', 'Baja'];
@@ -75,6 +76,7 @@ export const TestCaseEditPage = () => {
       setForm({ ...data });
       setSteps(
         (data.steps || []).map((s: any, i: number) => ({
+          ...s,
           id: s.id || `step-${i}`,
           order: s.order || i + 1,
           description: s.description || '',
@@ -119,9 +121,21 @@ export const TestCaseEditPage = () => {
     }
 
     try {
+      const stepsWithExecutionData = steps.map((step, index) => {
+        const previousStep = (data?.steps || []).find((s: any, previousIndex: number) =>
+          (s.id && s.id === step.id) || (!s.id && step.id === `step-${previousIndex}`)
+        );
+
+        return {
+          ...(previousStep || {}),
+          ...step,
+          order: index + 1,
+        };
+      });
+
       await update('test_cases', {
         id: id!,
-        data: { ...form, steps },
+        data: { ...form, steps: stepsWithExecutionData },
         previousData: data,
       });
       notify('Caso de prueba actualizado', { type: 'success' });
