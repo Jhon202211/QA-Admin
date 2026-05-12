@@ -6,6 +6,17 @@ export interface EvidenceFile {
   name: string;
   mimeType: string;
 }
+
+export type EvidenceGroupType = 'folder' | 'cycle';
+
+export interface EvidenceGroup {
+  id: string;
+  name: string;
+  type: EvidenceGroupType;
+  order: number;
+  evidences: EvidenceFile[];
+}
+
 export interface DecisionRule {
   id: string;
   conditions: Record<string, string>;
@@ -52,6 +63,7 @@ export interface TestStep {
   actualResult?: string;
   attachments?: string[];
   evidences?: EvidenceFile[];
+  evidenceGroups?: EvidenceGroup[];
   status?: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'not_executed' | 'retest';
 }
 
@@ -90,6 +102,8 @@ export interface TestCase {
   automationScript?: string;
   projectArchived?: boolean;
   order?: number;
+  generalEvidences?: EvidenceFile[];
+  generalEvidenceGroups?: EvidenceGroup[];
 }
 
 // Interfaz para la respuesta del agente IA

@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
-  IconButton,
   LinearProgress,
   MenuItem,
   Select,
@@ -35,11 +33,8 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import VideocamIcon from '@mui/icons-material/Videocam';
 import { useNotify, useUpdate } from 'react-admin';
-import type { EvidenceFile, TestCase, TestStep } from '../../types/testCase';
+import type { EvidenceFile, EvidenceGroup, TestCase, TestStep } from '../../types/testCase';
 import {
   getExecutionColor,
   getExecutionLabel,
@@ -48,12 +43,12 @@ import {
   summarizeExecutionFromSteps,
 } from './testCaseUi';
 import {
-  ALLOWED_EVIDENCE_EXTENSIONS,
   deleteEvidence,
   uploadEvidence,
   validateEvidence,
 } from '../../services/evidenceService';
-import { EvidencePreview } from './EvidencePreview';
+import { EvidenceManager } from './EvidenceManager';
+import { flattenEvidenceGroups, normalizeEvidenceGroups } from './evidenceGroups';
 import { executionDraftService } from '../../services/executionDraftService';
 
 interface TestExecutionModalProps {
@@ -61,6 +56,29 @@ interface TestExecutionModalProps {
   testCase: TestCase | null;
   onClose: () => void;
   onExecuted?: () => void;
+}
+
+interface TimestampLike {
+  toDate?: () => Date;
+}
+
+interface ExecutionDraftStep {
+  id: string;
+  status?: TestStep['status'];
+  actualResult?: string;
+  evidences?: EvidenceFile[];
+  evidenceGroups?: EvidenceGroup[];
+}
+
+interface ExecutionDraftData {
+  steps?: ExecutionDraftStep[];
+  activeStepIndex?: number;
+  notes?: string;
+  noStepsStatus?: TestStep['status'];
+  noStepsActualResult?: string;
+  noStepsEvidences?: EvidenceFile[];
+  noStepsEvidenceGroups?: EvidenceGroup[];
+  updatedAt?: string | Date | TimestampLike;
 }
 
 const STEP_STATUSES: Array<TestStep['status']> = ['passed', 'failed', 'blocked', 'retest', 'in_progress', 'not_executed'];
@@ -78,7 +96,6 @@ export const TestExecutionModal = ({
   const [executionNotes, setExecutionNotes] = useState('');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isNoStepsDragging, setIsNoStepsDragging] = useState(false);
 
@@ -86,7 +103,7 @@ export const TestExecutionModal = ({
   const [noStepsStatus, setNoStepsStatus] = useState<TestStep['status']>('not_executed');
   const [noStepsActualResult, setNoStepsActualResult] = useState('');
   const [noStepsEvidences, setNoStepsEvidences] = useState<EvidenceFile[]>([]);
-  const noStepsFileInputRef = useRef<HTMLInputElement>(null);
+  const [noStepsEvidenceGroups, setNoStepsEvidenceGroups] = useState<EvidenceGroup[]>([]);
   const [draftStatus, setDraftStatus] = useState<'borrador' | 'terminado' | null>(null);
 
   // Clave para el draft en localStorage
@@ -111,29 +128,36 @@ export const TestExecutionModal = ({
       status: step.status || 'not_executed',
       actualResult: step.actualResult || '',
       evidences: step.evidences || [],
+      evidenceGroups: normalizeEvidenceGroups(step.evidenceGroups, step.evidences || []),
     })),
     activeStepIndex: 0,
     notes: currentTestCase.notes || '',
     noStepsStatus: (currentTestCase.executionResult as TestStep['status']) || 'not_executed',
     noStepsActualResult: currentTestCase.actualResult || '',
-    noStepsEvidences: (currentTestCase as any).generalEvidences || [],
+    noStepsEvidences: currentTestCase.generalEvidences || [],
+    noStepsEvidenceGroups: normalizeEvidenceGroups(
+      currentTestCase.generalEvidenceGroups,
+      currentTestCase.generalEvidences || []
+    ),
   });
 
-  const buildCurrentDraftData = () => ({
+  const buildCurrentDraftData = useCallback(() => ({
     steps: steps.map((step) => ({
       id: step.id,
       status: step.status || 'not_executed',
       actualResult: step.actualResult || '',
-      evidences: step.evidences || [],
+      evidences: flattenEvidenceGroups(normalizeEvidenceGroups(step.evidenceGroups, step.evidences || [])),
+      evidenceGroups: normalizeEvidenceGroups(step.evidenceGroups, step.evidences || []),
     })),
     activeStepIndex,
     notes: executionNotes,
     noStepsStatus,
     noStepsActualResult,
     noStepsEvidences,
-  });
+    noStepsEvidenceGroups,
+  }), [activeStepIndex, executionNotes, noStepsActualResult, noStepsEvidenceGroups, noStepsEvidences, noStepsStatus, steps]);
 
-  const getDraftUpdatedAtTime = (value: any) => {
+  const getDraftUpdatedAtTime = (value: ExecutionDraftData['updatedAt']) => {
     if (!value) return 0;
     if (typeof value === 'string') return new Date(value).getTime() || 0;
     if (typeof value?.toDate === 'function') return value.toDate().getTime();
@@ -149,14 +173,14 @@ export const TestExecutionModal = ({
     persistedDraftSnapshotRef.current = JSON.stringify(persistedDraftData);
     let cancelled = false;
 
-    const hydrate = (draftData: any, hasDraft: boolean) => {
+    const hydrate = (draftData: ExecutionDraftData, hasDraft: boolean) => {
       if (cancelled) return;
 
       setDraftStatus(hasDraft ? 'borrador' : testCase.tags?.includes('terminado') ? 'terminado' : null);
       setSteps(
         (testCase.steps || []).map((step, index) => {
           const stepId = step.id || `step-${index}`;
-          const draftStep = draftData?.steps?.find((s: any) => s.id === stepId || s.id === step.id);
+          const draftStep = draftData?.steps?.find((s) => s.id === stepId || s.id === step.id);
           return {
             ...step,
             id: stepId,
@@ -164,6 +188,10 @@ export const TestExecutionModal = ({
             status: draftStep?.status || step.status || 'not_executed',
             actualResult: draftStep?.actualResult || step.actualResult || '',
             evidences: draftStep?.evidences || step.evidences || [],
+            evidenceGroups: normalizeEvidenceGroups(
+              draftStep?.evidenceGroups || step.evidenceGroups,
+              draftStep?.evidences || step.evidences || []
+            ),
           };
         })
       );
@@ -173,19 +201,25 @@ export const TestExecutionModal = ({
       setUploadProgress(null);
       setNoStepsStatus(draftData?.noStepsStatus || (testCase.executionResult as TestStep['status']) || 'not_executed');
       setNoStepsActualResult(draftData?.noStepsActualResult || testCase.actualResult || '');
-      setNoStepsEvidences(draftData?.noStepsEvidences || (testCase as any).generalEvidences || []);
+      setNoStepsEvidences(draftData?.noStepsEvidences || testCase.generalEvidences || []);
+      setNoStepsEvidenceGroups(
+        normalizeEvidenceGroups(
+          draftData?.noStepsEvidenceGroups || testCase.generalEvidenceGroups,
+          draftData?.noStepsEvidences || testCase.generalEvidences || []
+        )
+      );
       isDraftSyncReadyRef.current = true;
     };
 
     const loadDraft = async () => {
-      let draftData = persistedDraftData;
+      let draftData: ExecutionDraftData = persistedDraftData;
       let hasDraft = false;
       let localUpdatedAt = 0;
 
       const savedDraft = localStorage.getItem(draftKey);
       if (savedDraft) {
         try {
-          const parsedDraft = JSON.parse(savedDraft);
+          const parsedDraft = JSON.parse(savedDraft) as ExecutionDraftData;
           draftData = { ...persistedDraftData, ...parsedDraft };
           localUpdatedAt = getDraftUpdatedAtTime(parsedDraft?.updatedAt);
           hasDraft = true;
@@ -268,7 +302,7 @@ export const TestExecutionModal = ({
         user.getIdToken(false).catch(() => {});
       }
     });
-  }, [steps, activeStepIndex, executionNotes, noStepsStatus, noStepsActualResult, noStepsEvidences, open, draftKey, testCase]);
+  }, [buildCurrentDraftData, open, draftKey, testCase]);
 
   const hasSteps = steps.length > 0;
   const activeStep = steps[activeStepIndex];
@@ -299,7 +333,11 @@ export const TestExecutionModal = ({
         if (item.kind === 'file') {
           const file = item.getAsFile();
           if (file) {
-            ref.hasSteps ? ref.forStep(file) : ref.forNoSteps(file);
+            if (ref.hasSteps) {
+              void ref.forStep(file);
+            } else {
+              void ref.forNoSteps(file);
+            }
           }
           break;
         }
@@ -323,6 +361,27 @@ export const TestExecutionModal = ({
     );
   };
 
+  const setActiveStepEvidenceGroups = (groups: EvidenceGroup[]) => {
+    const normalizedGroups = normalizeEvidenceGroups(groups);
+    setSteps((prev) =>
+      prev.map((step, index) =>
+        index === activeStepIndex
+          ? {
+              ...step,
+              evidenceGroups: normalizedGroups,
+              evidences: flattenEvidenceGroups(normalizedGroups),
+            }
+          : step
+      )
+    );
+  };
+
+  const setGeneralEvidenceGroups = (groups: EvidenceGroup[]) => {
+    const normalizedGroups = normalizeEvidenceGroups(groups);
+    setNoStepsEvidenceGroups(normalizedGroups);
+    setNoStepsEvidences(flattenEvidenceGroups(normalizedGroups));
+  };
+
   const getStepIcon = (status?: TestStep['status']) => {
     switch (status) {
       case 'passed':
@@ -340,11 +399,7 @@ export const TestExecutionModal = ({
     }
   };
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const processFileForActiveStep = async (file: File) => {
+  const processFileForActiveStep = async (file: File, groupId?: string) => {
     if (!activeStep || !testCase) return;
     const validationError = validateEvidence(file);
     if (validationError) {
@@ -359,7 +414,14 @@ export const TestExecutionModal = ({
         activeStep.id,
         (percent) => setUploadProgress(percent)
       );
-      setStepValue('evidences', [...(activeStep.evidences || []), evidenceFile]);
+      const groups = normalizeEvidenceGroups(activeStep.evidenceGroups, activeStep.evidences || []);
+      const targetGroupId = groupId || groups[0]?.id;
+      const updatedGroups = groups.map((group) =>
+        group.id === targetGroupId
+          ? { ...group, evidences: [...(group.evidences || []), evidenceFile] }
+          : group
+      );
+      setActiveStepEvidenceGroups(updatedGroups);
       notify('Evidencia cargada exitosamente', { type: 'success' });
     } catch {
       notify('Error al subir la evidencia. Intenta de nuevo.', { type: 'error' });
@@ -368,19 +430,15 @@ export const TestExecutionModal = ({
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await processFileForActiveStep(file);
-    e.target.value = '';
-  };
-
   const handleDeleteEvidence = async (evidence: EvidenceFile) => {
     setDeletingPath(evidence.path);
     try {
       await deleteEvidence(evidence);
-      const updated = (activeStep.evidences || []).filter((ev) => ev.path !== evidence.path);
-      setStepValue('evidences', updated);
+      const updatedGroups = normalizeEvidenceGroups(activeStep.evidenceGroups, activeStep.evidences || []).map((group) => ({
+        ...group,
+        evidences: (group.evidences || []).filter((ev) => ev.path !== evidence.path),
+      }));
+      setActiveStepEvidenceGroups(updatedGroups);
       notify('Evidencia eliminada', { type: 'success' });
     } catch {
       notify('Error al eliminar la evidencia', { type: 'error' });
@@ -389,7 +447,7 @@ export const TestExecutionModal = ({
     }
   };
 
-  const processFileForNoSteps = async (file: File) => {
+  const processFileForNoSteps = async (file: File, groupId?: string) => {
     if (!testCase) return;
     const validationError = validateEvidence(file);
     if (validationError) {
@@ -399,7 +457,14 @@ export const TestExecutionModal = ({
     setUploadProgress(0);
     try {
       const evidenceFile = await uploadEvidence(file, testCase.id, 'general', (p) => setUploadProgress(p));
-      setNoStepsEvidences((prev) => [...prev, evidenceFile]);
+      const groups = normalizeEvidenceGroups(noStepsEvidenceGroups, noStepsEvidences);
+      const targetGroupId = groupId || groups[0]?.id;
+      const updatedGroups = groups.map((group) =>
+        group.id === targetGroupId
+          ? { ...group, evidences: [...(group.evidences || []), evidenceFile] }
+          : group
+      );
+      setGeneralEvidenceGroups(updatedGroups);
       notify('Evidencia cargada exitosamente', { type: 'success' });
     } catch {
       notify('Error al subir la evidencia. Intenta de nuevo.', { type: 'error' });
@@ -408,19 +473,15 @@ export const TestExecutionModal = ({
     }
   };
 
-  const handleNoStepsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await processFileForNoSteps(file);
-    e.target.value = '';
-  };
-
-
   const handleNoStepsDeleteEvidence = async (evidence: EvidenceFile) => {
     setDeletingPath(evidence.path);
     try {
       await deleteEvidence(evidence);
-      setNoStepsEvidences((prev) => prev.filter((ev) => ev.path !== evidence.path));
+      const updatedGroups = normalizeEvidenceGroups(noStepsEvidenceGroups, noStepsEvidences).map((group) => ({
+        ...group,
+        evidences: (group.evidences || []).filter((ev) => ev.path !== evidence.path),
+      }));
+      setGeneralEvidenceGroups(updatedGroups);
       notify('Evidencia eliminada', { type: 'success' });
     } catch {
       notify('Error al eliminar la evidencia', { type: 'error' });
@@ -440,7 +501,14 @@ export const TestExecutionModal = ({
 
       const dataToSave = hasSteps
         ? {
-            steps,
+            steps: steps.map((step) => {
+              const groups = normalizeEvidenceGroups(step.evidenceGroups, step.evidences || []);
+              return {
+                ...step,
+                evidenceGroups: groups,
+                evidences: flattenEvidenceGroups(groups),
+              };
+            }),
             actualResult:
               executionResult === 'passed'
                 ? 'Todos los pasos fueron aprobados.'
@@ -461,6 +529,7 @@ export const TestExecutionModal = ({
             executionResult: noStepsStatus,
             actualResult: noStepsActualResult,
             generalEvidences: noStepsEvidences,
+            generalEvidenceGroups: normalizeEvidenceGroups(noStepsEvidenceGroups, noStepsEvidences),
             notes: executionNotes,
             tags: updatedTags,
           };
@@ -736,141 +805,17 @@ export const TestExecutionModal = ({
                   onChange={(e) => setNoStepsActualResult(e.target.value)}
                 />
 
-                {/* Evidencias generales */}
-                <Box
-                  onDragOver={(e) => { e.preventDefault(); if (!isNoStepsDragging) setIsNoStepsDragging(true); }}
-                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsNoStepsDragging(false); }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsNoStepsDragging(false);
-                    if (uploadProgress !== null) return;
-                    const file = e.dataTransfer.files[0];
-                    if (file) processFileForNoSteps(file);
-                  }}
-                  sx={{
-                    borderRadius: 2,
-                    outline: isNoStepsDragging ? '2px dashed #FF6B35' : '2px dashed transparent',
-                    bgcolor: isNoStepsDragging ? 'rgba(255,107,53,0.04)' : 'transparent',
-                    transition: 'outline 0.15s, background-color 0.15s',
-                    p: isNoStepsDragging ? 0.5 : 0,
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-                    <Typography variant="subtitle2">
-                      Evidencias
-                      {noStepsEvidences.length > 0 && (
-                        <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                          ({noStepsEvidences.length})
-                        </Typography>
-                      )}
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={uploadProgress !== null ? <CircularProgress size={14} /> : <AttachFileIcon />}
-                      onClick={() => noStepsFileInputRef.current?.click()}
-                      disabled={uploadProgress !== null}
-                      sx={{ textTransform: 'none', borderColor: '#FF6B35', color: '#FF6B35', '&:hover': { borderColor: '#E55A2B', color: '#E55A2B' } }}
-                    >
-                      Cargar evidencia
-                    </Button>
-                    <input
-                      ref={noStepsFileInputRef}
-                      type="file"
-                      accept={ALLOWED_EVIDENCE_EXTENSIONS}
-                      style={{ display: 'none' }}
-                      onChange={handleNoStepsFileChange}
-                    />
-                  </Stack>
-
-                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                    Formatos: JPG, JPEG, PNG, MP4 · Máximo 200 MB
-                  </Typography>
-
-                  {uploadProgress !== null && (
-                    <Box sx={{ mb: 2 }}>
-                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Subiendo archivo...</Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 700 }}>{Math.round(uploadProgress)}%</Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={uploadProgress}
-                        sx={{ height: 6, borderRadius: 999, bgcolor: 'rgba(255,107,53,0.15)', '& .MuiLinearProgress-bar': { bgcolor: '#FF6B35' } }}
-                      />
-                    </Box>
-                  )}
-
-                  {noStepsEvidences.length > 0 ? (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 1.5 }}>
-                      {noStepsEvidences.map((ev) => (
-                        <Box
-                          key={ev.path}
-                          sx={{
-                            position: 'relative',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: 1.5,
-                            overflow: 'hidden',
-                            bgcolor: 'background.paper',
-                            '&:hover .evidence-actions': { opacity: 1 },
-                          }}
-                        >
-                          {ev.mimeType === 'video/mp4' ? (
-                            <Stack alignItems="center" justifyContent="center" spacing={0.5} sx={{ p: 1.5, minHeight: 90 }}>
-                              <VideocamIcon sx={{ fontSize: 32, color: '#1E88E5' }} />
-                              <Typography variant="caption" sx={{ wordBreak: 'break-all', textAlign: 'center', fontSize: 10, lineHeight: 1.3 }}>
-                                {ev.name}
-                              </Typography>
-                            </Stack>
-                          ) : (
-                            <EvidencePreview evidence={ev} height={90} />
-                          )}
-                          <Stack
-                            className="evidence-actions"
-                            direction="row"
-                            justifyContent="center"
-                            spacing={0.5}
-                            sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, bgcolor: 'rgba(0,0,0,0.55)', opacity: 0, transition: 'opacity 0.2s', py: 0.5 }}
-                          >
-                            <Tooltip title="Abrir en nueva pestaña">
-                              <IconButton size="small" component="a" href={ev.url} target="_blank" rel="noopener noreferrer" sx={{ color: '#fff', p: 0.4 }}>
-                                <OpenInNewIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Eliminar evidencia">
-                              <IconButton size="small" onClick={() => handleNoStepsDeleteEvidence(ev)} disabled={deletingPath === ev.path} sx={{ color: '#f44336', p: 0.4 }}>
-                                {deletingPath === ev.path ? <CircularProgress size={14} sx={{ color: '#f44336' }} /> : <DeleteOutlineIcon sx={{ fontSize: 16 }} />}
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Box
-                      sx={{
-                        border: '2px dashed',
-                        borderColor: isNoStepsDragging ? '#FF6B35' : 'divider',
-                        borderRadius: 2,
-                        p: 3,
-                        textAlign: 'center',
-                        color: isNoStepsDragging ? '#FF6B35' : 'text.disabled',
-                        transition: 'border-color 0.15s, color 0.15s',
-                      }}
-                    >
-                      <AttachFileIcon sx={{ fontSize: 28, mb: 0.5, opacity: isNoStepsDragging ? 0.8 : 0.4 }} />
-                      <Typography variant="caption" display="block">
-                        {isNoStepsDragging ? 'Suelta aquí para adjuntar' : 'Sin evidencias adjuntas'}
-                      </Typography>
-                      {!isNoStepsDragging && (
-                        <Typography variant="caption" display="block" sx={{ mt: 0.5, opacity: 0.6 }}>
-                          Arrastra, pega (Ctrl+V) o usa el botón
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-                </Box>
+                <EvidenceManager
+                  title="Evidencias"
+                  groups={normalizeEvidenceGroups(noStepsEvidenceGroups, noStepsEvidences)}
+                  onGroupsChange={setGeneralEvidenceGroups}
+                  uploadProgress={uploadProgress}
+                  deletingPath={deletingPath}
+                  isDragging={isNoStepsDragging}
+                  onDraggingChange={setIsNoStepsDragging}
+                  onUpload={processFileForNoSteps}
+                  onDeleteEvidence={handleNoStepsDeleteEvidence}
+                />
 
                 <Divider />
 
@@ -933,192 +878,17 @@ export const TestExecutionModal = ({
                   onChange={(e) => setStepValue('actualResult', e.target.value)}
                 />
 
-                {/* Sección de evidencias */}
-                <Box
-                  onDragOver={(e) => { e.preventDefault(); if (!isDragging) setIsDragging(true); }}
-                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                    if (uploadProgress !== null) return;
-                    const file = e.dataTransfer.files[0];
-                    if (file) processFileForActiveStep(file);
-                  }}
-                  sx={{
-                    borderRadius: 2,
-                    outline: isDragging ? '2px dashed #FF6B35' : '2px dashed transparent',
-                    bgcolor: isDragging ? 'rgba(255,107,53,0.04)' : 'transparent',
-                    transition: 'outline 0.15s, background-color 0.15s',
-                    p: isDragging ? 0.5 : 0,
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-                    <Typography variant="subtitle2">
-                      Evidencias del paso
-                      {activeStep.evidences && activeStep.evidences.length > 0 && (
-                        <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                          ({activeStep.evidences.length})
-                        </Typography>
-                      )}
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={uploadProgress !== null ? <CircularProgress size={14} /> : <AttachFileIcon />}
-                      onClick={handleUploadClick}
-                      disabled={uploadProgress !== null}
-                      sx={{ textTransform: 'none', borderColor: '#FF6B35', color: '#FF6B35', '&:hover': { borderColor: '#E55A2B', color: '#E55A2B' } }}
-                    >
-                      Cargar evidencia
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={ALLOWED_EVIDENCE_EXTENSIONS}
-                      style={{ display: 'none' }}
-                      onChange={handleFileChange}
-                    />
-                  </Stack>
-
-                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                    Formatos: JPG, JPEG, PNG, MP4 · Máximo 200 MB
-                  </Typography>
-
-                  {uploadProgress !== null && (
-                    <Box sx={{ mb: 2 }}>
-                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          Subiendo archivo...
-                        </Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                          {Math.round(uploadProgress)}%
-                        </Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={uploadProgress}
-                        sx={{ height: 6, borderRadius: 999, bgcolor: 'rgba(255,107,53,0.15)', '& .MuiLinearProgress-bar': { bgcolor: '#FF6B35' } }}
-                      />
-                    </Box>
-                  )}
-
-                  {activeStep.evidences && activeStep.evidences.length > 0 ? (
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
-                        gap: 1.5,
-                      }}
-                    >
-                      {activeStep.evidences.map((ev) => (
-                        <Box
-                          key={ev.path}
-                          sx={{
-                            position: 'relative',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: 1.5,
-                            overflow: 'hidden',
-                            bgcolor: 'background.paper',
-                            '&:hover .evidence-actions': { opacity: 1 },
-                          }}
-                        >
-                          {ev.mimeType === 'video/mp4' ? (
-                            <Stack
-                              alignItems="center"
-                              justifyContent="center"
-                              spacing={0.5}
-                              sx={{ p: 1.5, minHeight: 90 }}
-                            >
-                              <VideocamIcon sx={{ fontSize: 32, color: '#1E88E5' }} />
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  wordBreak: 'break-all',
-                                  textAlign: 'center',
-                                  fontSize: 10,
-                                  lineHeight: 1.3,
-                                  maxWidth: '100%',
-                                }}
-                              >
-                                {ev.name}
-                              </Typography>
-                            </Stack>
-                          ) : (
-                            <EvidencePreview evidence={ev} height={90} />
-                          )}
-
-                          {/* Overlay de acciones */}
-                          <Stack
-                            className="evidence-actions"
-                            direction="row"
-                            justifyContent="center"
-                            spacing={0.5}
-                            sx={{
-                              position: 'absolute',
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              bgcolor: 'rgba(0,0,0,0.55)',
-                              opacity: 0,
-                              transition: 'opacity 0.2s',
-                              py: 0.5,
-                            }}
-                          >
-                            <Tooltip title="Abrir en nueva pestaña">
-                              <IconButton
-                                size="small"
-                                component="a"
-                                href={ev.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                sx={{ color: '#fff', p: 0.4 }}
-                              >
-                                <OpenInNewIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Eliminar evidencia">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDeleteEvidence(ev)}
-                                disabled={deletingPath === ev.path}
-                                sx={{ color: '#f44336', p: 0.4 }}
-                              >
-                                {deletingPath === ev.path ? (
-                                  <CircularProgress size={14} sx={{ color: '#f44336' }} />
-                                ) : (
-                                  <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Box
-                      sx={{
-                        border: '2px dashed',
-                        borderColor: isDragging ? '#FF6B35' : 'divider',
-                        borderRadius: 2,
-                        p: 3,
-                        textAlign: 'center',
-                        color: isDragging ? '#FF6B35' : 'text.disabled',
-                        transition: 'border-color 0.15s, color 0.15s',
-                      }}
-                    >
-                      <AttachFileIcon sx={{ fontSize: 28, mb: 0.5, opacity: isDragging ? 0.8 : 0.4 }} />
-                      <Typography variant="caption" display="block">
-                        {isDragging ? 'Suelta aquí para adjuntar' : 'Sin evidencias adjuntas'}
-                      </Typography>
-                      {!isDragging && (
-                        <Typography variant="caption" display="block" sx={{ mt: 0.5, opacity: 0.6 }}>
-                          Arrastra, pega (Ctrl+V) o usa el botón
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-                </Box>
+                <EvidenceManager
+                  title="Evidencias del paso"
+                  groups={normalizeEvidenceGroups(activeStep.evidenceGroups, activeStep.evidences || [])}
+                  onGroupsChange={setActiveStepEvidenceGroups}
+                  uploadProgress={uploadProgress}
+                  deletingPath={deletingPath}
+                  isDragging={isDragging}
+                  onDraggingChange={setIsDragging}
+                  onUpload={processFileForActiveStep}
+                  onDeleteEvidence={handleDeleteEvidence}
+                />
 
                 <Divider />
 
