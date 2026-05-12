@@ -159,9 +159,15 @@ export const TestExecutionModal = ({
 
   const getDraftUpdatedAtTime = (value: ExecutionDraftData['updatedAt']) => {
     if (!value) return 0;
-    if (typeof value === 'string') return new Date(value).getTime() || 0;
-    if (typeof value?.toDate === 'function') return value.toDate().getTime();
     if (value instanceof Date) return value.getTime();
+    if (typeof value === 'string') return new Date(value).getTime() || 0;
+    
+    // Para objetos tipo Timestamp de Firebase
+    const maybeTimestamp = value as TimestampLike;
+    if (typeof maybeTimestamp.toDate === 'function') {
+      return maybeTimestamp.toDate().getTime();
+    }
+    
     return 0;
   };
 
