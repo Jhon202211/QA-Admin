@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "automation:server": "node automation-server.js",
-    "automation:test": "npx playwright test"
+    "automation:test": "npx playwright test",
+    "e2e:test": "playwright test --config tests/E2E/playwright.config.ts",
+    "e2e:headed": "playwright test --config tests/E2E/playwright.config.ts --headed",
+    "e2e:ui": "playwright test --config tests/E2E/playwright.config.ts --ui",
+    "e2e:report": "playwright show-report tests/E2E/playwright-report"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1013.0",

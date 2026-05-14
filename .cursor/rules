@@ -139,3 +139,15 @@ This is an administration dashboard for quality assurance (QA) test management b
 - Configure Firebase Hosting for deployment
 - Maintain different configurations for dev/prod
 - Implement monitoring and logging in production
+
+## E2E Playwright Structure
+- Keep the QA-Admin E2E suite under `tests/E2E/`.
+- Put runnable specs in `tests/E2E/tests/`.
+- Put functional checks in `tests/E2E/tests/testFuncionales/<module>/`.
+- Put cross-module business flows in `tests/E2E/tests/testEscenarios/`.
+- Put reusable Page Object classes in `tests/E2E/views/`.
+- Put shared environment or service helpers in `tests/E2E/lib/`.
+- Use Page Objects for selectors and repeated UI actions; specs should describe the scenario and delegate reusable details to `views/*View.ts` classes.
+- Load E2E configuration from `tests/E2E/.env` through `lib/testEnvironment.ts`; do not hardcode credentials, URLs, or environment-specific data in specs.
+- Keep code identifiers, comments, and logs in English. User-facing assertions may match Spanish UI text when the application renders Spanish labels.
+- Expose suite-level commands through the root `package.json` using the `e2e:*` script prefix, with Playwright config at `tests/E2E/playwright.config.ts`.
