@@ -26,12 +26,9 @@ import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from '
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { AppMenu } from './components/navigation/AppMenu';
-import { DraftsListModal } from './components/navigation/DraftsListModal';
 import { ReliabilityDashboardPage } from './pages/Reliability/ReliabilityDashboardPage';
 import { ReliabilityAnalysisPage } from './pages/Reliability/ReliabilityAnalysisPage';
 import { SystemIncidentCreate, SystemIncidentEdit, SystemIncidentsPage } from './pages/Reliability/SystemIncidentsPage';
-
-const EXECUTION_DRAFTS_MODAL_REQUEST_KEY = 'execution_drafts_modal_requested';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
@@ -169,32 +166,6 @@ const CustomLayout = (props: any) => {
   );
 };
 
-const GlobalDraftsModalManager = () => {
-  const [draftsModalOpen, setDraftsModalOpen] = useState(false);
-
-  useEffect(() => {
-    const handleDraftsAvailable = () => {
-      setDraftsModalOpen(true);
-    };
-
-    if (sessionStorage.getItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY) === '1') {
-      setDraftsModalOpen(true);
-      sessionStorage.removeItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY);
-    }
-
-    window.addEventListener('execution-drafts-available', handleDraftsAvailable);
-    return () => window.removeEventListener('execution-drafts-available', handleDraftsAvailable);
-  }, []);
-
-  useEffect(() => {
-    if (!draftsModalOpen) {
-      sessionStorage.removeItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY);
-    }
-  }, [draftsModalOpen]);
-
-  return <DraftsListModal open={draftsModalOpen} onClose={() => setDraftsModalOpen(false)} />;
-};
-
 const Footer = () => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
@@ -247,7 +218,6 @@ function App() {
           />
           <Resource name="configuration" list={ConfigurationPage} icon={SettingsIcon} options={{ label: 'Configuración' }} />
         </Admin>
-        <GlobalDraftsModalManager />
         <Footer />
       </BrowserRouter>
     </ErrorBoundary>

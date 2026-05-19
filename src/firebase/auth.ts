@@ -15,7 +15,6 @@ const CHECK_AUTH_MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutos
 
 /** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
 const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Reducido a 20 min para mayor seguridad
-const EXECUTION_DRAFTS_MODAL_REQUEST_KEY = 'execution_drafts_modal_requested';
 const ACTIVITY_REFRESH_THROTTLE_MS = 5 * 60 * 1000;
 
 /** Verifica si hay borradores (drafts) activos de ejecuciones de pruebas manuales */
@@ -31,11 +30,6 @@ export function hasActiveExecutionDrafts(): boolean {
     console.error('Error checking drafts:', e);
   }
   return false;
-}
-
-function notifyExecutionDraftsAvailable() {
-  sessionStorage.setItem(EXECUTION_DRAFTS_MODAL_REQUEST_KEY, '1');
-  window.dispatchEvent(new CustomEvent('execution-drafts-available'));
 }
 
 /**
@@ -72,7 +66,7 @@ export function setupAuthSessionMaintenance(): () => void {
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
     if (hasActiveExecutionDrafts()) {
       e.preventDefault();
-      e.returnValue = 'Tienes una ejecución de prueba en curso. Si sales ahora, los cambios no guardados se mantendrán solo localmente.';
+      e.returnValue = 'Tienes borradores de ejecución pendientes. Los cambios no guardados se mantendrán localmente.';
       return e.returnValue;
     }
   };
@@ -120,16 +114,6 @@ export const authProvider = {
   },
   logout: async (): Promise<string | false | void> => {
     try {
-      if (hasActiveExecutionDrafts()) {
-        const confirmLogout = window.confirm(
-          'Tienes ejecuciones de prueba pendientes de guardar. ¿Estás seguro de que deseas cerrar sesión?'
-        );
-        if (!confirmLogout) {
-          // Mantener la sesión activa y abrir el modal con los borradores pendientes.
-          notifyExecutionDraftsAvailable();
-          return Promise.resolve(false);
-        }
-      }
       await signOut(auth);
       return Promise.resolve();
     } catch (error) {
@@ -138,9 +122,6 @@ export const authProvider = {
   },
   checkError: ({ status }: { status: number }) => {
     if (status === 401 || status === 403) {
-      if (hasActiveExecutionDrafts()) {
-        notifyExecutionDraftsAvailable();
-      }
       return Promise.reject();
     }
     return Promise.resolve();
@@ -163,9 +144,6 @@ export const authProvider = {
         clearTimeout(timer);
         if (user) resolve();
         else {
-          if (hasActiveExecutionDrafts()) {
-            notifyExecutionDraftsAvailable();
-          }
           reject();
         }
       };

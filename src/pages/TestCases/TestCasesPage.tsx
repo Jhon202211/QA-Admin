@@ -24,6 +24,7 @@ import { Box, Typography, Chip, Tabs, Tab } from '@mui/material';
 import { RichTextInput } from 'ra-input-rich-text';
 import { HierarchicalView } from '../../components/TestCases/HierarchicalView';
 import { ArchivedView } from '../../components/TestCases/ArchivedView';
+import { DraftsView } from '../../components/TestCases/DraftsView';
 import { useState } from 'react';
 import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from '../../components/TestCases/testCaseUi';
 
@@ -125,11 +126,13 @@ export const TestCasesPage = () => {
           <Tab label="Vista Jerárquica" />
           <Tab label="Archivados" />
           <Tab label="Vista de Lista" />
+          <Tab label="Borradores" />
         </Tabs>
       </Box>
       {tabValue === 0 && <HierarchicalView />}
       {tabValue === 1 && <ArchivedView />}
       {tabValue === 2 && <TestCasesList />}
+      {tabValue === 3 && <DraftsView />}
     </Box>
   );
 };
