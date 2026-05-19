@@ -40,12 +40,6 @@ export const DraftsView = () => {
     return ids;
   }, []);
 
-  const syncDraftIds = useCallback((drafts = remoteDrafts) => {
-    const ids = Array.from(new Set([...getLocalDraftIds(), ...drafts.map((draft) => draft.testCaseId)]));
-    setDraftIds(ids);
-    return ids;
-  }, [getLocalDraftIds, remoteDrafts]);
-
   const loadDrafts = useCallback(async () => {
     setIsLoading(true);
     setError(null);

@@ -15,7 +15,6 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 import { useSidebarState } from 'react-admin';
-import { useState, useEffect } from 'react';
 
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
