@@ -4,14 +4,10 @@ import {
   signOut,
   setPersistence,
   browserLocalPersistence,
-  onAuthStateChanged,
   onIdTokenChanged,
 } from 'firebase/auth';
 
 const REMEMBERED_EMAIL_KEY = 'qa_remembered_email';
-
-/** Tiempo máximo de espera a que Firebase restaure la sesión desde IndexedDB (p. ej. tras dormir el equipo). */
-const CHECK_AUTH_MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutos
 
 /** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
 const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Reducido a 20 min para mayor seguridad
@@ -120,48 +116,39 @@ export const authProvider = {
       return Promise.reject(error);
     }
   },
-  checkError: ({ status }: { status: number }) => {
-    if (status === 401 || status === 403) {
+  checkError: (error: unknown) => {
+    const status = (error as { status?: number })?.status;
+    const code = (error as { code?: string })?.code;
+    
+    // Manejar errores de HTTP (react-admin estándar) y de Firebase Firestore
+    if (
+      status === 401 || 
+      status === 403 || 
+      code === 'permission-denied' || 
+      code === 'unauthenticated' ||
+      code === 'auth/user-token-expired'
+    ) {
       return Promise.reject();
     }
     return Promise.resolve();
   },
   checkAuth: async () => {
-    if (auth.currentUser) {
-      await auth.currentUser.getIdToken(false).catch(() => {
-        /* No cerrar sesión por fallos transitorios de red; Firestore reportará si realmente no hay acceso. */
-      });
-      return Promise.resolve();
+    try {
+      // authStateReady() es la forma más robusta de esperar a que Firebase inicialice el estado de auth
+      // desde IndexedDB (persistencia local).
+      await auth.authStateReady();
+      
+      if (auth.currentUser) {
+        // Refrescar token en segundo plano si es posible
+        auth.currentUser.getIdToken(false).catch(() => {});
+        return Promise.resolve();
+      }
+      return Promise.reject();
+    } catch {
+      // Fallback en caso de error en la inicialización
+      if (auth.currentUser) return Promise.resolve();
+      return Promise.reject();
     }
-
-    return new Promise<void>((resolve, reject) => {
-      let settled = false;
-
-      const finish = (user: any) => {
-        if (settled) return;
-        settled = true;
-        unsubscribe();
-        clearTimeout(timer);
-        if (user) resolve();
-        else {
-          reject();
-        }
-      };
-
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        finish(user);
-      });
-
-      const timer = setTimeout(() => {
-        if (settled) return;
-        // Tras dormir el equipo o IndexedDB lento, a veces currentUser aparece después del primer evento
-        if (auth.currentUser) {
-          finish(auth.currentUser);
-        } else {
-          finish(null);
-        }
-      }, CHECK_AUTH_MAX_WAIT_MS);
-    });
   },
   getPermissions: () => Promise.resolve(),
 }; 

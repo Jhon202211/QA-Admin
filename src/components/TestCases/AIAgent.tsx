@@ -335,10 +335,12 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
             automated: false,
           });
 
-        const response = await create('test_cases', {
-          data: payload,
-        });
-        if (response?.data?.id) createdCount += 1;
+        const response = await create(
+          'test_cases',
+          { data: payload },
+          { returnPromise: true }
+        );
+        if (response?.id) createdCount += 1;
       }
 
       notify(`${createdCount} caso(s) de prueba creado(s) exitosamente`, { type: 'success' });
