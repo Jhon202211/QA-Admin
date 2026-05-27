@@ -95,6 +95,7 @@ Reglas:
 - Usar lenguaje claro, profesional y orientado a QA manual
 - El módulo y submódulo deben reflejar el área funcional real de la historia
 - El test_type debe ser uno de: Pre-QA / Quality Gate, Funcionales, Regresión, Smoke, No Funcionales, UAT, Integración, Unitarias, Exploratorias.
+- **ESPECÍFICO PARA PRE-QA / QUALITY GATE**: No generes casos genéricos de "pasa/falla". Genera un caso de prueba individual por cada ítem técnico (Tests unitarios, Code Review, Changelog, Sync Master, Migraciones). El título del caso debe ser el nombre del ítem (ej: "✅ Tests unitarios pasando") y los pasos deben describir cómo verificar técnicamente ese ítem específico.
 - La técnica aplicada debe ser una de las mencionadas en la sección de técnicas.
 - Cada caso debe tener al menos 3 pasos detallados
 
@@ -296,6 +297,95 @@ const buildSimulation = (userStory: string): AITestCaseSuggestion => {
 
   const wantMatch = userStory.match(/quiero\s+(.+?)(?:\s+para|$)/i);
   const fn = wantMatch ? wantMatch[1].trim() : 'realizar una acción';
+
+  if (testType === 'Pre-QA / Quality Gate') {
+    return {
+      project,
+      module,
+      submodule,
+      test_type: testType,
+      conditions: [
+        { name: 'Tests unitarios', description: 'Verificación de cobertura y paso de tests', equivalence_partitions: ['Pasando', 'Fallando'], boundary_values: [], notes: '' },
+        { name: 'Code Review', description: 'Aprobación por pares', equivalence_partitions: ['Aprobado', 'Pendiente'], boundary_values: [], notes: '' },
+        { name: 'Changelog', description: 'Documentación de cambios', equivalence_partitions: ['Documentado', 'No documentado'], boundary_values: [], notes: '' },
+        { name: 'Sincronización Master', description: 'Estado de la rama', equivalence_partitions: ['Sincronizada', 'Desactualizada'], boundary_values: [], notes: '' },
+        { name: 'Migraciones', description: 'Ejecución de scripts de DB', equivalence_partitions: ['Correctas', 'Con errores'], boundary_values: [], notes: '' },
+      ],
+      decision_table: { applicable: false, headers: [], rows: [] },
+      test_cases: [
+        {
+          id: 'CP-QG-001',
+          title: '✅ Tests unitarios pasando',
+          category: 'positive',
+          preconditions: ['La rama de la tarea está lista para revisión'],
+          steps: ['Ejecutar el comando de tests unitarios localmente', 'Verificar que el 100% de los tests pasen', 'Confirmar que no hay degradación en la cobertura'],
+          expected_result: 'Todos los tests unitarios se ejecutan exitosamente',
+          priority: 'P0',
+          technique_applied: ['Checklist de calidad técnica'],
+          risk_rationale: 'Garantiza estabilidad base del código',
+          regression_links: [],
+          integration_impact: [],
+          data: { inputs: {}, expected_outputs: {} },
+        },
+        {
+          id: 'CP-QG-002',
+          title: '✅ Code review aprobado',
+          category: 'positive',
+          preconditions: ['Pull Request creado en el repositorio'],
+          steps: ['Verificar que al menos un desarrollador senior haya revisado el código', 'Confirmar que se hayan resuelto todos los hilos de conversación', 'Validar el estado de aprobación en la plataforma de Git'],
+          expected_result: 'El PR cuenta con la aprobación necesaria para merge',
+          priority: 'P0',
+          technique_applied: ['Checklist de calidad técnica'],
+          risk_rationale: 'Asegura calidad y mantenibilidad del código',
+          regression_links: [],
+          integration_impact: [],
+          data: { inputs: {}, expected_outputs: {} },
+        },
+        {
+          id: 'CP-QG-003',
+          title: '✅ Changelog documentado',
+          category: 'positive',
+          preconditions: ['Cambios funcionales realizados'],
+          steps: ['Localizar el archivo CHANGELOG.md o sección de notas', 'Verificar que la versión y fecha sean correctas', 'Confirmar que los cambios de esta tarea estén listados claramente'],
+          expected_result: 'El historial de cambios está actualizado y es legible',
+          priority: 'P1',
+          technique_applied: ['Checklist de calidad técnica'],
+          risk_rationale: 'Trazabilidad de cambios para el equipo y cliente',
+          regression_links: [],
+          integration_impact: [],
+          data: { inputs: {}, expected_outputs: {} },
+        },
+        {
+          id: 'CP-QG-004',
+          title: '✅ Rama sincronizada con master',
+          category: 'positive',
+          preconditions: ['Trabajo en rama feature finalizado'],
+          steps: ['Realizar un pull de la rama master', 'Ejecutar merge o rebase de master hacia la rama actual', 'Resolver conflictos si existen y verificar que la app compile'],
+          expected_result: 'La rama no tiene conflictos con la versión principal',
+          priority: 'P0',
+          technique_applied: ['Checklist de calidad técnica'],
+          risk_rationale: 'Evita problemas de integración al desplegar',
+          regression_links: [],
+          integration_impact: [],
+          data: { inputs: {}, expected_outputs: {} },
+        },
+        {
+          id: 'CP-QG-005',
+          title: '✅ Migraciones ejecutan correctamente',
+          category: 'positive',
+          preconditions: ['Existen cambios en el esquema de base de datos'],
+          steps: ['Ejecutar comando de migraciones en un entorno limpio', 'Verificar que las tablas y campos se creen según el diseño', 'Realizar un rollback para asegurar que la migración es reversible'],
+          expected_result: 'La base de datos se actualiza sin errores de esquema',
+          priority: 'P0',
+          technique_applied: ['Checklist de calidad técnica'],
+          risk_rationale: 'Crítico para la integridad de los datos en producción',
+          regression_links: [],
+          integration_impact: [],
+          data: { inputs: {}, expected_outputs: {} },
+        },
+      ],
+    };
+  }
 
   return {
     project,
