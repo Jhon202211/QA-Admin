@@ -61,6 +61,7 @@ const AI_PROMPT_BASE = `Eres un QA Lead experto en diseño avanzado de casos de 
 Genera los casos clasificándolos según esta estructura:
 
 **TIPOS DE PRUEBA (test_type):**
+- Pre-QA / Quality Gate (Verificación técnica previa: tests unitarios, code review, changelog, sync master, migraciones)
 - Funcionales (Caja Negra)
 - No Funcionales (Performance, Seguridad, Usabilidad)
 - Smoke (Happy path, flujo principal)
@@ -72,11 +73,13 @@ Genera los casos clasificándolos según esta estructura:
 
 ### 2. TÉCNICAS DE DISEÑO (technique_applied)
 Aplica y documenta explícitamente estas técnicas según el tipo de prueba:
+- Pre-QA: Checklist de calidad técnica, Verificación de prerrequisitos de despliegue.
 - Caja Negra: Partición de equivalencia, Valores límite, Transición de estados, Tablas de decisión, Casos de uso.
 - Caja Blanca: Cobertura de sentencias/decisiones (para Unitarias).
 - Basadas en experiencia: Error guessing, Exploratory testing.
 
 ### 3. RELACIÓN TÉCNICA-TIPO
+- PRE-QA / QUALITY GATE: Valida que la tarea esté lista para QA (Tests unitarios OK, Code Review OK, Changelog, Sync Master, Migraciones).
 - FUNCIONALES: Usa Partición de equivalencia, Valores límite, Transición de estados, Tablas de decisión.
 - NO FUNCIONALES: Usa Valores límite (ej. carga máxima).
 - REGRESIÓN: Reutiliza equivalencias y valores límite de bugs históricos.
@@ -91,7 +94,7 @@ Reglas:
 - No inventar reglas de negocio que no estén en el contexto dado
 - Usar lenguaje claro, profesional y orientado a QA manual
 - El módulo y submódulo deben reflejar el área funcional real de la historia
-- El test_type debe ser uno de: Funcionales, Regresión, Smoke, No Funcionales, UAT, Integración, Unitarias, Exploratorias.
+- El test_type debe ser uno de: Pre-QA / Quality Gate, Funcionales, Regresión, Smoke, No Funcionales, UAT, Integración, Unitarias, Exploratorias.
 - La técnica aplicada debe ser una de las mencionadas en la sección de técnicas.
 - Cada caso debe tener al menos 3 pasos detallados
 
@@ -100,7 +103,7 @@ Responde SOLO en JSON válido con esta estructura exacta:
   "project": "Nombre del sistema (ej: 'Control de Acceso', 'Reservas')",
   "module": "Nombre del módulo",
   "submodule": "Nombre del submódulo",
-  "test_type": "Funcionales|Regresión|Smoke|No Funcionales|UAT|Integración|Unitarias|Exploratorias",
+  "test_type": "Pre-QA / Quality Gate|Funcionales|Regresión|Smoke|No Funcionales|UAT|Integración|Unitarias|Exploratorias",
   "conditions": [
     {
       "name": "Nombre de la variable/condición",
@@ -289,6 +292,7 @@ const buildSimulation = (userStory: string): AITestCaseSuggestion => {
   else if (lower.includes('smoke') || lower.includes('humo')) testType = 'Smoke';
   else if (lower.includes('performance') || lower.includes('rendimiento')) testType = 'No Funcionales';
   else if (lower.includes('uat') || lower.includes('aceptación')) testType = 'UAT';
+  else if (lower.includes('pre-qa') || lower.includes('quality gate') || lower.includes('gate')) testType = 'Pre-QA / Quality Gate';
 
   const wantMatch = userStory.match(/quiero\s+(.+?)(?:\s+para|$)/i);
   const fn = wantMatch ? wantMatch[1].trim() : 'realizar una acción';

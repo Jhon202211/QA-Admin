@@ -55,6 +55,7 @@ El agente de IA está integrado en la sección **Pruebas Manuales** (botón `Age
 
 | Tipo | Enfoque | Descripción |
 |---|---|---|
+| **Pre-QA / Quality Gate** | Mixto | Verificación técnica previa: tests unitarios, code review, changelog, sync master, migraciones |
 | **Funcionales** | Caja Negra | Validación de reglas de negocio y flujos del sistema |
 | **No Funcionales** | Mixto | Performance, Seguridad, Usabilidad, Compatibilidad |
 | **Smoke** | Caja Negra | Happy path — flujo principal crítico |
@@ -75,6 +76,7 @@ El agente de IA está integrado en la sección **Pruebas Manuales** (botón `Age
 
 | Técnica | Enfoque | Tipos de prueba que la usan |
 |---|---|---|
+| Checklist de calidad técnica | Mixto | Pre-QA / Quality Gate |
 | Partición de equivalencia | Caja Negra | Funcionales, Regresión |
 | Valores límite | Caja Negra | Funcionales, No Funcionales, Regresión |
 | Transición de estados | Caja Negra | Funcionales, Integración |

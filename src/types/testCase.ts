@@ -53,7 +53,7 @@ export interface TestCaseAIArtifacts {
 }
 export type TestCaseType = 'functional' | 'performance' | 'security' | 'integration' | 'e2e' | 'api' | 'unit' | 'system' | 'acceptance';
 export type TestCasePriority = 'low' | 'medium' | 'high' | 'critical';
-export type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT' | 'Integración' | 'Unitarias' | 'Exploratorias';
+export type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT' | 'Integración' | 'Unitarias' | 'Exploratorias' | 'Pre-QA / Quality Gate';
 
 export interface TestStep {
   id: string;

@@ -99,6 +99,7 @@ const OFFICIAL_TEST_TYPES = [
   'Integración',
   'Unitarias',
   'Exploratorias',
+  'Pre-QA / Quality Gate',
 ] as const;
 
 const normalizeTestType = (raw: string): string => {
@@ -115,6 +116,7 @@ const normalizeTestType = (raw: string): string => {
   if (lower.includes('integraci')) return 'Integración';
   if (lower.includes('unitari')) return 'Unitarias';
   if (lower.includes('explor')) return 'Exploratorias';
+  if (lower.includes('pre-qa') || lower.includes('quality gate') || lower.includes('gate')) return 'Pre-QA / Quality Gate';
   return 'Funcionales';
 };
 
@@ -687,6 +689,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
                           <MenuItem value="Integración">Integración</MenuItem>
                           <MenuItem value="Unitarias">Unitarias</MenuItem>
                           <MenuItem value="Exploratorias">Exploratorias</MenuItem>
+                          <MenuItem value="Pre-QA / Quality Gate">Pre-QA / Quality Gate</MenuItem>
                         </Select>
                       </FormControl>
                     </Box>
