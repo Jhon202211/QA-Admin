@@ -328,6 +328,7 @@ export const HierarchicalView = () => {
     'Integración',
     'Unitarias',
     'Exploratorias',
+    'Pre-QA / Quality Gate',
   ];
 
   const getCategoryColor = (category: string) => {
@@ -340,6 +341,7 @@ export const HierarchicalView = () => {
       'Integración': '#673AB7',
       'Unitarias': '#607D8B',
       'Exploratorias': '#E91E63',
+      'Pre-QA / Quality Gate': '#009688',
     };
     return colors[category] || '#6B6B6B';
   };

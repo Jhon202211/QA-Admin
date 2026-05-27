@@ -56,7 +56,17 @@ export const ArchivedView = () => {
     return acc;
   }, {});
 
-  const categories: TestCaseCategory[] = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión', 'UAT'];
+  const categories: TestCaseCategory[] = [
+    'Smoke',
+    'Funcionales',
+    'No Funcionales',
+    'Regresión',
+    'UAT',
+    'Integración',
+    'Unitarias',
+    'Exploratorias',
+    'Pre-QA / Quality Gate',
+  ];
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -65,6 +75,10 @@ export const ArchivedView = () => {
       'No Funcionales': '#2196F3',
       Regresión: '#FF9800',
       UAT: '#9C27B0',
+      Integración: '#673AB7',
+      Unitarias: '#607D8B',
+      Exploratorias: '#E91E63',
+      'Pre-QA / Quality Gate': '#009688',
     };
     return colors[category] || '#6B6B6B';
   };

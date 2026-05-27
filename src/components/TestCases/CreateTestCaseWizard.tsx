@@ -23,8 +23,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useCreate, useNotify } from 'react-admin';
-
-type TestCaseCategory = 'Smoke' | 'Funcionales' | 'No Funcionales' | 'Regresión' | 'UAT' | 'Integración' | 'Unitarias' | 'Exploratorias';
+import type { TestCaseCategory } from '../../types/testCase';
 
 interface StepItem {
   id: string;
@@ -77,6 +76,7 @@ const Step2Category = ({ formData, setFormData, isReadOnly }: any) => (
         <MenuItem value="Integración">Integración</MenuItem>
         <MenuItem value="Unitarias">Unitarias</MenuItem>
         <MenuItem value="Exploratorias">Exploratorias</MenuItem>
+        <MenuItem value="Pre-QA / Quality Gate">Pre-QA / Quality Gate</MenuItem>
       </Select>
     </FormControl>
     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
