@@ -137,7 +137,8 @@ public/knowledge/
 ├── manifest.json           ← lista de archivos a indexar
 ├── bugs_historicos.txt     ← 390+ bugs reales del sistema (63 KB)
 ├── reglas_negocio.txt      ← reglas del dominio de negocio
-└── criterios_acceso.txt    ← criterios de acceso al sistema
+├── criterios_acceso.txt    ← criterios de acceso al sistema
+└── features_mejoras.txt    ← nuevas funcionalidades y mejoras (UX/Performance)
 ```
 
 ### Agregar o actualizar conocimiento

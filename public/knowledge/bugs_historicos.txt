@@ -52,6 +52,7 @@ PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
 BUGS REGISTRADOS (ticket | versión | descripción):
 ------------------------------------------------------------
   [82] | 28.1.1] - (13/02/2026 | Se corrige error al crear una reserva desde la app móvil, cuando no coincide la zona horaria con la del servidor.
+  [199] | 28.0.4] - (06/02/2026 | Se corrige el flujo de cancelación masiva de reservas para manejar correctamente el caso cuando uno o más usuarios asociados a las reservas han sido eliminados permanentemente.
   [RT-I664] | 26.24.7] - (13/08/2025 | Se corrige el fallo al momento de hacer pre-checkin en espacios de trabajo cuando posee formularios.
   [RT-I664] | 26.24.4] - (12/08/2025 | Se corrige el fallo al momento de crear una reserva en espacios de trabajo cuando no posee formularios.
   [RT-I637] | 26.24.3] - (11/08/2025 | Se ajusta el formulario de checking para que aparezca cuando se debe, tambien se redujo la cantidad de informacion que llega al momento de consultar el estado de las reservas en el mapa de salas evitando errores.

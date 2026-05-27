@@ -1,0 +1,59 @@
+================================================================================
+KNOWLEDGE BASE - NUEVAS CARACTERÍSTICAS Y MEJORAS DE QUEO ACCESS
+Fuente: CHANGELOG.md del proyecto QueoAccessMonolith
+Propósito: Contexto para agente IA de QA para entender capacidades actuales,
+           mejoras de UX y nuevas reglas de negocio al generar casos de prueba.
+================================================================================
+
+INSTRUCCIONES PARA EL AGENTE QA:
+--------------------------------------------------------------------------------
+Usa esta base de conocimiento para:
+  1. Identificar nuevas funcionalidades que requieren casos de prueba POSITIVOS.
+  2. Entender mejoras de UX (especialmente en móviles) para validar el diseño.
+  3. Aplicar nuevas reglas de negocio y parametrizaciones en los escenarios.
+  4. Verificar que las optimizaciones de performance no hayan roto la funcionalidad.
+
+================================================================================
+MÓDULO: RESERVAS DE SALAS Y PUESTOS DE TRABAJO
+================================================================================
+  • [193] | v29.4.1 | Mejoras en validación y generación de reservas recurrentes para garantizar el procesamiento del lote completo.
+  • [188] | v29.4.0 | Parametrización para definir días y horarios permitidos para reservas en espacios de trabajo y salas.
+  • [133] | v29.2.0 | Restricciones de reserva por roles y empresas específicas para espacios de trabajo.
+  • [156] | v29.0.9 | Inclusión del puesto de trabajo en el correo de invitación para el "usuario favorito".
+  • [17]  | v29.0.8 | Nuevo estado "en proceso" para las reservas de puestos.
+  • [232] | v28.1.1 | Variable de entorno para controlar el envío de notificaciones en creación de reservas recurrentes y masivas.
+
+================================================================================
+MÓDULO: VISITANTES Y AUTORIZACIONES
+================================================================================
+  • [244] | v29.5.5 | Optimización de búsqueda en modo enfoque: aplica tiempo de espera y mínimo de caracteres antes de consultar.
+  • [209] | v29.5.1 | Opción de elegir el tipo de autorización al momento de importar visitantes masivamente.
+  • [88]  | v29.5.0 | Mejoras en la vista de información de autorizaciones para visualización correcta en dispositivos móviles.
+  • [114] | v29.5.0 | Funcionalidad para generar stickers de autorizaciones para visitantes.
+  • [15]  | v28.1.0 | Setting para habilitar o deshabilitar la carga de documentos de identidad de visitantes.
+
+================================================================================
+MÓDULO: CONTROL DE ACCESO (RFID / QR / FACIAL / LPR)
+================================================================================
+  • [204] | v29.3.0 | Nuevo flujo que permite el uso de QR en diferentes puertas asociadas a la misma dirección.
+  • [151] | v29.1.0 | Configuración en zonas para permitir el acceso aunque el usuario no cuente con un turno activo en Resource.
+  • [17]  | v29.0.8 | Inclusión de puertas de área en la gráfica de conteo de accesos para copropiedades con reservas y puestos.
+
+================================================================================
+MÓDULO: AFOROS Y ZONAS
+================================================================================
+  • [251] | v29.5.4 | El listado de zonas con aforo ahora muestra correctamente la capacidad por empresa.
+  • [237] | v29.5.2 | Optimización de la búsqueda de zonas con aforo para dispositivos móviles.
+  • [20]  | v29.0.6 | Lógica de grupos de zonas con aforo que permite visualizar múltiples empresas simultáneamente.
+
+================================================================================
+MÓDULO: USUARIOS E INFRAESTRUCTURA
+================================================================================
+  • [229] | v29.5.3 | Nuevo endpoint optimizado para listar áreas de trabajo, reduciendo tiempos de respuesta y evitando errores de carga.
+  • [RT-I1162] | v28.0.5 | Mejora en la búsqueda de usuarios por DNI: ahora se ordena correctamente cuando el DNI es exacto.
+  • [86]  | v28.0.6 | Integración del widget de Voiceflow para soporte al usuario y apertura de tickets.
+  • [277] | v29.0.2 | Migración de Google Analytics a Tag Manager para evitar conflictos de medición.
+
+================================================================================
+FIN DEL KNOWLEDGE BASE
+================================================================================
