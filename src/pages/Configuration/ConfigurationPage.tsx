@@ -235,6 +235,10 @@ export const ConfigurationPage = () => {
                 <MenuItem value="No Funcionales">No Funcionales</MenuItem>
                 <MenuItem value="Regresión">Regresión</MenuItem>
                 <MenuItem value="UAT">UAT</MenuItem>
+                <MenuItem value="Integración">Integración</MenuItem>
+                <MenuItem value="Unitarias">Unitarias</MenuItem>
+                <MenuItem value="Exploratorias">Exploratorias</MenuItem>
+                <MenuItem value="Pre-QA / Quality Gate">Pre-QA / Quality Gate</MenuItem>
               </Select>
             </FormControl>
             <TextField

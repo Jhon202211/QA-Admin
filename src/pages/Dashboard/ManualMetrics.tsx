@@ -34,7 +34,7 @@ export const ManualMetrics = ({ startDate, endDate }: ManualMetricsProps) => {
   const successRate = totalCases > 0 ? ((passedCases / totalCases) * 100).toFixed(2) : '0';
   
   // Agrupar por categoría
-  const categoryData = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión', 'UAT'].map(category => {
+  const categoryData = ['Smoke', 'Funcionales', 'No Funcionales', 'Regresión', 'UAT', 'Integración', 'Unitarias', 'Exploratorias', 'Pre-QA / Quality Gate'].map(category => {
     const cases = testCases.filter(tc => tc.category === category);
     return {
       name: category,

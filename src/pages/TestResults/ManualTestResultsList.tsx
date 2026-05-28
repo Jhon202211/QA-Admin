@@ -27,7 +27,11 @@ export const ManualTestResultsList = () => {
         { id: 'Funcionales', name: 'Funcionales' },
         { id: 'No Funcionales', name: 'No Funcionales' },
         { id: 'Regresión', name: 'Regresión' },
-        { id: 'UAT', name: 'UAT' }
+        { id: 'UAT', name: 'UAT' },
+        { id: 'Integración', name: 'Integración' },
+        { id: 'Unitarias', name: 'Unitarias' },
+        { id: 'Exploratorias', name: 'Exploratorias' },
+        { id: 'Pre-QA / Quality Gate', name: 'Pre-QA / Quality Gate' }
       ]}
       alwaysOn
     />,

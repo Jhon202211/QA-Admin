@@ -36,7 +36,11 @@ const caseFilters = [
     { id: 'Funcionales', name: 'Funcionales' },
     { id: 'No Funcionales', name: 'No Funcionales' },
     { id: 'Regresión', name: 'Regresión' },
-    { id: 'UAT', name: 'UAT' }
+    { id: 'UAT', name: 'UAT' },
+    { id: 'Integración', name: 'Integración' },
+    { id: 'Unitarias', name: 'Unitarias' },
+    { id: 'Exploratorias', name: 'Exploratorias' },
+    { id: 'Pre-QA / Quality Gate', name: 'Pre-QA / Quality Gate' }
   ]} alwaysOn />,
   <SelectInput label="Prioridad" source="priority" choices={[
     { id: 'Alta', name: 'Alta' },
@@ -148,7 +152,11 @@ export const TestCaseCreate = (props: any) => (
         { id: 'Funcionales', name: 'Funcionales' },
         { id: 'No Funcionales', name: 'No Funcionales' },
         { id: 'Regresión', name: 'Regresión' },
-        { id: 'UAT', name: 'UAT' }
+        { id: 'UAT', name: 'UAT' },
+        { id: 'Integración', name: 'Integración' },
+        { id: 'Unitarias', name: 'Unitarias' },
+        { id: 'Exploratorias', name: 'Exploratorias' },
+        { id: 'Pre-QA / Quality Gate', name: 'Pre-QA / Quality Gate' }
       ]} fullWidth required />
       <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth />
       <TextInput source="name" label="Nombre" fullWidth required />
@@ -198,7 +206,11 @@ export const TestCaseEdit = (props: any) => (
         { id: 'Funcionales', name: 'Funcionales' },
         { id: 'No Funcionales', name: 'No Funcionales' },
         { id: 'Regresión', name: 'Regresión' },
-        { id: 'UAT', name: 'UAT' }
+        { id: 'UAT', name: 'UAT' },
+        { id: 'Integración', name: 'Integración' },
+        { id: 'Unitarias', name: 'Unitarias' },
+        { id: 'Exploratorias', name: 'Exploratorias' },
+        { id: 'Pre-QA / Quality Gate', name: 'Pre-QA / Quality Gate' }
       ]} fullWidth required />
       <TextInput source="caseKey" label="ID (ej: CP001)" fullWidth />
       <TextInput source="name" label="Nombre" fullWidth required />

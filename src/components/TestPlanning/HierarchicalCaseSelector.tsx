@@ -14,6 +14,10 @@ const CAT_COLORS: Record<string, string> = {
   'No Funcionales': '#2196F3',
   Regresión: '#FF9800',
   UAT: '#9C27B0',
+  Integración: '#673AB7',
+  Unitarias: '#607D8B',
+  Exploratorias: '#E91E63',
+  'Pre-QA / Quality Gate': '#009688',
 };
 
 interface Props {
