@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import CloudDoneIcon from '@mui/icons-material/CloudDone';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import ErrorIcon from '@mui/icons-material/Error';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
   Box,
   Button,
   Card,
@@ -690,22 +699,40 @@ export const TestExecutionModal = ({
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {autosaveStatus !== 'idle' && (
-            <Typography
-              variant="caption"
-              sx={{
-                color: autosaveStatus === 'error' ? 'error.main' : 'text.secondary',
-                fontSize: '0.75rem',
-                fontStyle: 'italic',
-              }}
-            >
-              {autosaveStatus === 'saving'
-                ? 'Guardando...'
-                : autosaveStatus === 'saved'
-                  ? 'Cambios guardados'
-                  : 'Error al guardar'}
-            </Typography>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mr: 1 }}>
+              {autosaveStatus === 'saving' ? (
+                <CloudUploadIcon sx={{ fontSize: 16, color: 'text.secondary', animation: 'pulse 1.5s infinite' }} />
+              ) : autosaveStatus === 'saved' ? (
+                <CloudDoneIcon sx={{ fontSize: 16, color: '#3CCF91' }} />
+              ) : (
+                <ErrorIcon sx={{ fontSize: 16, color: 'error.main' }} />
+              )}
+              <Typography
+                variant="caption"
+                sx={{
+                  color: autosaveStatus === 'error' ? 'error.main' : 'text.secondary',
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic',
+                }}
+              >
+                {autosaveStatus === 'saving'
+                  ? 'Guardando...'
+                  : autosaveStatus === 'saved'
+                    ? 'Cambios guardados'
+                    : 'Error al guardar'}
+              </Typography>
+            </Stack>
           )}
         </Box>
+        <style>
+          {`
+            @keyframes pulse {
+              0% { opacity: 0.6; }
+              50% { opacity: 1; }
+              100% { opacity: 0.6; }
+            }
+          `}
+        </style>
       </DialogTitle>
       <DialogContent dividers sx={{ p: 0 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '320px 1fr' }, minHeight: 540 }}>
@@ -755,28 +782,45 @@ export const TestExecutionModal = ({
                 : 'Sin pasos · Resultado general'}
             </Typography>
 
-            {/* Información adicional del caso de prueba */}
-            <Box sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-              {testCase.description && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5, textTransform: 'uppercase', fontSize: '0.65rem' }}>
-                    Descripción
+            {/* Información adicional del caso de prueba - Colapsable */}
+            <Box sx={{ mb: 2 }}>
+              <Accordion 
+                elevation={0} 
+                sx={{ 
+                  bgcolor: 'rgba(0,0,0,0.02)', 
+                  border: '1px solid', 
+                  borderColor: 'divider',
+                  '&:before': { display: 'none' }
+                }}
+              >
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 18 }} />}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                    Detalles y Precondiciones
                   </Typography>
-                  <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.primary', whiteSpace: 'pre-wrap' }}>
-                    {testCase.description}
-                  </Typography>
-                </Box>
-              )}
-              {testCase.prerequisites && (
-                <Box>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5, textTransform: 'uppercase', fontSize: '0.65rem' }}>
-                    Precondiciones
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.primary', whiteSpace: 'pre-wrap' }}>
-                    {Array.isArray(testCase.prerequisites) ? testCase.prerequisites.join('\n') : testCase.prerequisites}
-                  </Typography>
-                </Box>
-              )}
+                </AccordionSummary>
+                <AccordionDetails sx={{ pt: 0, px: 2, pb: 1.5 }}>
+                  {testCase.description && (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5, fontSize: '0.6rem' }}>
+                        DESCRIPCIÓN
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.primary', whiteSpace: 'pre-wrap' }}>
+                        {testCase.description}
+                      </Typography>
+                    </Box>
+                  )}
+                  {testCase.prerequisites && (
+                    <Box>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5, fontSize: '0.6rem' }}>
+                        PRECONDICIONES
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.primary', whiteSpace: 'pre-wrap' }}>
+                        {Array.isArray(testCase.prerequisites) ? testCase.prerequisites.join('\n') : testCase.prerequisites}
+                      </Typography>
+                    </Box>
+                  )}
+                </AccordionDetails>
+              </Accordion>
             </Box>
 
             <Stack spacing={1}>
@@ -787,9 +831,15 @@ export const TestExecutionModal = ({
                   sx={{
                     cursor: 'pointer',
                     border: '1px solid',
+                    borderLeft: `4px solid ${index === activeStepIndex ? '#FF6B35' : getExecutionColor(step.status) || 'transparent'}`,
                     borderColor: index === activeStepIndex ? '#FF6B35' : 'divider',
-                    boxShadow: index === activeStepIndex ? '0 0 0 2px rgba(255,107,53,0.12)' : 'none',
-                    mb: 0.5, // Reducir margen entre tarjetas
+                    boxShadow: index === activeStepIndex ? '0 2px 8px rgba(255,107,53,0.15)' : 'none',
+                    mb: 0.5,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: '#FF6B35',
+                      bgcolor: 'rgba(255,107,53,0.02)'
+                    }
                   }}
                 >
                   <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
@@ -884,41 +934,61 @@ export const TestExecutionModal = ({
 
             {!hasSteps ? (
               <Stack spacing={2.5}>
-                <Box>
-                  <Typography variant="overline" sx={{ color: 'text.secondary' }}>
-                    Resultado general del caso
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                <Box sx={{ bgcolor: 'rgba(255, 107, 53, 0.04)', p: 2, borderRadius: 2, border: '1px dashed rgba(255, 107, 53, 0.3)' }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <InfoOutlinedIcon sx={{ color: '#FF6B35', fontSize: 18 }} />
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#FF6B35', textTransform: 'uppercase' }}>
+                      Resultado general del caso
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     Este caso no tiene pasos definidos. Registra el resultado de la ejecución directamente.
                   </Typography>
                 </Box>
 
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Estado de la ejecución
-                  </Typography>
-                  <Select
-                    fullWidth
-                    value={noStepsStatus || 'not_executed'}
-                    onChange={(e) => setNoStepsStatus(e.target.value as TestStep['status'])}
-                  >
-                    {STEP_STATUSES.map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {getExecutionLabel(status)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </Box>
+                <Box sx={{ bgcolor: 'rgba(0,0,0,0.015)', p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    <AssignmentTurnedInIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Tu respuesta
+                    </Typography>
+                  </Stack>
 
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={4}
-                  label="Resultado real / hallazgos"
-                  placeholder="Describe el resultado obtenido, hallazgos o bugs encontrados..."
-                  value={noStepsActualResult}
-                  onChange={(e) => setNoStepsActualResult(e.target.value)}
-                />
+                  <Stack spacing={2.5}>
+                    <Box>
+                      <Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
+                        Estado de la ejecución
+                      </Typography>
+                      <Select
+                        fullWidth
+                        size="small"
+                        value={noStepsStatus || 'not_executed'}
+                        onChange={(e) => setNoStepsStatus(e.target.value as TestStep['status'])}
+                        sx={{ bgcolor: 'background.paper' }}
+                      >
+                        {STEP_STATUSES.map((status) => (
+                          <MenuItem key={status} value={status}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              {getStepIcon(status)}
+                              <span>{getExecutionLabel(status)}</span>
+                            </Stack>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </Box>
+
+                    <TextField
+                      fullWidth
+                      multiline
+                      minRows={4}
+                      label="Resultado real / hallazgos"
+                      placeholder="Describe el resultado obtenido, hallazgos o bugs encontrados..."
+                      value={noStepsActualResult}
+                      onChange={(e) => setNoStepsActualResult(e.target.value)}
+                      sx={{ bgcolor: 'background.paper' }}
+                    />
+                  </Stack>
+                </Box>
 
                 <EvidenceManager
                   title="Evidencias"
@@ -956,42 +1026,62 @@ export const TestExecutionModal = ({
                 </Box>
 
                 {activeStep.expectedResult && (
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  <Box sx={{ bgcolor: 'rgba(30, 136, 229, 0.04)', p: 2, borderRadius: 2, border: '1px dashed rgba(30, 136, 229, 0.3)' }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <InfoOutlinedIcon sx={{ color: '#1E88E5', fontSize: 18 }} />
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#1E88E5', textTransform: 'uppercase' }}>
                         Resultado esperado
                       </Typography>
-                      <Typography variant="body1">{activeStep.expectedResult}</Typography>
-                    </CardContent>
-                  </Card>
+                    </Stack>
+                    <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.5 }}>
+                      {activeStep.expectedResult}
+                    </Typography>
+                  </Box>
                 )}
 
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Estado del paso
-                  </Typography>
-                  <Select
-                    fullWidth
-                    value={activeStep.status || 'not_executed'}
-                    onChange={(e) => setStepValue('status', e.target.value)}
-                  >
-                    {STEP_STATUSES.map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {getExecutionLabel(status)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </Box>
+                <Box sx={{ bgcolor: 'rgba(0,0,0,0.015)', p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    <AssignmentTurnedInIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Tu respuesta
+                    </Typography>
+                  </Stack>
 
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  label="Resultado real / hallazgos"
-                  placeholder="Describe lo que ocurrió al ejecutar este paso..."
-                  value={activeStep.actualResult || ''}
-                  onChange={(e) => setStepValue('actualResult', e.target.value)}
-                />
+                  <Stack spacing={2.5}>
+                    <Box>
+                      <Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary', fontWeight: 600 }}>
+                        Estado del paso
+                      </Typography>
+                      <Select
+                        fullWidth
+                        size="small"
+                        value={activeStep.status || 'not_executed'}
+                        onChange={(e) => setStepValue('status', e.target.value)}
+                        sx={{ bgcolor: 'background.paper' }}
+                      >
+                        {STEP_STATUSES.map((status) => (
+                          <MenuItem key={status} value={status}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              {getStepIcon(status)}
+                              <span>{getExecutionLabel(status)}</span>
+                            </Stack>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </Box>
+
+                    <TextField
+                      fullWidth
+                      multiline
+                      minRows={3}
+                      label="Resultado real / hallazgos"
+                      placeholder="Describe lo que ocurrió al ejecutar este paso..."
+                      value={activeStep.actualResult || ''}
+                      onChange={(e) => setStepValue('actualResult', e.target.value)}
+                      sx={{ bgcolor: 'background.paper' }}
+                    />
+                  </Stack>
+                </Box>
 
                 <EvidenceManager
                   title="Evidencias del paso"
