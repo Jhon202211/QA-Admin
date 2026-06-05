@@ -50,6 +50,7 @@ import {
 import { EvidenceManager } from './EvidenceManager';
 import { flattenEvidenceGroups, normalizeEvidenceGroups } from './evidenceGroups';
 import { executionDraftService } from '../../services/executionDraftService';
+import { dataProvider } from '../../firebase/dataProvider';
 
 interface TestExecutionModalProps {
   open: boolean;
@@ -104,7 +105,6 @@ export const TestExecutionModal = ({
   const [noStepsActualResult, setNoStepsActualResult] = useState('');
   const [noStepsEvidences, setNoStepsEvidences] = useState<EvidenceFile[]>([]);
   const [noStepsEvidenceGroups, setNoStepsEvidenceGroups] = useState<EvidenceGroup[]>([]);
-  const [draftStatus, setDraftStatus] = useState<'borrador' | 'terminado' | null>(null);
 
   // Clave para el draft en localStorage
   const draftKey = useMemo(() => 
@@ -121,6 +121,10 @@ export const TestExecutionModal = ({
   const persistedDraftSnapshotRef = useRef('');
   const isDraftSyncReadyRef = useRef(false);
   const remoteDraftSaveTimeoutRef = useRef<number | null>(null);
+  const testCaseAutosaveTimeoutRef = useRef<number | null>(null);
+  const testCaseAutosaveSnapshotRef = useRef('');
+  const testCaseAutosaveSequenceRef = useRef(0);
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const buildPersistedDraftData = (currentTestCase: TestCase) => ({
     steps: (currentTestCase.steps || []).map((step, index) => ({
@@ -157,6 +161,28 @@ export const TestExecutionModal = ({
     noStepsEvidenceGroups,
   }), [activeStepIndex, executionNotes, noStepsActualResult, noStepsEvidenceGroups, noStepsEvidences, noStepsStatus, steps]);
 
+  const normalizeDraftSnapshot = (draftData: ExecutionDraftData) => JSON.stringify({
+    steps: (draftData.steps || []).map((step, index) => {
+      const groups = normalizeEvidenceGroups(step.evidenceGroups, step.evidences || []);
+      return {
+        id: step.id || `step-${index}`,
+        status: step.status || 'not_executed',
+        actualResult: step.actualResult || '',
+        evidences: flattenEvidenceGroups(groups),
+        evidenceGroups: groups,
+      };
+    }),
+    activeStepIndex: draftData.activeStepIndex || 0,
+    notes: draftData.notes || '',
+    noStepsStatus: draftData.noStepsStatus || 'not_executed',
+    noStepsActualResult: draftData.noStepsActualResult || '',
+    noStepsEvidences: draftData.noStepsEvidences || [],
+    noStepsEvidenceGroups: normalizeEvidenceGroups(
+      draftData.noStepsEvidenceGroups,
+      draftData.noStepsEvidences || []
+    ),
+  });
+
   const getDraftUpdatedAtTime = (value: ExecutionDraftData['updatedAt']) => {
     if (!value) return 0;
     if (value instanceof Date) return value.getTime();
@@ -182,7 +208,6 @@ export const TestExecutionModal = ({
     const hydrate = (draftData: ExecutionDraftData, hasDraft: boolean) => {
       if (cancelled) return;
 
-      setDraftStatus(hasDraft ? 'borrador' : testCase.tags?.includes('terminado') ? 'terminado' : null);
       setSteps(
         (testCase.steps || []).map((step, index) => {
           const stepId = step.id || `step-${index}`;
@@ -214,6 +239,8 @@ export const TestExecutionModal = ({
           draftData?.noStepsEvidences || testCase.generalEvidences || []
         )
       );
+      testCaseAutosaveSnapshotRef.current = hasDraft ? '' : normalizeDraftSnapshot(draftData);
+      setAutosaveStatus('idle');
       isDraftSyncReadyRef.current = true;
     };
 
@@ -278,7 +305,6 @@ export const TestExecutionModal = ({
         updatedAt: new Date().toISOString(),
       };
       localStorage.setItem(draftKey, JSON.stringify(draftWithTimestamp));
-      setDraftStatus('borrador');
 
       if (remoteDraftSaveTimeoutRef.current) {
         window.clearTimeout(remoteDraftSaveTimeoutRef.current);
@@ -290,7 +316,6 @@ export const TestExecutionModal = ({
       }, 800);
     } else {
       localStorage.removeItem(draftKey);
-      setDraftStatus(testCase.tags?.includes('terminado') ? 'terminado' : null);
       if (remoteDraftSaveTimeoutRef.current) {
         window.clearTimeout(remoteDraftSaveTimeoutRef.current);
         remoteDraftSaveTimeoutRef.current = null;
@@ -320,6 +345,109 @@ export const TestExecutionModal = ({
     () => hasSteps ? summarizeExecutionFromSteps(steps) : noStepsStatus ?? 'not_executed',
     [steps, hasSteps, noStepsStatus]
   );
+
+  const buildExecutionRecordData = useCallback((mode: 'draft' | 'finished') => {
+    if (!testCase) return null;
+
+    const nextTags = [
+      ...(testCase.tags || []).filter((tag) => tag !== 'borrador' && tag !== 'test guardado' && tag !== 'terminado'),
+    ];
+    const executionTag = mode === 'finished' ? 'terminado' : 'borrador';
+    if (!nextTags.includes(executionTag)) {
+      nextTags.push(executionTag);
+    }
+
+    if (hasSteps) {
+      return {
+        steps: steps.map((step) => {
+          const groups = normalizeEvidenceGroups(step.evidenceGroups, step.evidences || []);
+          return {
+            ...step,
+            evidenceGroups: groups,
+            evidences: flattenEvidenceGroups(groups),
+          };
+        }),
+        actualResult:
+          executionResult === 'passed'
+            ? 'Todos los pasos fueron aprobados.'
+            : executionResult === 'failed'
+              ? 'La ejecución contiene uno o más pasos fallidos.'
+              : executionResult === 'blocked'
+                ? 'La ejecución quedó bloqueada en uno o más pasos.'
+                : executionResult === 'retest'
+                  ? 'Uno o más pasos requieren retest.'
+                  : executionResult === 'in_progress'
+                    ? 'La ejecución fue iniciada y quedó en progreso.'
+                    : '',
+        executionResult,
+        notes: executionNotes,
+        tags: nextTags,
+      };
+    }
+
+    return {
+      executionResult: noStepsStatus,
+      actualResult: noStepsActualResult,
+      generalEvidences: noStepsEvidences,
+      generalEvidenceGroups: normalizeEvidenceGroups(noStepsEvidenceGroups, noStepsEvidences),
+      notes: executionNotes,
+      tags: nextTags,
+    };
+  }, [
+    executionNotes,
+    executionResult,
+    hasSteps,
+    noStepsActualResult,
+    noStepsEvidenceGroups,
+    noStepsEvidences,
+    noStepsStatus,
+    steps,
+    testCase,
+  ]);
+
+  useEffect(() => {
+    if (!open || !testCase || !isDraftSyncReadyRef.current) return;
+
+    const draftData = buildCurrentDraftData();
+    const currentSnapshot = JSON.stringify(draftData);
+    if (currentSnapshot === testCaseAutosaveSnapshotRef.current) return;
+
+    const dataToSave = buildExecutionRecordData('draft');
+    if (!dataToSave) return;
+
+    if (testCaseAutosaveTimeoutRef.current) {
+      window.clearTimeout(testCaseAutosaveTimeoutRef.current);
+    }
+
+    setAutosaveStatus('saving');
+    testCaseAutosaveTimeoutRef.current = window.setTimeout(() => {
+      const sequence = ++testCaseAutosaveSequenceRef.current;
+      dataProvider.update('test_cases', {
+        id: testCase.id,
+        data: dataToSave,
+        previousData: testCase,
+      })
+        .then(() => {
+          testCaseAutosaveSnapshotRef.current = currentSnapshot;
+          if (sequence === testCaseAutosaveSequenceRef.current) {
+            setAutosaveStatus('saved');
+          }
+        })
+        .catch((e) => {
+          console.error('Error auto-saving execution on test case:', e);
+          if (sequence === testCaseAutosaveSequenceRef.current) {
+            setAutosaveStatus('error');
+          }
+        });
+    }, 800);
+
+    return () => {
+      if (testCaseAutosaveTimeoutRef.current) {
+        window.clearTimeout(testCaseAutosaveTimeoutRef.current);
+      }
+    };
+  }, [buildCurrentDraftData, buildExecutionRecordData, open, testCase]);
+
   const aiArtifacts = testCase?.aiArtifacts;
   const techniqueTags = testCase?.tags ?? [];
   const decisionRows = (aiArtifacts?.decisionTable?.rows ?? []).map((row: unknown, index: number) => {
@@ -356,6 +484,9 @@ export const TestExecutionModal = ({
   useEffect(() => () => {
     if (remoteDraftSaveTimeoutRef.current) {
       window.clearTimeout(remoteDraftSaveTimeoutRef.current);
+    }
+    if (testCaseAutosaveTimeoutRef.current) {
+      window.clearTimeout(testCaseAutosaveTimeoutRef.current);
     }
   }, []);
 
@@ -498,53 +629,26 @@ export const TestExecutionModal = ({
 
   const handleSaveExecution = async () => {
     try {
-      const currentTags = testCase.tags || [];
-      // Eliminar tags de estado previos y añadir "terminado"
-      const updatedTags = [...currentTags.filter(t => t !== 'borrador' && t !== 'test guardado' && t !== 'terminado')];
-      if (!updatedTags.includes('terminado')) {
-        updatedTags.push('terminado');
+      if (hasSteps) {
+        const pendingSteps = steps.filter(s => !s.status || s.status === 'not_executed').length;
+        if (pendingSteps > 0) {
+          if (!window.confirm(`Aún tienes ${pendingSteps} paso(s) sin evaluar. ¿Estás seguro de que deseas finalizar la ejecución?`)) {
+            return;
+          }
+        }
       }
 
-      const dataToSave = hasSteps
-        ? {
-            steps: steps.map((step) => {
-              const groups = normalizeEvidenceGroups(step.evidenceGroups, step.evidences || []);
-              return {
-                ...step,
-                evidenceGroups: groups,
-                evidences: flattenEvidenceGroups(groups),
-              };
-            }),
-            actualResult:
-              executionResult === 'passed'
-                ? 'Todos los pasos fueron aprobados.'
-                : executionResult === 'failed'
-                  ? 'La ejecución contiene uno o más pasos fallidos.'
-                  : executionResult === 'blocked'
-                    ? 'La ejecución quedó bloqueada en uno o más pasos.'
-                    : executionResult === 'retest'
-                      ? 'Uno o más pasos requieren retest.'
-                    : executionResult === 'in_progress'
-                      ? 'La ejecución fue iniciada y quedó en progreso.'
-                      : '',
-            executionResult,
-            notes: executionNotes,
-            tags: updatedTags,
-          }
-        : {
-            executionResult: noStepsStatus,
-            actualResult: noStepsActualResult,
-            generalEvidences: noStepsEvidences,
-            generalEvidenceGroups: normalizeEvidenceGroups(noStepsEvidenceGroups, noStepsEvidences),
-            notes: executionNotes,
-            tags: updatedTags,
-          };
+      const dataToSave = buildExecutionRecordData('finished');
+      if (!dataToSave) return;
 
       persistedDraftSnapshotRef.current = JSON.stringify(buildCurrentDraftData());
-      setDraftStatus('terminado');
       if (remoteDraftSaveTimeoutRef.current) {
         window.clearTimeout(remoteDraftSaveTimeoutRef.current);
         remoteDraftSaveTimeoutRef.current = null;
+      }
+      if (testCaseAutosaveTimeoutRef.current) {
+        window.clearTimeout(testCaseAutosaveTimeoutRef.current);
+        testCaseAutosaveTimeoutRef.current = null;
       }
 
       await update('test_cases', {
@@ -558,7 +662,9 @@ export const TestExecutionModal = ({
       }
       await executionDraftService.remove(testCase.id);
 
-      testCase.tags = updatedTags;
+      testCase.tags = dataToSave.tags;
+      testCaseAutosaveSnapshotRef.current = persistedDraftSnapshotRef.current;
+      setAutosaveStatus('saved');
       notify('Ejecución guardada exitosamente', { type: 'success' });
       onExecuted?.();
       onClose();
@@ -582,21 +688,24 @@ export const TestExecutionModal = ({
           <PlayArrowIcon sx={{ color: '#FF6B35' }} />
           Ejecutar caso de prueba
         </Box>
-        {draftStatus && (
-          <Chip
-            size="small"
-            label={draftStatus}
-            variant="outlined"
-            sx={{
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              fontSize: '0.75rem',
-              borderColor: draftStatus === 'borrador' ? '#FF6B35' : '#3CCF91',
-              color: draftStatus === 'borrador' ? '#FF6B35' : '#3CCF91',
-              backgroundColor: draftStatus === 'borrador' ? 'rgba(255,107,53,0.05)' : 'rgba(60,207,145,0.05)',
-            }}
-          />
-        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {autosaveStatus !== 'idle' && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: autosaveStatus === 'error' ? 'error.main' : 'text.secondary',
+                fontSize: '0.75rem',
+                fontStyle: 'italic',
+              }}
+            >
+              {autosaveStatus === 'saving'
+                ? 'Guardando...'
+                : autosaveStatus === 'saved'
+                  ? 'Cambios guardados'
+                  : 'Error al guardar'}
+            </Typography>
+          )}
+        </Box>
       </DialogTitle>
       <DialogContent dividers sx={{ p: 0 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '320px 1fr' }, minHeight: 540 }}>
@@ -942,13 +1051,13 @@ export const TestExecutionModal = ({
             onClick={handleSaveExecution}
             disabled={isPending || uploadProgress !== null}
             sx={{
-              backgroundColor: '#FF6B35',
+              backgroundColor: '#3CCF91',
               textTransform: 'none',
               fontWeight: 700,
-              '&:hover': { backgroundColor: '#E55A2B' },
+              '&:hover': { backgroundColor: '#2eb37a' },
             }}
           >
-            Guardar ejecución
+            Finalizar ejecución
           </Button>
         </Box>
       </DialogActions>
