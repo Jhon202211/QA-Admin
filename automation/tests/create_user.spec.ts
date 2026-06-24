@@ -96,7 +96,7 @@ class UserPage {
     await propertyAccess.waitFor({ state: 'visible', timeout: this.timeout });
     await propertyAccess.click({ force: true });
     await this.page.waitForTimeout(500);
-    await propertyAccess.fill('Queo Q&A (Staging)');
+    await propertyAccess.fill('QA Prueba Auto (No tocar)');
     await this.page.waitForTimeout(1000);
     await propertyAccess.press('ArrowDown');
     await this.page.waitForTimeout(500);
@@ -108,7 +108,7 @@ class UserPage {
     await companyAccess.waitFor({ state: 'visible', timeout: this.timeout });
     await companyAccess.click({ force: true });
     await this.page.waitForTimeout(500);
-    await companyAccess.fill('Queo Q&A (Staging)');
+    await companyAccess.fill('QA Prueba Auto (No tocar)');
     await this.page.waitForTimeout(1000);
     await companyAccess.press('ArrowDown');
     await this.page.waitForTimeout(500);
