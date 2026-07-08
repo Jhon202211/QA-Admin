@@ -510,19 +510,19 @@ export const generateTestCasesFromUserStory = async (
 // ── Llamada al LLM (OpenAI-compatible: OpenAI, Ollama Cloud, DeepSeek) ───────
 
 /**
- * Extrae JSON de la respuesta del LLM, manejando texto envuelto en fences
- * de markdown (```json ... ```) que algunos modelos producen.
- * Replica el método _strip_markdown_fences() del backend Python.
+ * Extrae JSON de la respuesta del LLM.
+ * Busca el primer '{' y el último '}' para ignorar texto adicional
+ * que el modelo pueda incluir antes o después del bloque JSON.
  */
 function extractJSON(text: string): string {
-  let t = text.trim();
-  if (t.startsWith('```')) {
-    t = t.includes('\n') ? t.slice(t.indexOf('\n') + 1) : t.slice(3);
+  const firstOpen = text.indexOf('{');
+  const lastClose = text.lastIndexOf('}');
+
+  if (firstOpen === -1 || lastClose === -1 || lastClose < firstOpen) {
+    return text.trim();
   }
-  if (t.endsWith('```')) {
-    t = t.slice(0, t.lastIndexOf('```'));
-  }
-  return t.trim();
+
+  return text.slice(firstOpen, lastClose + 1).trim();
 }
 
 export const callLLM = async (
@@ -535,7 +535,7 @@ export const callLLM = async (
 
   console.log(`[callLLM] provider=${config.provider} model=${config.model}`);
 
-  // response_format solo para OpenAI y DeepSeek (Ollama puede no soportarlo)
+  // response_format para proveedores que lo soportan
   const supportsJsonMode = config.provider === 'openai' || config.provider === 'deepseek';
 
   const body: Record<string, unknown> = {
@@ -544,7 +544,7 @@ export const callLLM = async (
       { role: 'system', content: systemPrompt },
       { role: 'user', content: query },
     ],
-    temperature: 0.7,
+    temperature: 0.1, // Reducimos temperatura para mayor determinismo en el formato
   };
   if (supportsJsonMode) body.response_format = { type: 'json_object' };
 
@@ -569,13 +569,19 @@ export const callLLM = async (
   if (!raw) throw new Error('No se recibió respuesta del LLM');
 
   let parsed: AITestCaseSuggestion;
+  const cleaned = extractJSON(raw);
+
   try {
-    parsed = JSON.parse(extractJSON(raw));
-  } catch {
+    parsed = JSON.parse(cleaned);
+  } catch (e) {
+    console.error('[callLLM] Error al parsear JSON del LLM:', e);
+    console.error('[callLLM] Respuesta raw:', raw);
+    console.error('[callLLM] Intento de limpieza:', cleaned);
     throw new Error('La respuesta del LLM no es un JSON válido');
   }
 
   if (!parsed.module || !parsed.submodule || !parsed.test_type || !parsed.test_cases) {
+    console.error('[callLLM] Estructura JSON inválida:', parsed);
     throw new Error('La respuesta del LLM no tiene la estructura esperada');
   }
 
