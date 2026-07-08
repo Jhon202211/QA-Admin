@@ -16,6 +16,8 @@ Usa esta base de conocimiento para:
 ================================================================================
 MÓDULO: RESERVAS DE SALAS Y PUESTOS DE TRABAJO
 ================================================================================
+  • [238] | v29.5.9 | Se ajusta el cálculo del límite máximo de reserva para puestos y salas para que “Días sin creación de reservas” no cuente dentro del límite diario permitido.
+  • [271] | v29.5.6 | Se optimiza la detección de solapamiento en reservas y se añade la configuración ENABLE_LOCK_FOR_UPDATE para activar o desactivar el bloqueo que evita reservas duplicadas sobre el mismo recurso.
   • [193] | v29.4.1 | Mejoras en validación y generación de reservas recurrentes para garantizar el procesamiento del lote completo.
   • [188] | v29.4.0 | Parametrización para definir días y horarios permitidos para reservas en espacios de trabajo y salas.
   • [133] | v29.2.0 | Restricciones de reserva por roles y empresas específicas para espacios de trabajo.
@@ -26,6 +28,10 @@ MÓDULO: RESERVAS DE SALAS Y PUESTOS DE TRABAJO
 ================================================================================
 MÓDULO: VISITANTES Y AUTORIZACIONES
 ================================================================================
+  • [317] | v29.11.2 | Se agrega búsqueda de placas en creación/edición para autorización del visitante, para asignar vehículos.
+  • [320] | v29.11.0 | Se agrega soporte para enrolamiento biométrico, permitiendo a los usuarios completarlo de forma autónoma mediante un enlace público.
+  • [405] | v29.10.1 | Se añaden validaciones para cuando se lea con PDA una cédula, en lista de visitantes, si no existe el visitante, se redirija a formulario de creación con rellenado de datos básicos.
+  • [332] | v29.10.1 | Se ajusta el tamaño de la foto sticker de visitantes para que se muestre verticalmente y se ajustan los campos.
   • [244] | v29.5.5 | Optimización de búsqueda en modo enfoque: aplica tiempo de espera y mínimo de caracteres antes de consultar.
   • [209] | v29.5.1 | Opción de elegir el tipo de autorización al momento de importar visitantes masivamente.
   • [88]  | v29.5.0 | Mejoras en la vista de información de autorizaciones para visualización correcta en dispositivos móviles.
@@ -35,6 +41,7 @@ MÓDULO: VISITANTES Y AUTORIZACIONES
 ================================================================================
 MÓDULO: CONTROL DE ACCESO (RFID / QR / FACIAL / LPR)
 ================================================================================
+  • [343] | v29.8.0 | Se agregan rutas api v1, para integración con báscula.
   • [204] | v29.3.0 | Nuevo flujo que permite el uso de QR en diferentes puertas asociadas a la misma dirección.
   • [151] | v29.1.0 | Configuración en zonas para permitir el acceso aunque el usuario no cuente con un turno activo en Resource.
   • [17]  | v29.0.8 | Inclusión de puertas de área en la gráfica de conteo de accesos para copropiedades con reservas y puestos.
@@ -49,6 +56,11 @@ MÓDULO: AFOROS Y ZONAS
 ================================================================================
 MÓDULO: USUARIOS E INFRAESTRUCTURA
 ================================================================================
+  • [335] | v29.10.0 | Se ajusta flujo SSO para PwC con Entra ID.
+  • [292] | v29.9.1 | Se agrega información adicional de campos personalizados en "ver más" de usuarios y en la tarjeta de autorización de visitantes.
+  • [261] | v29.7.0 | Se añade un puente que sirve para comunicar la app de Queo con Voiceflow (Laila, bot de soporte).
+  • [202] | v29.6.0 | Se crea nuevo servicio de eliminación permanente de usuarios.
+  • [281] | v29.5.7 | Se migra el build de la aplicación a Vite, mejorando la performance y la experiencia de desarrollo.
   • [229] | v29.5.3 | Nuevo endpoint optimizado para listar áreas de trabajo, reduciendo tiempos de respuesta y evitando errores de carga.
   • [RT-I1162] | v28.0.5 | Mejora en la búsqueda de usuarios por DNI: ahora se ordena correctamente cuando el DNI es exacto.
   • [86]  | v28.0.6 | Integración del widget de Voiceflow para soporte al usuario y apertura de tickets.
