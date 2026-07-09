@@ -1,5 +1,7 @@
+import { apiUrl } from '../config/api';
+
 const apiJson = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     ...init,
     credentials: 'include',
     headers: {

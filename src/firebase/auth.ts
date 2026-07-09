@@ -1,3 +1,5 @@
+import { apiUrl } from '../config/api';
+
 const REMEMBERED_EMAIL_KEY = 'qa_remembered_email';
 
 interface SessionUser {
@@ -10,7 +12,7 @@ interface SessionUser {
 let cachedUser: SessionUser | null = null;
 
 const jsonRequest = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     ...init,
     credentials: 'include',
     headers: {

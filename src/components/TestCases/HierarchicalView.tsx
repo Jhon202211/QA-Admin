@@ -36,6 +36,7 @@ import { AIAgent } from './AIAgent';
 import { TestExecutionModal } from './TestExecutionModal';
 import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from './testCaseUi';
 import type { TestCase, TestCaseCategory } from '../../types/testCase';
+import { apiUrl } from '../../config/api';
 
 const SortableTestCaseItem = ({ 
   testCase, 
@@ -470,7 +471,7 @@ export const HierarchicalView = () => {
     
     // Persistir el nuevo orden mediante la API protegida
     try {
-      await fetch('/api/data/test_cases/updateMany', {
+      await fetch(apiUrl('/api/data/test_cases/updateMany'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

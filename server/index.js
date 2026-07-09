@@ -19,11 +19,14 @@ dotenv.config({ path: path.join(rootDir, '.env.automation'), override: true });
 const app = express();
 const server = http.createServer(app);
 const port = Number(process.env.AUTH_SERVER_PORT || process.env.PORT || 9000);
-const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+const frontendOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || origin === frontendOrigin) {
+    if (!origin || frontendOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
@@ -34,7 +37,7 @@ const corsOptions = {
 
 const io = new Server(server, {
   cors: {
-    origin: frontendOrigin,
+    origin: frontendOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },

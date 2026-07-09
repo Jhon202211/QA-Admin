@@ -66,6 +66,9 @@ This is an administration dashboard for quality assurance (QA) test management b
 - Sanitize user inputs
 - Use HTTPS in production
 - Keep Firebase credentials secure
+- The frontend must call backend routes through `apiUrl()` from `src/config/api.ts`; do not hardcode relative `/auth` or `/api` fetch URLs in app code.
+- In production, configure `VITE_API_BASE_URL` with the public backend origin and configure backend `FRONTEND_ORIGIN` with the deployed frontend origin.
+- If frontend and backend are on different domains, use `SESSION_COOKIE_SAMESITE=None` and `SESSION_COOKIE_SECURE=true` so `httpOnly` session cookies work.
 
 ### 10. Performance and Optimization
 - Use React.memo for components that don't change frequently

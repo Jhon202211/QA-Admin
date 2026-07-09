@@ -8,6 +8,9 @@ export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'qa_sessio
 const SESSION_TTL_DAYS = Number(process.env.SESSION_TTL_DAYS || 30);
 const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
 const PASSWORD_KEY_LENGTH = 64;
+const COOKIE_SAME_SITE = process.env.SESSION_COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'None' : 'Lax');
+const COOKIE_SECURE =
+  process.env.SESSION_COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production' || COOKIE_SAME_SITE.toLowerCase() === 'none';
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
@@ -26,11 +29,11 @@ const buildCookie = (token, maxAgeMs = SESSION_TTL_MS) => {
     `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
     'HttpOnly',
     'Path=/',
-    'SameSite=Lax',
+    `SameSite=${COOKIE_SAME_SITE}`,
     `Max-Age=${Math.floor(maxAgeMs / 1000)}`,
   ];
 
-  if (process.env.NODE_ENV === 'production') {
+  if (COOKIE_SECURE) {
     parts.push('Secure');
   }
 
@@ -42,9 +45,9 @@ const clearCookie = () =>
     `${SESSION_COOKIE_NAME}=`,
     'HttpOnly',
     'Path=/',
-    'SameSite=Lax',
+    `SameSite=${COOKIE_SAME_SITE}`,
     'Max-Age=0',
-    process.env.NODE_ENV === 'production' ? 'Secure' : '',
+    COOKIE_SECURE ? 'Secure' : '',
   ]
     .filter(Boolean)
     .join('; ');

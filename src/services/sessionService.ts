@@ -1,3 +1,5 @@
+import { apiUrl } from '../config/api';
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -6,7 +8,7 @@ export interface SessionUser {
 }
 
 export const getCurrentSessionUser = async (): Promise<SessionUser | null> => {
-  const response = await fetch('/auth/me', {
+  const response = await fetch(apiUrl('/auth/me'), {
     credentials: 'include',
   });
 

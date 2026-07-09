@@ -1,3 +1,5 @@
+import { apiUrl } from '../config/api';
+
 interface DataItem {
   id: string;
   [key: string]: unknown;
@@ -52,7 +54,7 @@ const convertServerDates = (data: DataItem): DataItem => {
 };
 
 const request = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     ...init,
     credentials: 'include',
     headers: {

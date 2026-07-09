@@ -1,3 +1,4 @@
+import { apiUrl } from '../config/api';
 import { getCurrentSessionUser, type SessionUser } from './sessionService';
 
 interface TimestampLike {
@@ -19,7 +20,7 @@ export interface ExecutionDraftRecord {
 const COLLECTION = 'execution_drafts';
 
 const apiJson = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     ...init,
     credentials: 'include',
     headers: {
@@ -67,7 +68,7 @@ export const executionDraftService = {
     if (!user) return null;
 
     const id = draftDocId(user.id, testCaseId);
-    const response = await fetch(`/api/data/${COLLECTION}/${encodeURIComponent(id)}`, {
+    const response = await fetch(apiUrl(`/api/data/${COLLECTION}/${encodeURIComponent(id)}`), {
       credentials: 'include',
     });
 
@@ -95,7 +96,7 @@ export const executionDraftService = {
     if (!user) return;
 
     const id = draftDocId(user.id, testCaseId);
-    await fetch(`/api/data/${COLLECTION}/${encodeURIComponent(id)}`, {
+    await fetch(apiUrl(`/api/data/${COLLECTION}/${encodeURIComponent(id)}`), {
       method: 'DELETE',
       credentials: 'include',
     });

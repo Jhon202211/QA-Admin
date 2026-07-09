@@ -64,9 +64,9 @@ import { seedAutomationCases } from '../../firebase/seedData';
 import { io } from 'socket.io-client';
 import { cleanAndSeedAutomation } from '../../firebase/fixAutomationData';
 import { TestResultsList } from '../TestResults/TestResultsPage';
+import { apiUrl, socketUrl } from '../../config/api';
 
-const API_BASE_URL = '/api/tests';
-const SOCKET_URL = '/';
+const API_BASE_URL = apiUrl('/api/tests');
 
 interface LogEntry {
   type: 'stdout' | 'stderr';
@@ -993,7 +993,7 @@ export const AutomationRunnerPage = () => {
   const [activeStatus, setActiveStatus] = useState<'idle' | 'running'>('idle');
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { withCredentials: true });
+    const socket = io(socketUrl, { withCredentials: true });
 
     socket.on('test-log', (newLog) => {
       setLogs((prev) => [...prev, newLog]);

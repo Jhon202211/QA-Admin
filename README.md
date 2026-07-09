@@ -37,11 +37,16 @@ El sistema ha migrado de Firebase Auth a un sistema de autenticación propio bas
 Para que el sistema funcione, debes configurar las variables de entorno en `.env`:
 
 ```env
+# Frontend. En local puede quedar vacío; en producción debe apuntar al backend.
+VITE_API_BASE_URL=https://api.example.com
+
 # Configuración del servidor
 AUTH_SERVER_PORT=9000
-FRONTEND_ORIGIN=http://localhost:3000
+FRONTEND_ORIGIN=http://localhost:3000,https://your-cloudflare-pages-domain.pages.dev
 SESSION_COOKIE_NAME=qa_session
 SESSION_TTL_DAYS=30
+SESSION_COOKIE_SAMESITE=None
+SESSION_COOKIE_SECURE=true
 
 # Credenciales de Firebase Admin (Requerido para el backend)
 FIREBASE_SERVICE_ACCOUNT_JSON='{...}'
@@ -76,10 +81,10 @@ BASE_URL=https://tu-sitio-a-testear.com
 
 ### Ejecución del Servidor de Automatización
 
-Es necesario tener corriendo el servidor local para poder listar y ejecutar los archivos `.spec.ts`:
+Es necesario tener corriendo el servidor backend para poder listar y ejecutar los archivos `.spec.ts`:
 
 ```bash
-npm run automation:server
+npm run server
 ```
 
 ---
@@ -263,15 +268,18 @@ npm run dev
 
 En producción (ej. Cloudflare, VPS, etc.), el flujo es distinto:
 
-1. **Frontend**: Se debe generar el build estático:
+1. **Frontend**: Se debe configurar `VITE_API_BASE_URL` con la URL pública del backend antes de generar el build estático:
    ```bash
+   VITE_API_BASE_URL=https://api.example.com
    npm run build
    ```
    Los archivos resultantes en la carpeta `dist/` se despliegan en un servicio de hosting estático (como Cloudflare Pages).
 
 2. **Backend**: El servidor Node.js (`npm run server`) **debe estar ejecutándose permanentemente** en un entorno que soporte Node.js (VPS, Docker, Heroku, etc.). No se puede desplegar como un sitio estático.
 
-3. **Proxy/CORS**: Asegúrate de que `FRONTEND_ORIGIN` en el `.env` del servidor apunte a la URL final de tu frontend para permitir las cookies de sesión.
+3. **Proxy/CORS**: Asegúrate de que `FRONTEND_ORIGIN` en el `.env` del servidor incluya la URL final de Cloudflare Pages para permitir las cookies de sesión. Si frontend y backend están en dominios distintos, usa `SESSION_COOKIE_SAMESITE=None` y `SESSION_COOKIE_SECURE=true`.
+
+Si `VITE_API_BASE_URL` no está configurado en Cloudflare Pages, el navegador intentará enviar `POST /auth/login` al propio sitio estático y Cloudflare responderá `405 Method Not Allowed`.
 
 ---
 
