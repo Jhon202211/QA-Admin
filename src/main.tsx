@@ -2,10 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ThemeContextProvider } from './contexts/ThemeContext';
-import { setupAuthSessionMaintenance } from './firebase/auth';
+import { setupDraftUnloadWarning } from './firebase/auth';
 import './index.css';
 
-setupAuthSessionMaintenance();
+setupDraftUnloadWarning();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

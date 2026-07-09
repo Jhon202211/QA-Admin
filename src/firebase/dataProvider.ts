@@ -1,47 +1,49 @@
-import {
-  collection,
-  getDocs,
-  getDoc,
-  setDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  query,
-  where,
-  Timestamp,
-  writeBatch,
-  runTransaction,
-} from 'firebase/firestore';
-import { db } from './config';
-
 interface DataItem {
   id: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
-const withTimeout = async <T>(promise: Promise<T>, ms = 15000): Promise<T> => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('Timeout consultando Firestore')), ms);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-};
+interface ListParams {
+  filter?: Record<string, unknown>;
+  sort?: { field: string; order?: 'ASC' | 'DESC' };
+  pagination?: { page: number; perPage: number };
+}
 
-const convertTimestampToDate = (data: any) => {
+interface IdParams {
+  id: string | number;
+}
+
+interface IdsParams {
+  ids: Array<string | number>;
+}
+
+interface DataParams {
+  data: unknown;
+  previousData?: unknown;
+}
+
+interface ReferenceParams {
+  target: string;
+  id: string | number;
+}
+
+interface HttpDataProvider {
+  getList: (resource: string, params?: ListParams) => Promise<{ data: unknown[]; total: number }>;
+  getOne: (resource: string, params: IdParams) => Promise<{ data: unknown }>;
+  getMany: (resource: string, params: IdsParams) => Promise<{ data: unknown[] }>;
+  create: (resource: string, params: DataParams) => Promise<{ data: unknown }>;
+  update: (resource: string, params: IdParams & DataParams) => Promise<{ data: unknown }>;
+  delete: (resource: string, params: IdParams) => Promise<{ data: unknown }>;
+  deleteMany: (resource: string, params: IdsParams) => Promise<{ data: Array<string | number> }>;
+  updateMany: (resource: string, params: IdsParams & DataParams) => Promise<{ data: Array<string | number> }>;
+  getManyReference: (resource: string, params: ReferenceParams) => Promise<{ data: unknown[]; total: number }>;
+}
+
+const convertServerDates = (data: DataItem): DataItem => {
   if (!data) return data;
   
   const newData = { ...data };
   Object.keys(newData).forEach(key => {
-    if (newData[key] instanceof Timestamp) {
-      newData[key] = newData[key].toDate();
-    }
     if (key === 'date' && typeof newData[key] === 'string') {
       newData[key] = new Date(newData[key]);
     }
@@ -49,230 +51,121 @@ const convertTimestampToDate = (data: any) => {
   return newData;
 };
 
-const convertDateToTimestamp = (data: any) => {
-  if (!data) return data;
-  
-  const newData = { ...data };
-  Object.keys(newData).forEach(key => {
-    if (newData[key] instanceof Date) {
-      newData[key] = Timestamp.fromDate(newData[key]);
-    }
+const request = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
+  const response = await fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
   });
-  return newData;
+
+  if (!response.ok) {
+    const error = new Error(`Error HTTP ${response.status}`) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
 };
 
-export const dataProvider = {
-  getList: async (resource: string, params: any = {}) => {
-    let data: DataItem[] = [];
-    try {
-      const collectionRef = collection(db, resource);
-      const snapshot = await withTimeout(getDocs(collectionRef));
-      data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...convertTimestampToDate(doc.data())
-      } as DataItem));
-    } catch (error: any) {
-      const code = error?.code ? ` (${error.code})` : '';
-      const message = error?.message || 'Error desconocido leyendo Firestore';
-      console.error(`[Firestore] getList ${resource}${code}:`, error);
-      throw new Error(`No se pudo cargar ${resource}${code}: ${message}`);
+const queryString = (params: Record<string, unknown>) => {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.set(key, JSON.stringify(value));
     }
+  });
 
-    // Filtrado
-    if (params.filter) {
-      Object.entries(params.filter).forEach(([key, value]) => {
-        if (value) {
-          data = data.filter(item =>
-            (item[key] as any)?.toString().toLowerCase().includes(value.toString().toLowerCase())
-          );
-        }
-      });
-    }
+  const serialized = searchParams.toString();
+  return serialized ? `?${serialized}` : '';
+};
 
-    // Ordenamiento
-    if (params.sort && params.sort.field) {
-      const { field, order } = params.sort;
-      data = data.sort((a, b) => {
-        const aValue = a[field] as any;
-        const bValue = b[field] as any;
-        if (aValue === undefined || bValue === undefined) return 0;
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return order === 'ASC' ? aValue - bValue : bValue - aValue;
-        }
-        // Para fechas
-        if (field === 'date') {
-          return order === 'ASC'
-            ? new Date(aValue).getTime() - new Date(bValue).getTime()
-            : new Date(bValue).getTime() - new Date(aValue).getTime();
-        }
-        // Para strings
-        return order === 'ASC'
-          ? aValue.toString().localeCompare(bValue.toString())
-          : bValue.toString().localeCompare(aValue.toString());
-      });
-    }
-
-    // Paginación
-    const total = data.length;
-    if (params.pagination) {
-      const { page, perPage } = params.pagination;
-      const start = (page - 1) * perPage;
-      const end = start + perPage;
-      data = data.slice(start, end);
-    }
-
-    return {
-      data,
-      total
-    };
-  },
-
-  getOne: async (resource: string, params: any) => {
-    const docRef = doc(db, resource, params.id.toString());
-    const docSnap = await getDoc(docRef);
-
-    if (!docSnap.exists()) {
-      throw new Error('Document not found');
-    }
-
-    return {
-      data: {
-        id: docSnap.id,
-        ...convertTimestampToDate(docSnap.data())
-      },
-    };
-  },
-
-  getMany: async (resource: string, params: any) => {
-    const data = await Promise.all(
-      params.ids.map((id: string | number) => {
-        const docRef = doc(db, resource, id.toString());
-        return getDoc(docRef).then(doc => ({
-          id: doc.id,
-          ...convertTimestampToDate(doc.data())
-        }));
-      })
+export const dataProvider: HttpDataProvider = {
+  getList: async (resource, params = {}) => {
+    const result = await request<{ data: DataItem[]; total: number }>(
+      `/api/data/${resource}${queryString({
+        filter: params.filter,
+        sort: params.sort,
+        pagination: params.pagination,
+      })}`
     );
 
-    return { data };
+    return {
+      data: result.data.map(convertServerDates),
+      total: result.total,
+    };
   },
 
-  create: async (resource: string, params: any) => {
-    const collectionRef = collection(db, resource);
-    let caseKey = params.data.caseKey;
-    // Si el usuario no proporciona caseKey, generarlo con contador atómico
-    if (!caseKey) {
-      const counterRef = doc(db, '_counters', 'caseKey');
+  getOne: async (resource, params) => {
+    const result = await request<{ data: DataItem }>(`/api/data/${resource}/${encodeURIComponent(params.id)}`);
+    return { data: convertServerDates(result.data) };
+  },
 
-      // Si el contador no existe, inicializarlo con el máximo actual de los casos
-      const counterSnap = await getDoc(counterRef);
-      if (!counterSnap.exists()) {
-        const snapshot = await getDocs(collectionRef);
-        const existing = snapshot.docs
-          .map(d => (d.data() as { caseKey?: string }).caseKey)
-          .filter((k): k is string => typeof k === 'string' && /^CP\d+$/.test(k))
-          .map(k => parseInt(k.replace('CP', ''), 10));
-        const maxExisting = existing.length > 0 ? Math.max(...existing) : 0;
-        await setDoc(counterRef, { value: maxExisting });
-      }
+  getMany: async (resource, params) => {
+    const result = await request<{ data: DataItem[] }>(`/api/data/${resource}/getMany`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: params.ids }),
+    });
 
-      const nextNum = await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(counterRef);
-        const current = snap.exists() ? (snap.data()?.value ?? 0) : 0;
-        const next = current + 1;
-        transaction.set(counterRef, { value: next });
-        return next;
-      });
-      caseKey = `CP${nextNum.toString().padStart(3, '0')}`;
-    }
-    const data = convertDateToTimestamp({ ...params.data, caseKey });
-    const docRef = await addDoc(collectionRef, {
-      ...data,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+    return { data: result.data.map(convertServerDates) };
+  },
+
+  create: async (resource, params) => {
+    const result = await request<{ data: DataItem }>(`/api/data/${resource}`, {
+      method: 'POST',
+      body: JSON.stringify(params.data),
+    });
+
+    return { data: convertServerDates(result.data) };
+  },
+
+  update: async (resource, params) => {
+    const result = await request<{ data: DataItem }>(`/api/data/${resource}/${encodeURIComponent(params.id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(params.data),
+    });
+
+    return { data: convertServerDates(result.data) };
+  },
+
+  delete: async (resource, params) => {
+    const result = await request<{ data: DataItem }>(`/api/data/${resource}/${encodeURIComponent(params.id)}`, {
+      method: 'DELETE',
+    });
+
+    return { data: result.data };
+  },
+
+  deleteMany: async (resource, params) => {
+    const result = await request<{ data: Array<string | number> }>(`/api/data/${resource}/deleteMany`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: params.ids }),
+    });
+
+    return { data: result.data };
+  },
+
+  updateMany: async (resource, params) => {
+    const result = await request<{ data: Array<string | number> }>(`/api/data/${resource}/updateMany`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: params.ids, data: params.data }),
+    });
+
+    return { data: result.data };
+  },
+
+  getManyReference: async (resource, params) => {
+    const result = await request<{ data: DataItem[]; total: number }>(`/api/data/${resource}/getManyReference`, {
+      method: 'POST',
+      body: JSON.stringify({ target: params.target, id: params.id }),
     });
 
     return {
-      data: {
-        id: docRef.id,
-        ...params.data,
-        caseKey,
-      },
-    };
-  },
-
-  update: async (resource: string, params: any) => {
-    const { id, data } = params;
-    const docRef = doc(db, resource, id.toString());
-    const updateData = convertDateToTimestamp(data);
-    
-    await updateDoc(docRef, {
-      ...updateData,
-      updatedAt: Timestamp.now(),
-    });
-
-    return {
-      data: {
-        id,
-        ...data,
-      },
-    };
-  },
-
-  delete: async (resource: string, params: any) => {
-    const docRef = doc(db, resource, params.id.toString());
-    await deleteDoc(docRef);
-
-    return {
-      data: params,
-    };
-  },
-
-  deleteMany: async (resource: string, params: any) => {
-    const { ids } = params;
-    const batch = writeBatch(db);
-    ids.forEach((id: string | number) => {
-      const docRef = doc(db, resource, id.toString());
-      batch.delete(docRef);
-    });
-    await batch.commit();
-
-    return {
-      data: ids,
-    };
-  },
-
-  updateMany: async (resource: string, params: any) => {
-    const { ids, data } = params;
-    const updateData = convertDateToTimestamp(data);
-    const batch = writeBatch(db);
-    
-    ids.forEach((id: string | number) => {
-      const docRef = doc(db, resource, id.toString());
-      batch.update(docRef, {
-        ...updateData,
-        updatedAt: Timestamp.now(),
-      });
-    });
-    await batch.commit();
-
-    return {
-      data: ids,
-    };
-  },
-
-  getManyReference: async (resource: string, params: any) => {
-    const { target, id } = params;
-    const collectionRef = collection(db, resource);
-    const q = query(collectionRef, where(target, '==', id));
-    const snapshot = await getDocs(q);
-
-    return {
-      data: snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...convertTimestampToDate(doc.data())
-      })),
-      total: snapshot.size,
+      data: result.data.map(convertServerDates),
+      total: result.total,
     };
   },
 };

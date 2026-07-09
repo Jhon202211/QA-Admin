@@ -1,30 +1,42 @@
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
+import { getCurrentSessionUser, type SessionUser } from './sessionService';
+
+interface TimestampLike {
+  toDate: () => Date;
+}
+
+type DraftTimestamp = string | Date | TimestampLike;
 
 export interface ExecutionDraftRecord {
   id: string;
   testCaseId: string;
   userId: string;
   userEmail?: string | null;
-  data: any;
-  updatedAt?: any;
-  createdAt?: any;
+  data: Record<string, unknown>;
+  updatedAt?: DraftTimestamp;
+  createdAt?: DraftTimestamp;
 }
 
 const COLLECTION = 'execution_drafts';
 
-const requireUser = () => {
-  const user = auth.currentUser;
+const apiJson = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
+  const response = await fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error consultando borradores (${response.status})`);
+  }
+
+  return response.json();
+};
+
+const requireUser = async (): Promise<SessionUser> => {
+  const user = await getCurrentSessionUser();
   if (!user) {
     throw new Error('No hay usuario autenticado para guardar el borrador');
   }
@@ -35,55 +47,57 @@ const draftDocId = (userId: string, testCaseId: string) =>
   `${encodeURIComponent(userId)}_${encodeURIComponent(testCaseId)}`;
 
 export const executionDraftService = {
-  async save(testCaseId: string, data: any) {
-    const user = requireUser();
-    const id = draftDocId(user.uid, testCaseId);
-    const ref = doc(db, COLLECTION, id);
+  async save(testCaseId: string, data: Record<string, unknown>) {
+    const user = await requireUser();
+    const id = draftDocId(user.id, testCaseId);
 
-    await setDoc(
-      ref,
-      {
+    await apiJson(`/api/data/${COLLECTION}/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
         testCaseId,
-        userId: user.uid,
+        userId: user.id,
         userEmail: user.email ?? null,
         data,
-        updatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+      }),
+    });
   },
 
   async get(testCaseId: string): Promise<ExecutionDraftRecord | null> {
-    const user = auth.currentUser;
+    const user = await getCurrentSessionUser();
     if (!user) return null;
 
-    const ref = doc(db, COLLECTION, draftDocId(user.uid, testCaseId));
-    const snapshot = await getDoc(ref);
-    if (!snapshot.exists()) return null;
+    const id = draftDocId(user.id, testCaseId);
+    const response = await fetch(`/api/data/${COLLECTION}/${encodeURIComponent(id)}`, {
+      credentials: 'include',
+    });
 
-    return {
-      id: snapshot.id,
-      ...(snapshot.data() as Omit<ExecutionDraftRecord, 'id'>),
-    };
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`Error consultando borrador (${response.status})`);
+
+    const { data } = (await response.json()) as { data: ExecutionDraftRecord };
+    return data;
   },
 
   async list(): Promise<ExecutionDraftRecord[]> {
-    const user = auth.currentUser;
+    const user = await getCurrentSessionUser();
     if (!user) return [];
 
-    const q = query(collection(db, COLLECTION), where('userId', '==', user.uid));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((snapshotDoc) => ({
-      id: snapshotDoc.id,
-      ...(snapshotDoc.data() as Omit<ExecutionDraftRecord, 'id'>),
-    }));
+    const { data } = await apiJson<{ data: ExecutionDraftRecord[] }>(`/api/data/${COLLECTION}/getManyReference`, {
+      method: 'POST',
+      body: JSON.stringify({ target: 'userId', id: user.id }),
+    });
+
+    return data;
   },
 
   async remove(testCaseId: string) {
-    const user = auth.currentUser;
+    const user = await getCurrentSessionUser();
     if (!user) return;
 
-    await deleteDoc(doc(db, COLLECTION, draftDocId(user.uid, testCaseId)));
+    const id = draftDocId(user.id, testCaseId);
+    await fetch(`/api/data/${COLLECTION}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
   },
 };

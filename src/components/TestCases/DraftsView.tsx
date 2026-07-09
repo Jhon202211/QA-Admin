@@ -84,8 +84,15 @@ export const DraftsView = () => {
           console.error('Error parsing fallback draft:', e);
         }
       }
-      if (!updatedAt && remoteDraft?.updatedAt?.toDate) {
-        updatedAt = remoteDraft.updatedAt.toDate().toISOString();
+      if (!updatedAt && remoteDraft?.updatedAt) {
+        const remoteUpdatedAt = remoteDraft.updatedAt;
+        if (typeof remoteUpdatedAt === 'string') {
+          updatedAt = remoteUpdatedAt;
+        } else if (remoteUpdatedAt instanceof Date) {
+          updatedAt = remoteUpdatedAt.toISOString();
+        } else if (typeof remoteUpdatedAt.toDate === 'function') {
+          updatedAt = remoteUpdatedAt.toDate().toISOString();
+        }
       }
 
       return { id, updatedAt };

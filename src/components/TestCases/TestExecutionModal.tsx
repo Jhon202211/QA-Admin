@@ -334,14 +334,6 @@ export const TestExecutionModal = ({
       });
     }
 
-    // Refrescar token de Firebase proactivamente al detectar actividad en el modal
-    // para evitar que la sesión expire mientras el usuario está trabajando
-    import('../../firebase/config').then(({ auth }) => {
-      const user = auth.currentUser;
-      if (user) {
-        user.getIdToken(false).catch(() => {});
-      }
-    });
   }, [buildCurrentDraftData, open, draftKey, testCase]);
 
   const hasSteps = steps.length > 0;

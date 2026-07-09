@@ -1,5 +1,19 @@
-import { collection, getDocs, deleteDoc, addDoc, Timestamp } from 'firebase/firestore';
-import { db } from './config';
+const apiJson = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
+  const response = await fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error HTTP ${response.status}`);
+  }
+
+  return response.json();
+};
 
 // Función para formatear el nombre del archivo a un nombre legible
 const formatTestName = (fileName: string) => {
@@ -12,13 +26,16 @@ const formatTestName = (fileName: string) => {
 
 export const cleanAndSeedAutomation = async (realFiles: string[]) => {
   console.log('--- Iniciando sincronización total con archivos locales ---');
-  const collectionRef = collection(db, 'automation');
   
   try {
     // 1. Obtener y eliminar todos los documentos actuales
-    const snapshot = await getDocs(collectionRef);
-    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-    await Promise.all(deletePromises);
+    const existing = await apiJson<{ data: Array<{ id: string }> }>('/api/data/automation');
+    if (existing.data.length > 0) {
+      await apiJson('/api/data/automation/deleteMany', {
+        method: 'POST',
+        body: JSON.stringify({ ids: existing.data.map((doc) => doc.id) }),
+      });
+    }
     console.log('Base de datos limpiada.');
 
     // 2. Insertar UN registro por cada archivo REAL encontrado en la carpeta
@@ -31,10 +48,11 @@ export const cleanAndSeedAutomation = async (realFiles: string[]) => {
         prompts: 'Configuración: Playwright',
         status: 'active',
         last_status: 'none',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
       };
-      await addDoc(collectionRef, automationCase);
+      await apiJson('/api/data/automation', {
+        method: 'POST',
+        body: JSON.stringify(automationCase),
+      });
       console.log(`Sincronizado: ${file}`);
     }
     

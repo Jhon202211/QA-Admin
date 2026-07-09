@@ -65,9 +65,8 @@ import { io } from 'socket.io-client';
 import { cleanAndSeedAutomation } from '../../firebase/fixAutomationData';
 import { TestResultsList } from '../TestResults/TestResultsPage';
 
-const API_BASE_URL = 'http://localhost:9000/api/tests';
-const SOCKET_URL = 'http://localhost:9000';
-const API_TOKEN = 'valid_token';
+const API_BASE_URL = '/api/tests';
+const SOCKET_URL = '/';
 
 interface LogEntry {
   type: 'stdout' | 'stderr';
@@ -153,9 +152,9 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
     try {
       const response = await fetch(`${API_BASE_URL}/execute`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_TOKEN}`
         },
         body: JSON.stringify({
           test_file: record.test_file,
@@ -238,7 +237,7 @@ const RunButton = ({ record, onShowLogs }: { record: any, onShowLogs: (id: strin
           <Typography variant="body1" sx={{ mb: 2 }}>
             {browserError 
               ? browserError.message 
-              : `No se pudo establecer conexión con el servidor de automatización en localhost:9000.`}
+              : 'No se pudo establecer conexión con el servidor de automatización.'}
           </Typography>
           <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 1, position: 'relative' }}>
             <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
@@ -327,7 +326,7 @@ const useTestFiles = () => {
   useEffect(() => {
     const fetchFiles = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/files`);
+        const response = await fetch(`${API_BASE_URL}/files`, { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
           setFiles(data);
@@ -994,7 +993,7 @@ export const AutomationRunnerPage = () => {
   const [activeStatus, setActiveStatus] = useState<'idle' | 'running'>('idle');
 
   useEffect(() => {
-    const socket = io(SOCKET_URL);
+    const socket = io(SOCKET_URL, { withCredentials: true });
 
     socket.on('test-log', (newLog) => {
       setLogs((prev) => [...prev, newLog]);

@@ -1,24 +1,38 @@
-import { collection, addDoc, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from './config';
+const apiJson = async <T>(url: string, init: RequestInit = {}): Promise<T> => {
+  const response = await fetch(url, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error HTTP ${response.status}`);
+  }
+
+  return response.json();
+};
 
 const testResults = [
   {
     name: 'Login Test',
-    date: Timestamp.fromDate(new Date()),
+    date: new Date().toISOString(),
     status: 'passed',
     duration: 1.5,
     error: null,
   },
   {
     name: 'Registration Test',
-    date: Timestamp.fromDate(new Date()),
+    date: new Date().toISOString(),
     status: 'failed',
     duration: 2.3,
     error: 'Validation error: Email already exists',
   },
   {
     name: 'Profile Update Test',
-    date: Timestamp.fromDate(new Date()),
+    date: new Date().toISOString(),
     status: 'passed',
     duration: 0.8,
     error: null,
@@ -26,14 +40,11 @@ const testResults = [
 ];
 
 export const seedTestResults = async () => {
-  const collectionRef = collection(db, 'test_results');
-  
   for (const result of testResults) {
     try {
-      await addDoc(collectionRef, {
-        ...result,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+      await apiJson('/api/data/test_results', {
+        method: 'POST',
+        body: JSON.stringify(result),
       });
       console.log('Added test result:', result.name);
     } catch (error) {
@@ -112,11 +123,9 @@ const defaultAutomationCases = [
 ];
 
 export const seedAutomationCases = async () => {
-  const collectionRef = collection(db, 'automation');
-  
   // Verificar si ya existen casos
-  const snapshot = await getDocs(collectionRef);
-  if (snapshot.docs.length > 0) {
+  const existing = await apiJson<{ total: number }>('/api/data/automation');
+  if (existing.total > 0) {
     console.log('Los casos automatizados ya existen, no se inicializarán');
     return;
   }
@@ -124,10 +133,9 @@ export const seedAutomationCases = async () => {
   // Crear los casos por defecto
   for (const automationCase of defaultAutomationCases) {
     try {
-      await addDoc(collectionRef, {
-        ...automationCase,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+      await apiJson('/api/data/automation', {
+        method: 'POST',
+        body: JSON.stringify(automationCase),
       });
       console.log('Added automation case:', automationCase.name);
     } catch (error) {

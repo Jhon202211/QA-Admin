@@ -29,7 +29,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { dataProvider } from '../../firebase/dataProvider';
 import { HierarchicalCaseSelector } from '../../components/TestPlanning/HierarchicalCaseSelector';
 
-const SOCKET_URL = 'http://localhost:9000';
+const SOCKET_URL = '/';
 
 interface LogEntry {
   type: 'stdout' | 'stderr';
@@ -428,7 +428,7 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
   });
 
   useEffect(() => {
-    const socket = io(SOCKET_URL);
+    const socket = io(SOCKET_URL, { withCredentials: true });
 
     socket.on('test-log', (newLog: LogEntry) => {
       setLogs((prev) => [...prev, newLog]);
@@ -532,9 +532,10 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
     // No abrimos el modal ni ponemos autoStatus a running todavía
 
     try {
-      const res = await fetch('http://localhost:9000/api/tests/execute', {
+      const res = await fetch('/api/tests/execute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid_token' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           test_file: testRecord.test_file || testId, 
           planId: plan.id, 
@@ -585,9 +586,10 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
 
       setAutoStatus(s => ({ ...s, [testId]: 'running' }));
       try {
-        await fetch('http://localhost:9000/api/tests/execute', {
+        await fetch('/api/tests/execute', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid_token' },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             test_file: testRecord.test_file || testId, 
             planId: plan.id, 

@@ -31,8 +31,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
-import { doc, writeBatch } from 'firebase/firestore';
-import { db } from '../../firebase/config';
 import { CreateTestCaseWizard } from './CreateTestCaseWizard';
 import { AIAgent } from './AIAgent';
 import { TestExecutionModal } from './TestExecutionModal';
@@ -470,14 +468,18 @@ export const HierarchicalView = () => {
 
     const reorderedCases: TestCase[] = arrayMove(categoryCases, oldIndex, newIndex);
     
-    // Persistir el nuevo orden en Firestore
+    // Persistir el nuevo orden mediante la API protegida
     try {
-      const batch = writeBatch(db);
-      reorderedCases.forEach((tc, index) => {
-        const docRef = doc(db, 'test_cases', tc.id);
-        batch.update(docRef, { order: index });
+      await fetch('/api/data/test_cases/updateMany', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: reorderedCases.map((tc) => tc.id),
+          data: {},
+          orderedUpdates: reorderedCases.map((tc, index) => ({ id: tc.id, data: { order: index } })),
+        }),
       });
-      await batch.commit();
       refresh();
     } catch (error) {
       console.error('Error al guardar el nuevo orden:', error);
