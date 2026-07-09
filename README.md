@@ -17,16 +17,53 @@ Panel de administración para gestionar pruebas de calidad, planificación de te
 
 ---
 
-## Automatización con Playwright
-
-El sistema permite integrar y ejecutar pruebas automatizadas de Playwright directamente desde la interfaz.
-
-### Arquitectura de ejecución
+## Arquitectura de ejecución
 
 1. **Frontend (React-Admin)**: Interfaz para gestionar casos, lanzar ejecuciones y visualizar resultados.
-2. **Servidor Local (`automation-server.js`)**: Servidor Express que actúa como puente entre la web y el sistema local.
+2. **Servidor Backend (`server/index.js`)**: Servidor Express centralizado que gestiona la autenticación personalizada, el proxy de datos hacia Firestore y la ejecución de automatizaciones.
 3. **Socket.io**: Comunicación bidireccional para transmitir logs de ejecución en tiempo real al navegador.
-4. **Firebase Firestore**: Almacenamiento persistente de los resultados de cada ejecución (`test_results`) y actualización del estado de salud de cada test (`automation`).
+4. **Firebase Firestore**: Almacenamiento persistente de usuarios, sesiones, resultados de ejecución (`test_results`) y estado de tests (`automation`).
+
+### Autenticación Personalizada
+
+El sistema ha migrado de Firebase Auth a un sistema de autenticación propio basado en sesiones persistentes en Firestore y cookies `httpOnly`.
+
+- **Usuarios**: Almacenados en la colección `users` con contraseñas hasheadas (scrypt).
+- **Sesiones**: Almacenadas en la colección `sessions` con expiración configurable.
+- **Seguridad**: Todas las peticiones al backend requieren una sesión válida gestionada vía cookies seguras.
+
+### Configuración del Servidor
+
+Para que el sistema funcione, debes configurar las variables de entorno en `.env`:
+
+```env
+# Configuración del servidor
+AUTH_SERVER_PORT=9000
+FRONTEND_ORIGIN=http://localhost:3000
+SESSION_COOKIE_NAME=qa_session
+SESSION_TTL_DAYS=30
+
+# Credenciales de Firebase Admin (Requerido para el backend)
+FIREBASE_SERVICE_ACCOUNT_JSON='{...}'
+
+# Usuario Administrador Inicial
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=tu_password_seguro
+ADMIN_NAME=Admin
+ADMIN_ROLE=admin
+```
+
+### Inicialización del Administrador
+
+Para crear el primer usuario administrador, ejecuta:
+
+```bash
+npm run auth:seed
+```
+
+---
+
+## Automatización con Playwright
 
 ### Configuración de Automatización
 
@@ -190,30 +227,51 @@ VITE_FIREBASE_APP_ID=tu_app_id
 | React-Admin | UI administrativa (List, Datagrid, Resources) |
 | Material UI (MUI) | Componentes de interfaz |
 | Vite | Bundler |
-| Firebase (Firestore + Auth) | Base de datos y autenticación |
+| Firebase (Firestore) | Base de datos para usuarios, sesiones y resultados |
+| Firebase Admin SDK | Acceso privilegiado desde el servidor |
 | OpenAI API | LLM para generación de casos de prueba |
 | BM25 (TypeScript) | Retrieval del knowledge base en el browser |
 | Playwright | Automatización de pruebas |
 | Socket.io | Logs en tiempo real para automatización |
-| Express | Servidor de ejecución local |
+| Express | Servidor backend centralizado |
 
 ---
 
-## Instalación
+## Instalación y Despliegue
+
+### Desarrollo Local
+
+Para trabajar en local, necesitas tener corriendo tanto el frontend como el servidor backend:
 
 ```bash
-# Instalar dependencias
+# 1. Instalar dependencias
 npm install
 
-# Iniciar servidor de desarrollo
+# 2. Configurar .env (ver sección de variables)
+
+# 3. Inicializar usuario admin (solo la primera vez)
+npm run auth:seed
+
+# 4. Iniciar el servidor backend (Puerto 9000 por defecto)
+npm run server
+
+# 5. En otra terminal, iniciar el frontend (Vite)
 npm run dev
-
-# Iniciar servidor de automatización (necesario para correr tests)
-npm run automation:server
-
-# Construir para producción
-npm run build
 ```
+
+### Despliegue en Producción
+
+En producción (ej. Cloudflare, VPS, etc.), el flujo es distinto:
+
+1. **Frontend**: Se debe generar el build estático:
+   ```bash
+   npm run build
+   ```
+   Los archivos resultantes en la carpeta `dist/` se despliegan en un servicio de hosting estático (como Cloudflare Pages).
+
+2. **Backend**: El servidor Node.js (`npm run server`) **debe estar ejecutándose permanentemente** en un entorno que soporte Node.js (VPS, Docker, Heroku, etc.). No se puede desplegar como un sitio estático.
+
+3. **Proxy/CORS**: Asegúrate de que `FRONTEND_ORIGIN` en el `.env` del servidor apunte a la URL final de tu frontend para permitir las cookies de sesión.
 
 ---
 
@@ -229,9 +287,13 @@ src/
 │   ├── TestResults/             ← Vista de Resultados (Manual/Auto)
 │   └── Configuration/           ← Configuración global
 ├── firebase/
-│   ├── dataProvider.ts          ← Adaptador de datos para Firestore
-│   └── fixAutomationData.ts     ← Script de sincronización de tests
-├── automation-server.js         ← Servidor local de ejecución
-├── playwright.config.ts         ← Configuración de Playwright
-└── .env.automation              ← Variables para tests automáticos
+│   ├── dataProvider.ts          ← Adaptador de datos (API Proxy)
+│   └── auth.ts                  ← Proveedor de autenticación (API Proxy)
+server/
+├── index.js                     ← Punto de entrada del servidor
+├── auth.js                      ← Lógica de sesión y rutas de auth
+├── dataRoutes.js                ← CRUD de Firestore vía Admin SDK
+└── automationRoutes.js          ← Ejecución de Playwright
+scripts/
+└── seed-admin.js                ← Script para crear usuario inicial
 ```

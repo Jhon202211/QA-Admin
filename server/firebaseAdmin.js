@@ -1,40 +1,39 @@
-import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const parseServiceAccount = () => {
-  const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const rawBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
 
-  if (rawBase64) {
-    return JSON.parse(Buffer.from(rawBase64, 'base64').toString('utf8'));
-  }
-
-  if (rawJson) {
-    return JSON.parse(rawJson);
-  }
-
-  return null;
-};
+dotenv.config({ path: path.join(rootDir, '.env') });
 
 const initFirebaseAdmin = () => {
   if (getApps().length > 0) {
     return getApps()[0];
   }
 
-  const serviceAccount = parseServiceAccount();
-  const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+  const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
 
-  if (serviceAccount) {
-    return initializeApp({
-      credential: cert(serviceAccount),
-      projectId: serviceAccount.project_id || projectId,
-      storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-    });
+  if (rawJson) {
+    try {
+      const serviceAccount = JSON.parse(rawJson);
+      return initializeApp({
+        credential: cert(serviceAccount),
+        projectId: serviceAccount.project_id || projectId,
+        storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+      });
+    } catch (e) {
+      console.error('Error fatal parseando FIREBASE_SERVICE_ACCOUNT_JSON:', e.message);
+    }
   }
 
+  // Fallback a ADC si no hay JSON
   return initializeApp({
-    credential: applicationDefault(),
-    projectId,
+    projectId: projectId,
     storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
   });
 };
