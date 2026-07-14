@@ -64,7 +64,7 @@ export interface TestStep {
   attachments?: string[];
   evidences?: EvidenceFile[];
   evidenceGroups?: EvidenceGroup[];
-  status?: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'not_executed' | 'retest';
+  status?: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'not_executed' | 'retest' | 'skipped';
 }
 
 export interface TestCase {
@@ -82,7 +82,7 @@ export interface TestCase {
   expectedResult?: string;
   actualResult?: string;
   responsible?: string;
-  executionResult?: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'not_executed' | 'retest';
+  executionResult?: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'not_executed' | 'retest' | 'skipped';
   notes?: string;
   type: TestCaseType;
   status: TestCaseStatus;

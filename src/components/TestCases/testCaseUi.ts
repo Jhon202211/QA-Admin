@@ -7,7 +7,8 @@ export type ExecutionStatus =
   | 'blocked'
   | 'in_progress'
   | 'not_executed'
-  | 'retest';
+  | 'retest'
+  | 'skipped';
 
 const PRIORITY_LABELS: Record<string, string> = {
   critical: 'Crítica',
@@ -36,6 +37,7 @@ const EXECUTION_LABELS: Record<string, string> = {
   in_progress: 'En progreso',
   not_executed: 'No ejecutado',
   retest: 'Retest',
+  skipped: 'Omitido',
 };
 
 const EXECUTION_COLORS: Record<string, string> = {
@@ -45,6 +47,7 @@ const EXECUTION_COLORS: Record<string, string> = {
   in_progress: '#1E88E5',
   not_executed: '#9E9E9E',
   retest: '#9C27B0',
+  skipped: '#607D8B',
 };
 
 export const getPriorityLabel = (priority?: TestCasePriority | 'Alta' | 'Media' | 'Baja' | string) =>
@@ -74,7 +77,10 @@ export const summarizeExecutionFromSteps = (steps: TestStep[] = []): ExecutionSt
   if (statuses.includes('failed')) return 'failed';
   if (statuses.includes('blocked')) return 'blocked';
   if (statuses.includes('retest')) return 'retest';
-  if (statuses.every((status) => status === 'passed')) return 'passed';
+  if (statuses.every((status) => status === 'passed' || status === 'skipped')) {
+    if (statuses.every((status) => status === 'skipped')) return 'skipped';
+    return 'passed';
+  }
   if (statuses.includes('in_progress') || statuses.includes('passed')) return 'in_progress';
   return 'not_executed';
 };

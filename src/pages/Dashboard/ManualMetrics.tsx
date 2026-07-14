@@ -2,7 +2,7 @@ import { Card, CardContent, Typography, Grid, Box } from '@mui/material';
 import { useGetList } from 'react-admin';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-const COLORS = ['#43A047', '#E53935', '#FB8C00', '#9C27B0', '#1E88E5', '#9E9E9E'];
+const COLORS = ['#43A047', '#E53935', '#FB8C00', '#607D8B', '#9C27B0', '#1E88E5', '#9E9E9E'];
 
 interface ManualMetricsProps {
   startDate?: Date | null;
@@ -27,6 +27,7 @@ export const ManualMetrics = ({ startDate, endDate }: ManualMetricsProps) => {
   const passedCases = testCases.filter(tc => tc.executionResult === 'passed').length;
   const failedCases = testCases.filter(tc => tc.executionResult === 'failed').length;
   const blockedCases = testCases.filter(tc => tc.executionResult === 'blocked').length;
+  const skippedCases = testCases.filter(tc => tc.executionResult === 'skipped').length;
   const retestCases = testCases.filter(tc => tc.executionResult === 'retest').length;
   const inProgressCases = testCases.filter(tc => tc.executionResult === 'in_progress').length;
   const notExecutedCases = testCases.filter(tc => !tc.executionResult || tc.executionResult === 'not_executed').length;
@@ -67,6 +68,7 @@ export const ManualMetrics = ({ startDate, endDate }: ManualMetricsProps) => {
     { name: 'Aprobados', value: passedCases },
     { name: 'Fallidos', value: failedCases },
     { name: 'Bloqueados', value: blockedCases },
+    { name: 'Omitidos', value: skippedCases },
     { name: 'Retest', value: retestCases },
     { name: 'En progreso', value: inProgressCases },
     { name: 'No Ejecutados', value: notExecutedCases },
@@ -184,6 +186,16 @@ export const ManualMetrics = ({ startDate, endDate }: ManualMetricsProps) => {
             </Typography>
             <Typography variant="h5" sx={{ color: '#9C27B0', fontWeight: 600 }}>
               {retestCases}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ minWidth: 150, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom sx={{ color: 'text.primary', fontWeight: 500, fontFamily: "'Ubuntu Sans', sans-serif" }}>
+              Omitidos
+            </Typography>
+            <Typography variant="h5" sx={{ color: '#607D8B', fontWeight: 600 }}>
+              {skippedCases}
             </Typography>
           </CardContent>
         </Card>

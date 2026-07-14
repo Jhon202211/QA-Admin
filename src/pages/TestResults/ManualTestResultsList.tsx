@@ -42,6 +42,7 @@ export const ManualTestResultsList = () => {
         { id: 'passed', name: 'Aprobado' },
         { id: 'failed', name: 'Fallido' },
         { id: 'blocked', name: 'Bloqueado' },
+        { id: 'skipped', name: 'Omitido' },
         { id: 'retest', name: 'Retest' },
         { id: 'in_progress', name: 'En progreso' },
         { id: 'not_executed', name: 'No ejecutado' }

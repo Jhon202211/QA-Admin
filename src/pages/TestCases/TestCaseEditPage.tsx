@@ -44,6 +44,7 @@ const EXECUTION_CHOICES = [
   { id: 'passed', label: 'Aprobado' },
   { id: 'failed', label: 'Falló' },
   { id: 'blocked', label: 'Bloqueado' },
+  { id: 'skipped', label: 'Omitido' },
   { id: 'retest', label: 'Retest' },
   { id: 'in_progress', label: 'En progreso' },
 ];

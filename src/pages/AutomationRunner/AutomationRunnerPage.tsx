@@ -52,6 +52,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import SkipNextIcon from '@mui/icons-material/SkipNext';
 import HistoryIcon from '@mui/icons-material/History';
 import TimerIcon from '@mui/icons-material/Timer';
 import TerminalIcon from '@mui/icons-material/Terminal';
@@ -303,6 +304,7 @@ const StatusChip = ({ status }: { status: string }) => {
   
   if (status === 'passed') config = { label: 'Pasó', color: '#4caf50', icon: <CheckCircleIcon sx={{ fontSize: 16 }} /> };
   if (status === 'failed') config = { label: 'Falló', color: '#f44336', icon: <ErrorIcon sx={{ fontSize: 16 }} /> };
+  if (status === 'skipped') config = { label: 'Omitido', color: '#607d8b', icon: <SkipNextIcon sx={{ fontSize: 16 }} /> };
   if (status === 'running') config = { label: 'Ejecutando', color: '#2196f3', icon: <CircularProgress size={14} color="inherit" /> };
 
   return (

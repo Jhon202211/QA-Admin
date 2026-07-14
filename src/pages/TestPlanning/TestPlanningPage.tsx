@@ -343,6 +343,7 @@ const RESULT_LABELS: Record<string, { label: string; color: string }> = {
   passed: { label: 'Pasó', color: '#4caf50' },
   failed: { label: 'Falló', color: '#e53935' },
   blocked: { label: 'Bloqueado', color: '#ff9800' },
+  skipped: { label: 'Omitido', color: '#607d8b' },
   retest: { label: 'Retest', color: '#9c27b0' },
 };
 
@@ -361,10 +362,11 @@ const getPlanProgress = (plan: any, testCases: any[]) => {
   const passed = cases.filter(tc => tc.executionResult === 'passed').length;
   const failed = cases.filter(tc => tc.executionResult === 'failed').length;
   const blocked = cases.filter(tc => tc.executionResult === 'blocked').length;
+  const skipped = cases.filter(tc => tc.executionResult === 'skipped').length;
   const retest = cases.filter(tc => tc.executionResult === 'retest').length;
-  const pending = ids.length - passed - failed - blocked - retest;
-  const pct = Math.round(((passed + failed + blocked + retest) / ids.length) * 100);
-  return { total: ids.length, passed, failed, blocked, retest, pending, pct };
+  const pending = ids.length - passed - failed - blocked - skipped - retest;
+  const pct = Math.round(((passed + failed + blocked + skipped + retest) / ids.length) * 100);
+  return { total: ids.length, passed, failed, blocked, skipped, retest, pending, pct };
 };
 
 const groupCasesByHierarchy = (caseIds: string[], allCases: any[]) => {
@@ -389,6 +391,7 @@ const ProgressBar = ({ progress }: { progress: NonNullable<ReturnType<typeof get
       {progress.passed > 0 && <Box sx={{ flex: progress.passed, bgcolor: '#4caf50', transition: 'flex 0.3s' }} />}
       {progress.failed > 0 && <Box sx={{ flex: progress.failed, bgcolor: '#e53935', transition: 'flex 0.3s' }} />}
       {progress.blocked > 0 && <Box sx={{ flex: progress.blocked, bgcolor: '#ff9800', transition: 'flex 0.3s' }} />}
+      {progress.skipped > 0 && <Box sx={{ flex: progress.skipped, bgcolor: '#607d8b', transition: 'flex 0.3s' }} />}
       {progress.retest > 0 && <Box sx={{ flex: progress.retest, bgcolor: '#9c27b0', transition: 'flex 0.3s' }} />}
       {progress.pending > 0 && <Box sx={{ flex: progress.pending, bgcolor: '#e0e0e0' }} />}
     </Box>
@@ -396,6 +399,7 @@ const ProgressBar = ({ progress }: { progress: NonNullable<ReturnType<typeof get
       <Typography variant="caption" sx={{ color: '#4caf50', fontWeight: 600 }}>✓ {progress.passed} pasaron</Typography>
       <Typography variant="caption" sx={{ color: '#e53935', fontWeight: 600 }}>✗ {progress.failed} fallaron</Typography>
       {progress.blocked > 0 && <Typography variant="caption" sx={{ color: '#ff9800', fontWeight: 600 }}>⚠ {progress.blocked} bloqueados</Typography>}
+      {progress.skipped > 0 && <Typography variant="caption" sx={{ color: '#607d8b', fontWeight: 600 }}>○ {progress.skipped} omitidos</Typography>}
       {progress.retest > 0 && <Typography variant="caption" sx={{ color: '#9c27b0', fontWeight: 600 }}>⟳ {progress.retest} retest</Typography>}
       <Typography variant="caption" sx={{ color: 'text.disabled' }}>○ {progress.pending} pendientes</Typography>
       <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary', fontWeight: 600 }}>{progress.pct}%</Typography>
@@ -708,6 +712,10 @@ function RunPlanDialog({ plan, allCases, testResults, onClose, onSaved }: {
                                 <ToggleButton value="blocked"
                                   sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#fff3e0', color: '#ff9800', borderColor: '#ff9800' } }}>
                                   Bloq.
+                                </ToggleButton>
+                                <ToggleButton value="skipped"
+                                  sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#eceff1', color: '#607d8b', borderColor: '#607d8b' } }}>
+                                  Omit.
                                 </ToggleButton>
                                 <ToggleButton value="retest"
                                   sx={{ fontSize: 11, py: 0.4, px: 1.2, '&.Mui-selected': { bgcolor: '#f3e5f5', color: '#9c27b0', borderColor: '#9c27b0' } }}>

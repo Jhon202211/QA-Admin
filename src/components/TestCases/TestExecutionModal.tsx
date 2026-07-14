@@ -40,6 +40,7 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import BlockIcon from '@mui/icons-material/Block';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import SkipNextIcon from '@mui/icons-material/SkipNext';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { useNotify, useUpdate } from 'react-admin';
@@ -91,7 +92,7 @@ interface ExecutionDraftData {
   updatedAt?: string | Date | TimestampLike;
 }
 
-const STEP_STATUSES: Array<TestStep['status']> = ['passed', 'failed', 'blocked', 'retest', 'in_progress', 'not_executed'];
+const STEP_STATUSES: Array<TestStep['status']> = ['passed', 'failed', 'blocked', 'skipped', 'retest', 'in_progress', 'not_executed'];
 
 export const TestExecutionModal = ({
   open,
@@ -538,6 +539,8 @@ export const TestExecutionModal = ({
         return <BlockIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
       case 'retest':
         return <AutorenewIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
+      case 'skipped':
+        return <SkipNextIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
       case 'in_progress':
         return <AutorenewIcon sx={{ color: getExecutionColor(status), fontSize: 18 }} />;
       default:
