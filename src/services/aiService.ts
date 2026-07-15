@@ -600,3 +600,49 @@ export const callOpenAI = (
   contextChunks: KnowledgeChunk[] = []
 ) =>
   callLLM(query, { provider: 'openai', apiKey, model, baseUrl: 'https://api.openai.com/v1' }, contextChunks);
+
+// ── Chat conversacional genérico (usado por OpenLaila) ───────────────────────
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/**
+ * Llama al mismo proveedor/modelo LLM configurado para "Pruebas manuales"
+ * (ver getLLMConfig), pero para un intercambio conversacional libre en texto
+ * plano (sin forzar un esquema JSON). Usado por el chatbot de soporte
+ * OpenLaila.
+ */
+export const callChatCompletion = async (
+  messages: ChatMessage[],
+  config: LLMConfig
+): Promise<string> => {
+  const endpoint = `${config.baseUrl}/chat/completions`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages,
+      temperature: 0.4,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage =
+      (errorData as { error?: { message?: string } }).error?.message || response.statusText;
+    throw new Error(`Error de API ${config.provider} (${response.status}): ${errorMessage}`);
+  }
+
+  const data = await response.json();
+  const raw = data.choices?.[0]?.message?.content;
+  if (!raw) throw new Error('No se recibió respuesta del LLM');
+
+  return raw.trim();
+};

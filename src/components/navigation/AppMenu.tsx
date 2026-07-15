@@ -16,7 +16,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import AssessmentIcon from '@mui/icons-material/Assessment';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SettingsIcon from '@mui/icons-material/Settings';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import InsightsIcon from '@mui/icons-material/Insights';
@@ -113,10 +113,10 @@ export const AppMenu = () => {
           onClick={handleNavClick}
         />
         <MenuLinkItem
-          to="/test_results"
-          label="Vista de resultados"
-          icon={<AssessmentIcon />}
-          active={location.pathname.startsWith('/test_results')}
+          to="/openlaila"
+          label="OpenLaila"
+          icon={<AutoAwesomeIcon />}
+          active={location.pathname.startsWith('/openlaila')}
           onClick={handleNavClick}
         />
 

@@ -1,8 +1,7 @@
 import { Admin, Resource, Layout, AppBar, CustomRoutes } from 'react-admin';
 import { BrowserRouter, Route, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
-import { ResultsViewPage } from './pages/TestResults/ResultsViewPage';
-import { TestResultShow } from './pages/TestResults/TestResultsPage';
+import { OpenLailaPage } from './pages/OpenLaila/OpenLailaPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box, useTheme, useMediaQuery } from '@mui/material';
@@ -19,7 +18,7 @@ import { useSidebarState } from 'react-admin';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import AssessmentIcon from '@mui/icons-material/Assessment';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
@@ -206,7 +205,7 @@ function App() {
           <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEditPage} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
-          <Resource name="test_results" list={ResultsViewPage} show={TestResultShow} icon={AssessmentIcon} options={{ label: 'Vista de resultados' }} />
+          <Resource name="openlaila" list={OpenLailaPage} icon={AutoAwesomeIcon} options={{ label: 'OpenLaila' }} />
           <Resource
             name="system_incidents"
             list={SystemIncidentsPage}

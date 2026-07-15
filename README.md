@@ -12,7 +12,7 @@ Panel de administración para gestionar pruebas de calidad, planificación de te
 | **QA Test Case Architect Agent** | Agente IA que genera casos de prueba siguiendo la Taxonomía Oficial de QA con RAG (BM25) |
 | **Planificación** | Creación y seguimiento de planes de prueba |
 | **Automatización** | Gestión y ejecución local de scripts Playwright con logs en vivo |
-| **Vista de Resultados** | Historial detallado de ejecuciones manuales y automáticas con evidencias (screenshots) |
+| **OpenLaila** | Chatbot de soporte conversacional con base de conocimiento propia en PDF (RAG con BM25) e historial persistente en Firestore |
 | **Dashboard** | Métricas y estado general del QA |
 
 ---
@@ -150,6 +150,43 @@ public/knowledge/
 ```json
 ["bugs_historicos.txt", "reglas_negocio.txt", "criterios_acceso.txt", "nuevo_archivo.txt"]
 ```
+
+---
+
+## OpenLaila (Chatbot de soporte)
+
+**OpenLaila** es un chatbot conversacional de soporte, independiente del agente de generación de casos de prueba, disponible en el menú lateral (`/openlaila`).
+
+- **Modelo de IA**: reutiliza exactamente la misma configuración de proveedor/modelo de **Configuración → Integraciones** que usa el agente de Pruebas Manuales (`getLLMConfig()` en `src/services/aiService.ts`). No requiere configuración adicional.
+- **Base de conocimiento propia**: indexa archivos ubicados en `public/knowledge/Laila/`, usando el mismo motor BM25 (`src/services/bm25.ts`). Soporta dos formatos:
+  - **`.md` / `.txt` (recomendado)**: se cargan como texto plano directamente, sin procesamiento adicional.
+  - **`.pdf`**: se extrae el texto en el navegador vía `pdfjs-dist` (más pesado y con menor fidelidad de formato que un `.md`).
+- **Historial persistente**: cada mensaje se guarda en Firestore, colección `openlaila_messages`, asociado al `uid` del usuario autenticado (`src/services/lailaConversationService.ts`).
+- **Instrucciones / personalidad del bot**: el system prompt (identidad "Laila", reglas anti-alucinación, permisos por rol, reglas de escalamiento, cierre de conversación, etc.) vive en `public/knowledge/Laila/instructions.md` — **no** se lista en `manifest.json` (no se indexa por BM25, se inyecta siempre completo al inicio del prompt). Se puede editar sin recompilar la app.
+- **Rol simulado**: el selector "Rol simulado" en la UI del chat reemplaza el placeholder `{user_rol}` de `instructions.md`, permitiendo probar cómo respondería Laila según el nivel de permisos del usuario (Admin, Property Owner, Coordinador, Recepción, Centro de Control, Empleado).
+
+### Agregar documentos a la base de conocimiento de OpenLaila
+
+Los PDFs originales se guardan como fuente en `knowledge-sources/Laila/` (fuera de `public/`, para no inflar el bundle servido al navegador con binarios). Solo los `.md` convertidos viven en `public/knowledge/Laila/` y son los que realmente se indexan.
+
+1. Copiar el/los archivo(s) `.pdf` dentro de `knowledge-sources/Laila/`.
+2. Convertirlos a Markdown:
+
+   ```bash
+   npm run knowledge:laila:convert
+   ```
+
+   Esto usa `@opendocsg/pdf2md` (script en `scripts/convertLailaPdfsToMarkdown.mjs`) para leer cada `.pdf` de `knowledge-sources/Laila/` y generar el `.md` correspondiente en `public/knowledge/Laila/`.
+
+3. Agregar el nombre del archivo `.md` generado a `public/knowledge/Laila/manifest.json`, por ejemplo:
+
+```json
+["manual_usuario.md", "politicas_soporte.md"]
+```
+
+4. No requiere recompilación — el índice BM25 se construye en el navegador la primera vez que se abre el chat.
+
+> También se puede colocar un `.pdf` o `.txt` directamente en `public/knowledge/Laila/` y listarlo en el manifest sin convertir — `lailaKnowledgeService.ts` detecta la extensión y extrae el texto en el navegador (`.pdf` vía `pdfjs-dist`) o lo lee tal cual (`.md`/`.txt`). Se recomienda `.md` por mejor calidad y rendimiento.
 
 ---
 

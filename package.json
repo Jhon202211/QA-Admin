@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "automation:server": "node automation-server.js",
-    "automation:test": "npx playwright test"
+    "automation:test": "npx playwright test",
+    "knowledge:laila:convert": "node scripts/convertLailaPdfsToMarkdown.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1013.0",
@@ -29,6 +30,7 @@
     "firebase": "^11.9.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
+    "pdfjs-dist": "^6.1.200",
     "ra-input-rich-text": "^5.9.1",
     "react": "^19.1.0",
     "react-admin": "^5.8.3",
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@opendocsg/pdf2md": "^0.2.7",
     "@playwright/test": "^1.59.1",
     "@types/node": "^25.5.0",
     "@types/react": "^18.2.43",
