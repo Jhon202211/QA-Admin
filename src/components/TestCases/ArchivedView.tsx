@@ -26,7 +26,7 @@ import { useState } from 'react';
 import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from './testCaseUi';
 import type { TestCase, TestCaseCategory } from '../../types/testCase';
 
-export const ArchivedView = () => {
+export const ArchivedView = ({ projectSearch = '' }: { projectSearch?: string }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
@@ -47,6 +47,12 @@ export const ArchivedView = () => {
 
   const archivedCases = testCases.filter((tc: TestCase) => tc.projectArchived);
 
+  const getTimeValue = (value?: Date | string | null) => {
+    if (!value) return 0;
+    const time = new Date(value).getTime();
+    return Number.isNaN(time) ? 0 : time;
+  };
+
   const groupedData = archivedCases.reduce((acc: any, testCase: TestCase) => {
     const project = testCase.testProject || 'Sin proyecto';
     const category = testCase.category || 'Sin categoría';
@@ -55,6 +61,25 @@ export const ArchivedView = () => {
     acc[project][category].push(testCase);
     return acc;
   }, {});
+
+  const projectCreatedAt: Record<string, number> = {};
+  archivedCases.forEach((testCase: TestCase) => {
+    const project = testCase.testProject || 'Sin proyecto';
+    const createdAt = getTimeValue(testCase.createdAt);
+    if (!projectCreatedAt[project] || createdAt > projectCreatedAt[project]) {
+      projectCreatedAt[project] = createdAt;
+    }
+  });
+
+  const sortedGroupedData = Object.entries(groupedData).sort(
+    ([projectA], [projectB]) => (projectCreatedAt[projectB] || 0) - (projectCreatedAt[projectA] || 0)
+  );
+
+  const filteredGroupedData = (() => {
+    const query = projectSearch.trim().toLowerCase();
+    if (!query) return sortedGroupedData;
+    return sortedGroupedData.filter(([project]) => project.toLowerCase().includes(query));
+  })();
 
   const categories: TestCaseCategory[] = [
     'Smoke',
@@ -126,8 +151,17 @@ export const ArchivedView = () => {
             Los proyectos que archives aparecerán aquí
           </Typography>
         </Box>
+      ) : filteredGroupedData.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 10 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', mb: 1 }}>
+            No se encontraron proyectos
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Ningún proyecto archivado coincide con "{projectSearch}"
+          </Typography>
+        </Box>
       ) : (
-        Object.entries(groupedData).map(([project, categoriesData]: [string, any]) => (
+        filteredGroupedData.map(([project, categoriesData]: [string, any]) => (
           <Accordion
             key={project}
             defaultExpanded

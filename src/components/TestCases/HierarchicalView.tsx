@@ -193,7 +193,7 @@ const SortableTestCaseItem = ({
   );
 };
 
-export const HierarchicalView = () => {
+export const HierarchicalView = ({ projectSearch = '' }: { projectSearch?: string }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
@@ -256,6 +256,13 @@ export const HierarchicalView = () => {
 
     return data;
   }, [activeCases]);
+
+  const filteredProjectEntries = useMemo(() => {
+    const query = projectSearch.trim().toLowerCase();
+    const entries = Object.entries(groupedData);
+    if (!query) return entries;
+    return entries.filter(([project]) => project.toLowerCase().includes(query));
+  }, [groupedData, projectSearch]);
 
     const [create] = useCreate();
     const [isCloning, setIsCloning] = useState<string | null>(null);
@@ -491,10 +498,7 @@ export const HierarchicalView = () => {
 
   return (
     <Box sx={{ pt: 3, pr: 3, pb: 3, pl: 0 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
-          Pruebas Manuales
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="outlined"
@@ -545,8 +549,17 @@ export const HierarchicalView = () => {
             Crea tu primer proyecto y caso de prueba para empezar
           </Typography>
         </Box>
+      ) : filteredProjectEntries.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2 }}>
+            No se encontraron proyectos
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Ningún proyecto coincide con "{projectSearch}"
+          </Typography>
+        </Box>
       ) : (
-        Object.entries(groupedData).map(([project, categoriesData]: [string, any]) => (
+        filteredProjectEntries.map(([project, categoriesData]: [string, any]) => (
           <Accordion
             key={project}
             defaultExpanded

@@ -20,7 +20,9 @@ import {
   FileField,
   FunctionField
 } from 'react-admin';
-import { Box, Typography, Chip, Tabs, Tab } from '@mui/material';
+import { Box, Typography, Chip, Tabs, Tab, TextField as MuiTextField, InputAdornment, IconButton } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import { RichTextInput } from 'ra-input-rich-text';
 import { HierarchicalView } from '../../components/TestCases/HierarchicalView';
 import { ArchivedView } from '../../components/TestCases/ArchivedView';
@@ -30,7 +32,6 @@ import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabe
 
 const caseFilters = [
   <TextInput label="Buscar por nombre" source="name" alwaysOn />,
-  <TextInput label="Buscar por proyecto" source="testProject" alwaysOn />,
   <SelectInput label="Categoría" source="category" choices={[
     { id: 'Smoke', name: 'Smoke' },
     { id: 'Funcionales', name: 'Funcionales' },
@@ -69,11 +70,12 @@ const ListActions = () => (
   </TopToolbar>
 );
 
-const TestCasesList = () => (
+const TestCasesList = ({ projectSearch }: { projectSearch: string }) => (
   <List
     actions={<ListActions />}
     empty={<Empty />}
     filters={caseFilters}
+    filter={projectSearch ? { testProject: projectSearch } : undefined}
   >
     <Datagrid>
       <TextField source="caseKey" label="ID" />
@@ -119,12 +121,35 @@ const TestCasesList = () => (
 
 export const TestCasesPage = () => {
   const [tabValue, setTabValue] = useState(0);
+  const [projectSearch, setProjectSearch] = useState('');
 
   return (
     <Box sx={{ pt: { xs: '12px', sm: '20px' }, pr: { xs: '12px', sm: '20px' }, pb: { xs: '12px', sm: '20px' } }}>
       <Typography variant="h4" gutterBottom sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
         Pruebas Manuales
       </Typography>
+      <MuiTextField
+        placeholder="Buscar proyecto por nombre..."
+        value={projectSearch}
+        onChange={(e) => setProjectSearch(e.target.value)}
+        size="small"
+        fullWidth
+        sx={{ mb: 2, maxWidth: 420 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            </InputAdornment>
+          ),
+          endAdornment: projectSearch && (
+            <InputAdornment position="end">
+              <IconButton size="small" onClick={() => setProjectSearch('')}>
+                <ClearIcon fontSize="small" />
+              </IconButton>
+            </InputAdornment>
+          ),
+        }}
+      />
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
           <Tab label="Vista Jerárquica" />
@@ -133,10 +158,10 @@ export const TestCasesPage = () => {
           <Tab label="Borradores" />
         </Tabs>
       </Box>
-      {tabValue === 0 && <HierarchicalView />}
-      {tabValue === 1 && <ArchivedView />}
-      {tabValue === 2 && <TestCasesList />}
-      {tabValue === 3 && <DraftsView />}
+      {tabValue === 0 && <HierarchicalView projectSearch={projectSearch} />}
+      {tabValue === 1 && <ArchivedView projectSearch={projectSearch} />}
+      {tabValue === 2 && <TestCasesList projectSearch={projectSearch} />}
+      {tabValue === 3 && <DraftsView projectSearch={projectSearch} />}
     </Box>
   );
 };

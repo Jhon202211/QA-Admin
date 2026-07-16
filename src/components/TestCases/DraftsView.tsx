@@ -21,7 +21,7 @@ import type { TestCase } from '../../types/testCase';
 import { dataProvider } from '../../firebase/dataProvider';
 import { executionDraftService, type ExecutionDraftRecord } from '../../services/executionDraftService';
 
-export const DraftsView = () => {
+export const DraftsView = ({ projectSearch = '' }: { projectSearch?: string }) => {
   const [draftIds, setDraftIds] = useState<string[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
@@ -90,6 +90,12 @@ export const DraftsView = () => {
 
       return { id, updatedAt };
     });
+
+  const searchQuery = projectSearch.trim().toLowerCase();
+  const filteredDraftCases = searchQuery
+    ? draftCases.filter((tc) => (tc.testProject || '').toLowerCase().includes(searchQuery))
+    : draftCases;
+  const filteredFallbackDrafts = searchQuery ? [] : fallbackDrafts;
 
   const handleOpenExecution = (testCase: TestCase) => {
     setSelectedTestCase(testCase);
@@ -167,9 +173,19 @@ export const DraftsView = () => {
             Tus ejecuciones de prueba se guardarán aquí automáticamente si no las completas.
           </Typography>
         </Paper>
+      ) : filteredDraftCases.length === 0 && filteredFallbackDrafts.length === 0 ? (
+        <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 2 }}>
+          <SaveIcon sx={{ fontSize: 48, color: 'divider', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No se encontraron proyectos
+          </Typography>
+          <Typography variant="body2" color="text.disabled">
+            Ningún borrador coincide con "{projectSearch}"
+          </Typography>
+        </Paper>
       ) : (
         <List sx={{ width: '100%', bgcolor: 'background.paper', borderRadius: 2 }}>
-          {draftCases.map((tc) => (
+          {filteredDraftCases.map((tc) => (
             <ListItem
               key={tc.id}
               secondaryAction={
@@ -242,7 +258,7 @@ export const DraftsView = () => {
               />
             </ListItem>
           ))}
-          {fallbackDrafts.map((draft) => (
+          {filteredFallbackDrafts.map((draft) => (
             <ListItem
               key={draft.id}
               secondaryAction={
