@@ -196,6 +196,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   // Estado del knowledge base
   const [kbReady, setKbReady] = useState(false);
   const [kbChunks, setKbChunks] = useState(0);
+  const [kbDocuments, setKbDocuments] = useState(0);
 
   // Inicializar el índice BM25 al abrir el modal
   useEffect(() => {
@@ -203,6 +204,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     knowledgeService.initialize().then(() => {
       setKbReady(knowledgeService.isReady);
       setKbChunks(knowledgeService.chunkCount);
+      setKbDocuments(knowledgeService.documentCount);
     });
   }, [open]);
 
@@ -211,7 +213,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
   const [businessRules, setBusinessRules] = useState('');
   const [historicalBugs, setHistoricalBugs] = useState('');
-  const [topK, setTopK] = useState(3);
+  const [topK, setTopK] = useState(6);
 
   // Estado de la generación
   const [loading, setLoading] = useState(false);
@@ -370,7 +372,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     setAcceptanceCriteria('');
     setBusinessRules('');
     setHistoricalBugs('');
-    setTopK(3);
+    setTopK(6);
     setSuggestion(null);
     setError(null);
     setEditableProject('QAScope');
@@ -415,7 +417,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
               }
               label={
                 kbReady
-                  ? `KB · ${kbChunks} chunks`
+                  ? `KB · ${kbDocuments} docs · ${kbChunks} chunks`
                   : 'Cargando KB...'
               }
               color={kbReady ? 'success' : 'default'}
@@ -482,7 +484,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
               disabled={loading}
               inputProps={{ min: 1, max: 20 }}
               sx={{ width: 140 }}
-              helperText="Documentos de contexto (1–20)"
+              helperText="Fragmentos de contexto (1–20)"
               size="small"
             />
           </Box>

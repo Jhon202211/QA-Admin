@@ -138,13 +138,23 @@ public/knowledge/
 ├── bugs_historicos.txt     ← 390+ bugs reales del sistema (63 KB)
 ├── reglas_negocio.txt      ← reglas del dominio de negocio
 ├── criterios_acceso.txt    ← criterios de acceso al sistema
-└── features_mejoras.txt    ← nuevas funcionalidades y mejoras (UX/Performance)
+├── features_mejoras.txt    ← nuevas funcionalidades y mejoras (UX/Performance)
+└── Laila/
+    ├── manifest.json       ← documentos funcionales adicionales
+    └── *.md                ← manuales, roles, errores y preguntas frecuentes
 ```
+
+El agente de casos de prueba combina automáticamente los documentos de
+`public/knowledge/manifest.json` y `public/knowledge/Laila/manifest.json` en un
+único índice. Conserva el prefijo `Laila/` en las fuentes para mantener la
+trazabilidad. `Laila/instructions.md` se excluye expresamente porque contiene
+la personalidad del chatbot, no conocimiento funcional.
 
 ### Agregar o actualizar conocimiento
 
-1. Agregar o editar archivos `.txt` en `public/knowledge/`
-2. Actualizar `public/knowledge/manifest.json` con el nombre del nuevo archivo
+1. Agregar o editar archivos `.md`, `.txt` o `.pdf` en `public/knowledge/` o
+   `public/knowledge/Laila/`
+2. Actualizar el `manifest.json` correspondiente con el nombre del nuevo archivo
 3. No requiere recompilación — los archivos se sirven como assets estáticos
 
 ```json
