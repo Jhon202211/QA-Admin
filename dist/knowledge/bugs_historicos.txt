@@ -5,8 +5,8 @@ Propósito: Contexto para agente IA de QA en generación de casos de prueba
            a partir de Historias de Usuario (HU)
 ================================================================================
 
-TOTAL DE BUGS REGISTRADOS: 403
-VERSIONES ANALIZADAS: desde v1.x hasta v29.0.7 (2021 - 2026)
+TOTAL DE BUGS REGISTRADOS: 409
+VERSIONES ANALIZADAS: desde v1.x hasta v29.11.2 (2021 - 2026)
 
 INSTRUCCIONES PARA EL AGENTE QA:
 --------------------------------------------------------------------------------
@@ -20,12 +20,12 @@ de ese módulo para:
 
 DISTRIBUCIÓN DE BUGS POR MÓDULO:
 --------------------------------------------------------------------------------
-  RESERVAS DE SALAS Y PUESTOS DE TRABAJO: 100 bugs
-  VISITANTES Y AUTORIZACIONES: 70 bugs
-  CONFIGURACIÓN, ROLES Y OTROS: 67 bugs
+  RESERVAS DE SALAS Y PUESTOS DE TRABAJO: 101 bugs
+  VISITANTES Y AUTORIZACIONES: 71 bugs
+  CONFIGURACIÓN, ROLES Y OTROS: 68 bugs
   USUARIOS E IMPORTACIÓN: 64 bugs
-  CONTROL DE ACCESO (RFID / QR / FACIAL / LPR): 33 bugs
-  SINCRONIZACIÓN (DA / FACIAL / MQTT): 18 bugs
+  CONTROL DE ACCESO (RFID / QR / FACIAL / LPR): 35 bugs
+  SINCRONIZACIÓN (DA / FACIAL / MQTT): 19 bugs
   EMPRESAS Y COPROPIEDADES: 18 bugs
   HISTORIAL DE ACCESOS: 12 bugs
   CAMPOS PERSONALIZADOS Y FORMULARIOS: 10 bugs
@@ -35,7 +35,7 @@ DISTRIBUCIÓN DE BUGS POR MÓDULO:
 
 ================================================================================
 MÓDULO: RESERVAS DE SALAS Y PUESTOS DE TRABAJO
-Total de bugs históricos: 100
+Total de bugs históricos: 101
 ================================================================================
 
 PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
@@ -51,6 +51,7 @@ PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
 
 BUGS REGISTRADOS (ticket | versión | descripción):
 ------------------------------------------------------------
+  [243] | 29.5.8] - (04/06/2026 | Se corrige error al editar una reserva de salas cuando seleccionaba una ya ocupada.
   [82] | 28.1.1] - (13/02/2026 | Se corrige error al crear una reserva desde la app móvil, cuando no coincide la zona horaria con la del servidor.
   [199] | 28.0.4] - (06/02/2026 | Se corrige el flujo de cancelación masiva de reservas para manejar correctamente el caso cuando uno o más usuarios asociados a las reservas han sido eliminados permanentemente.
   [RT-I664] | 26.24.7] - (13/08/2025 | Se corrige el fallo al momento de hacer pre-checkin en espacios de trabajo cuando posee formularios.
@@ -156,7 +157,7 @@ BUGS REGISTRADOS (ticket | versión | descripción):
 
 ================================================================================
 MÓDULO: VISITANTES Y AUTORIZACIONES
-Total de bugs históricos: 70
+Total de bugs históricos: 71
 ================================================================================
 
 PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
@@ -172,6 +173,7 @@ PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
 
 BUGS REGISTRADOS (ticket | versión | descripción):
 ------------------------------------------------------------
+  [393] | 29.10.1] - (01/07/2026 | Se corrige error en buscador de visitantes en lista al momento de hacer una lectura de cédulas con PDA.
   [9] | 29.0.3] - (26/03/2026 | Se añaden validaciones respectivas para validar la foto de los visitantes por tenant.
   [RT-I622] | 29.0.0] - (17/03/2026 | Se agrega setting que valida qué rol puede recibir el correo de autorización de visitantes, y se agregan ajustes relacionados con recepcionista virtual.
   [127] | 29.0.0] - (17/03/2026 | Se mejoran las notificaciones de autorización incluyendo información de la empresa y filtrando destinatarios por coordinadores de la misma empresa.
@@ -246,7 +248,7 @@ BUGS REGISTRADOS (ticket | versión | descripción):
 
 ================================================================================
 MÓDULO: CONFIGURACIÓN, ROLES Y OTROS
-Total de bugs históricos: 67
+Total de bugs históricos: 68
 ================================================================================
 
 PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
@@ -259,6 +261,7 @@ PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
 
 BUGS REGISTRADOS (ticket | versión | descripción):
 ------------------------------------------------------------
+  [364] | 29.11.2] - (07/07/2026 | Se corrige error 405 al actualizar perfil y contraseña mediante la implementación correcta de method spoofing en los formularios de React.
   [fix] | 29.0.5] - (27/03/2026 | Se remueven los logs del navigation service y se cambia el driver de logging de activities a daily.
   [277] | 29.0.2] - (26/03/2026 | Se quita el script de Google Analytics para dejar solo el script de Tag Manager y evitar conflictos de medición.
   [255] | 28.1.7] - (05/03/2026 | Se cambia el nombre del módulo de "Aforos" por "Parqueaderos". Se maneja el término de "Cupo" o "Cupos" en las configuraciones o visuales referentes a aforos.
@@ -414,7 +417,7 @@ BUGS REGISTRADOS (ticket | versión | descripción):
 
 ================================================================================
 MÓDULO: CONTROL DE ACCESO (RFID / QR / FACIAL / LPR)
-Total de bugs históricos: 33
+Total de bugs históricos: 35
 ================================================================================
 
 PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
@@ -429,6 +432,8 @@ PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
 
 BUGS REGISTRADOS (ticket | versión | descripción):
 ------------------------------------------------------------
+  [206] | 29.9.2] - (25/06/2026 | Se corrige el acceso manual para permitir salidas consecutivas en múltiples zonas y evitar que la segunda salida se interprete como entrada.
+  [306] | 29.9.0] - (24/06/2026 | Se corrige el envío de registros al monitor de acceso, que fallaba al procesarse en segundo plano.
   [145] | 29.0.4] - (27/03/2026 | Se corrige envío de eventos de eliminación facial cuando se desactiva o elimina un usuario independientemente del tipo de usuario o acción masiva (bulk).
   [89] | 28.1.2] - (17/02/2026 | Se elimina la condición que validaba la última puerta de llegada y salida para mostrar siempre las opciones de puertas, sin importar si la solicitud de acceso manual es de entrada o de salida; esto permite seleccionar siempre la puerta en la solicitud de acceso manual.
   [RT-I634] | 26.25.0] - (21/08/2025 | Se desactivan las tarjetas RFID al eliminar/desactivar usuarios.
@@ -466,7 +471,7 @@ BUGS REGISTRADOS (ticket | versión | descripción):
 
 ================================================================================
 MÓDULO: SINCRONIZACIÓN (DA / FACIAL / MQTT)
-Total de bugs históricos: 18
+Total de bugs históricos: 19
 ================================================================================
 
 PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
@@ -480,6 +485,7 @@ PATRONES DE FALLO RECURRENTES (usar para generar casos de prueba negativos):
 
 BUGS REGISTRADOS (ticket | versión | descripción):
 ------------------------------------------------------------
+  [363] | 29.11.1] - (06/07/2026 | Se corrige error en proceso de enrolamiento biométrico, para que se pueda completar el enrolamiento de forma autónoma mediante un enlace público.
   [181] | 27.9.3] - (22/01/2026 | Se ajusta flujo de sincronización facial con rfid, para que la sincronización se ejecute cuando cambie alguno de los 2 settings, y no solo cuando cambie el acceso facial.
   [RT-I1268] | 27.9.2] - (14/01/2026 | Se ajusta el nombre del archivo con resumen de importación de DA para evitar que se sobrescriba cuando otra importación finalice en el mismo instante.
   [RT-I1216] | 27.7.0] - (30/12-2025 | Se ajusta actualización de usuarios, para evitar que se envié duplicado el evento de sincronización y se envíe evento al eliminar puertas del usuario.

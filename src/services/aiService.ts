@@ -472,7 +472,7 @@ export const generateTestCasesFromUserStory = async (
   acceptanceCriteria?: string,
   businessRules?: string,
   historicalBugs?: string,
-  topK: number = 5,
+  topK: number = 6,
   apiKey?: string
 ): Promise<AITestCaseSuggestion> => {
   // Construir query enriquecida (igual que el backend TestcasesAgent)
