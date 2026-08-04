@@ -43,7 +43,6 @@ import {
   subscribeToLailaConversations,
   createLailaConversation,
   archiveLailaConversation,
-  updateLailaConversationTitle,
 } from '../../services/lailaConversationService';
 import type { LailaMessage, LailaConversation } from '../../types/openLaila';
 
