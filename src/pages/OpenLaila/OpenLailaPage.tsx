@@ -141,6 +141,9 @@ export const OpenLailaPage = () => {
   // Lógica para recuperar mensajes antiguos si no hay conversaciones nuevas
   useEffect(() => {
     if (!uid || conversations.length > 0 || archivedConversations.length > 0) return;
+    
+    // Si ya se marcó como archivado el legacy, no buscamos más
+    if (localStorage.getItem(`laila_legacy_archived_${uid}`) === 'true') return;
 
     // Suscribirse temporalmente a mensajes 'legacy' para ver si existen
     const unsubscribe = subscribeToLailaMessages(
@@ -148,14 +151,8 @@ export const OpenLailaPage = () => {
       'legacy',
       (msgs) => {
         if (msgs.length > 0 && !currentConversationId) {
-          // Si hay mensajes antiguos, crear una conversación para ellos
-          createLailaConversation(uid, 'Chat recuperado').then(() => {
-            // Podríamos intentar mover los mensajes aquí, pero por ahora 
-            // solo permitiremos verlos usando el ID 'legacy' virtualmente
-            // o simplemente dejamos que el usuario vea que hay algo.
-            // Para una solución rápida y segura, usaremos 'legacy' como ID actual.
-            setCurrentConversationId('legacy');
-          });
+          // Activamos el modo legacy virtualmente
+          setCurrentConversationId('legacy');
         }
       }
     );
@@ -172,38 +169,32 @@ export const OpenLailaPage = () => {
 
     let convId = currentConversationId;
     
-    // Si no hay conversación, crear una nueva
-    if (!convId) {
-      try {
-        convId = await createLailaConversation(uid, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
-        setCurrentConversationId(convId);
-      } catch (error) {
-        notify('Error al crear la conversación', { type: 'error' });
-        return;
-      }
-    } else {
-      // Si es el primer mensaje real, actualizar el título
-      const userMsgs = messages.filter(m => m.role === 'user');
-      if (userMsgs.length === 0) {
-        updateLailaConversationTitle(convId, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
-      }
-    }
-
+    // Si no hay conversación, la función addLailaMessage la creará
+    // Pero necesitamos saber el ID para las suscripciones siguientes
     setInput('');
     setSending(true);
 
     try {
-      await addLailaMessage(uid, convId, 'user', text);
+      const actualConvId = await addLailaMessage(uid, convId || '', 'user', text);
+      
+      // Si se creó una nueva conversación, actualizamos el estado
+      if (!convId || convId === 'legacy') {
+        setCurrentConversationId(actualConvId);
+        convId = actualConvId;
+      }
+
       const reply = await askLaila(text, messages, userRole);
       await addLailaMessage(uid, convId, 'assistant', reply.content, reply.sources);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error desconocido';
-      await addLailaMessage(
-        uid,
-        convId,
-        'assistant',
-        `Ocurrió un error al generar la respuesta: ${msg}`
-      ).catch(() => {});
+      if (convId && convId !== 'legacy') {
+        await addLailaMessage(
+          uid,
+          convId,
+          'assistant',
+          `Ocurrió un error al generar la respuesta: ${msg}`
+        ).catch(() => {});
+      }
       notify('Error al consultar a OpenLaila', { type: 'error' });
     } finally {
       setSending(false);

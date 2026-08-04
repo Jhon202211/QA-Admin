@@ -146,8 +146,8 @@ export const archiveLailaConversation = async (
       createdAt: serverTimestamp(),
       lastMessageAt: serverTimestamp(),
     });
-    // Nota: Los mensajes seguirán siendo accesibles vía 'userId' en modo legacy 
-    // pero ahora aparecerá en la lista de archivados.
+    // Marcamos en localStorage que este usuario ya archivó su legacy para no volver a detectarlo virtualmente
+    localStorage.setItem(`laila_legacy_archived_${userId}`, 'true');
     return;
   }
   await updateDoc(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
@@ -164,28 +164,31 @@ export const addLailaMessage = async (
   role: LailaMessageRole,
   content: string,
   sources?: string[]
-): Promise<void> => {
-  const batch = [
-    addDoc(collection(db, MESSAGES_COLLECTION), {
-      userId,
-      conversationId,
-      role,
-      content,
-      sources: sources ?? [],
-      createdAt: serverTimestamp(),
-    }),
-    updateDoc(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
-      lastMessageAt: serverTimestamp(),
-      // Si es el primer mensaje del usuario, podríamos actualizar el título aquí
-    }),
-  ];
+): Promise<string> => {
+  let actualConvId = conversationId;
 
-  if (role === 'user') {
-    // Intenta actualizar el título si es el primer mensaje
-    // Por simplicidad en este paso, no lo haremos, pero es una mejora posible
+  // Si es legacy o no hay ID, creamos una conversación real antes de guardar el mensaje
+  if (conversationId === 'legacy' || !conversationId) {
+    actualConvId = await createLailaConversation(userId, content.substring(0, 30) + (content.length > 30 ? '...' : ''));
+    if (conversationId === 'legacy') {
+      localStorage.setItem(`laila_legacy_archived_${userId}`, 'true');
+    }
   }
 
-  await Promise.all(batch);
+  await addDoc(collection(db, MESSAGES_COLLECTION), {
+    userId,
+    conversationId: actualConvId,
+    role,
+    content,
+    sources: sources ?? [],
+    createdAt: serverTimestamp(),
+  });
+
+  await updateDoc(doc(db, CONVERSATIONS_COLLECTION, actualConvId), {
+    lastMessageAt: serverTimestamp(),
+  });
+
+  return actualConvId;
 };
 
 /** 
