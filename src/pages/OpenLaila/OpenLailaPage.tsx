@@ -149,7 +149,7 @@ export const OpenLailaPage = () => {
       (msgs) => {
         if (msgs.length > 0 && !currentConversationId) {
           // Si hay mensajes antiguos, crear una conversación para ellos
-          createLailaConversation(uid, 'Chat recuperado').then(newId => {
+          createLailaConversation(uid, 'Chat recuperado').then(() => {
             // Podríamos intentar mover los mensajes aquí, pero por ahora 
             // solo permitiremos verlos usando el ID 'legacy' virtualmente
             // o simplemente dejamos que el usuario vea que hay algo.
@@ -242,8 +242,9 @@ export const OpenLailaPage = () => {
   };
 
   const handleUnarchive = async (id: string) => {
+    if (!uid) return;
     try {
-      await archiveLailaConversation(id, false);
+      await archiveLailaConversation(uid, id, false);
       setCurrentConversationId(id);
       setActiveTab(0);
       notify('Conversación restaurada', { type: 'info' });

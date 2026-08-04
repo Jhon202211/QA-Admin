@@ -8,8 +8,6 @@ import {
   Timestamp,
   updateDoc,
   where,
-  orderBy,
-  limit,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import type { LailaMessage, LailaMessageRole, LailaConversation } from '../types/openLaila';
@@ -206,7 +204,7 @@ export const updateLailaConversationTitle = async (
  * Elimina (o limpia) mensajes. Nota: En este nuevo modelo, 
  * preferimos archivar o crear nuevos chats. 
  */
-export const clearLailaConversation = async (messages: LailaMessage[]): Promise<void> => {
+export const clearLailaConversation = async (_messages: LailaMessage[]): Promise<void> => {
   // Mantengo la función por compatibilidad, pero su uso cambiará
   // ... implementar si es necesario borrar realmente ...
 };
