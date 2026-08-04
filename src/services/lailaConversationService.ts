@@ -2,12 +2,14 @@ import {
   addDoc,
   collection,
   doc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import type { LailaMessage, LailaMessageRole, LailaConversation } from '../types/openLaila';
@@ -25,16 +27,13 @@ export const subscribeToLailaConversations = (
   onError?: (error: unknown) => void
 ): (() => void) => {
   // Eliminamos orderBy para evitar la necesidad de índices compuestos
-  const q = query(
-    collection(db, CONVERSATIONS_COLLECTION),
-    where('userId', '==', userId),
-    where('archived', '==', archived)
-  );
+  const q = query(collection(db, CONVERSATIONS_COLLECTION), where('userId', '==', userId));
 
   return onSnapshot(
     q,
     (snapshot) => {
       const conversations = snapshot.docs
+        .filter((d) => Boolean(d.data().archived) === archived)
         .map((d) => {
           const data = d.data();
           return {
@@ -57,28 +56,18 @@ export const subscribeToLailaConversations = (
 };
 
 /**
- * Escucha los mensajes de una conversación específica.
- * Si conversationId es 'legacy', busca mensajes del usuario que NO tienen conversationId.
+ * Escucha los mensajes de una conversación real.
  */
 export const subscribeToLailaMessages = (
   userId: string,
-  conversationId: string | 'legacy',
+  conversationId: string,
   onChange: (messages: LailaMessage[]) => void,
   onError?: (error: unknown) => void
 ): (() => void) => {
-  let q;
-  if (conversationId === 'legacy') {
-    // Para mensajes antiguos sin conversationId
-    q = query(
-      collection(db, MESSAGES_COLLECTION),
-      where('userId', '==', userId)
-    );
-  } else {
-    q = query(
-      collection(db, MESSAGES_COLLECTION),
-      where('conversationId', '==', conversationId)
-    );
-  }
+  const q = query(
+    collection(db, MESSAGES_COLLECTION),
+    where('conversationId', '==', conversationId)
+  );
 
   return onSnapshot(
     q,
@@ -86,10 +75,7 @@ export const subscribeToLailaMessages = (
       const messages = snapshot.docs
         .map((d) => {
           const data = d.data();
-          // En modo legacy, permitimos mensajes sin conversationId O con el ID 'legacy'
-          if (conversationId === 'legacy' && data.conversationId && data.conversationId !== 'legacy') return null;
-          // En modo normal, el conversationId debe coincidir
-          if (conversationId !== 'legacy' && data.conversationId !== conversationId) return null;
+          if (data.userId !== userId) return null;
           
           return {
             id: d.id,
@@ -113,6 +99,60 @@ export const subscribeToLailaMessages = (
 };
 
 /**
+ * Asigna los mensajes del formato antiguo a una conversación real.
+ * Si el usuario ya archivó un "Chat recuperado", se reutiliza ese documento
+ * para que el historial no vuelva a aparecer como conversación activa.
+ */
+export const migrateLegacyLailaMessages = async (
+  userId: string
+): Promise<{ id: string; archived: boolean } | null> => {
+  const messagesSnapshot = await getDocs(
+    query(collection(db, MESSAGES_COLLECTION), where('userId', '==', userId))
+  );
+  const legacyMessages = messagesSnapshot.docs.filter((messageDoc) => {
+    const conversationId = messageDoc.data().conversationId;
+    return !conversationId || conversationId === 'legacy';
+  });
+
+  if (legacyMessages.length === 0) return null;
+
+  const conversationsSnapshot = await getDocs(
+    query(collection(db, CONVERSATIONS_COLLECTION), where('userId', '==', userId))
+  );
+  const recoveredConversation = conversationsSnapshot.docs.find((conversationDoc) => {
+    const data = conversationDoc.data();
+    return data.legacyMigrated === true || (data.title === 'Chat recuperado' && data.archived === true);
+  });
+
+  let conversationId: string;
+  let archived: boolean;
+
+  if (recoveredConversation) {
+    conversationId = recoveredConversation.id;
+    archived = Boolean(recoveredConversation.data().archived);
+  } else {
+    conversationId = await createLailaConversation(userId, 'Chat recuperado');
+    archived = false;
+  }
+
+  // Firestore admite como máximo 500 operaciones por lote.
+  for (let index = 0; index < legacyMessages.length; index += 450) {
+    const batch = writeBatch(db);
+    legacyMessages.slice(index, index + 450).forEach((messageDoc) => {
+      batch.update(messageDoc.ref, { conversationId });
+    });
+    await batch.commit();
+  }
+
+  await updateDoc(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
+    legacyMigrated: true,
+    lastMessageAt: serverTimestamp(),
+  });
+
+  return { id: conversationId, archived };
+};
+
+/**
  * Crea una nueva conversación para un usuario.
  */
 export const createLailaConversation = async (
@@ -133,25 +173,12 @@ export const createLailaConversation = async (
  * Archiva o desarchiva una conversación.
  */
 export const archiveLailaConversation = async (
-  userId: string,
   conversationId: string,
   archived: boolean = true
 ): Promise<void> => {
-  if (conversationId === 'legacy') {
-    // Si es el chat virtual 'legacy', creamos un documento real para poder archivarlo
-    await addDoc(collection(db, CONVERSATIONS_COLLECTION), {
-      userId,
-      title: 'Chat recuperado',
-      archived: true,
-      createdAt: serverTimestamp(),
-      lastMessageAt: serverTimestamp(),
-    });
-    // Nota: Los mensajes seguirán siendo accesibles vía 'userId' en modo legacy 
-    // pero ahora aparecerá en la lista de archivados.
-    return;
-  }
   await updateDoc(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
     archived,
+    lastMessageAt: serverTimestamp(),
   });
 };
 
@@ -165,27 +192,22 @@ export const addLailaMessage = async (
   content: string,
   sources?: string[]
 ): Promise<void> => {
-  const batch = [
-    addDoc(collection(db, MESSAGES_COLLECTION), {
-      userId,
-      conversationId,
-      role,
-      content,
-      sources: sources ?? [],
-      createdAt: serverTimestamp(),
-    }),
-    updateDoc(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
-      lastMessageAt: serverTimestamp(),
-      // Si es el primer mensaje del usuario, podríamos actualizar el título aquí
-    }),
-  ];
+  const batch = writeBatch(db);
+  const messageRef = doc(collection(db, MESSAGES_COLLECTION));
 
-  if (role === 'user') {
-    // Intenta actualizar el título si es el primer mensaje
-    // Por simplicidad en este paso, no lo haremos, pero es una mejora posible
-  }
+  batch.set(messageRef, {
+    userId,
+    conversationId,
+    role,
+    content,
+    sources: sources ?? [],
+    createdAt: serverTimestamp(),
+  });
+  batch.update(doc(db, CONVERSATIONS_COLLECTION, conversationId), {
+    lastMessageAt: serverTimestamp(),
+  });
 
-  await Promise.all(batch);
+  await batch.commit();
 };
 
 /** 

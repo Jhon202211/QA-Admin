@@ -43,10 +43,13 @@ import {
   subscribeToLailaConversations,
   createLailaConversation,
   archiveLailaConversation,
+  migrateLegacyLailaMessages,
+  updateLailaConversationTitle,
 } from '../../services/lailaConversationService';
 import type { LailaMessage, LailaConversation } from '../../types/openLaila';
 
 const ROLE_STORAGE_KEY = 'openlaila_user_role';
+const conversationStorageKey = (userId: string) => `openlaila_current_conversation_${userId}`;
 
 const WELCOME_MESSAGE =
   '¡Hola! Soy **OpenLaila**, tu asistente de soporte. Puedo responder preguntas basándome en la base de conocimiento de la plataforma. ¿En qué puedo ayudarte hoy?';
@@ -63,6 +66,8 @@ export const OpenLailaPage = () => {
   const [archivedConversations, setArchivedConversations] = useState<LailaConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<LailaMessage[]>([]);
+  const [archivedPreviewId, setArchivedPreviewId] = useState<string | null>(null);
+  const [archivedMessages, setArchivedMessages] = useState<LailaMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [kbStatus, setKbStatus] = useState<{ ready: boolean; docs: number; chunks: number }>({
@@ -81,6 +86,7 @@ export const OpenLailaPage = () => {
   };
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const migrationStartedRef = useRef(false);
 
   useEffect(() => {
     lailaKnowledgeService.initialize().then(() => {
@@ -100,15 +106,24 @@ export const OpenLailaPage = () => {
       false,
       (convs) => {
         setConversations(convs);
-        // Si no hay conversación seleccionada y hay disponibles, seleccionar la más reciente
-        if (!currentConversationId && convs.length > 0) {
-          setCurrentConversationId(convs[0].id);
-        }
+        setCurrentConversationId((selectedId) => {
+          if (selectedId && convs.some((conversation) => conversation.id === selectedId)) {
+            return selectedId;
+          }
+
+          const storedId = localStorage.getItem(conversationStorageKey(uid));
+          if (!selectedId && storedId && convs.some((conversation) => conversation.id === storedId)) {
+            return storedId;
+          }
+
+          localStorage.removeItem(conversationStorageKey(uid));
+          return null;
+        });
       },
       () => notify('Error al cargar conversaciones', { type: 'error' })
     );
     return unsubscribe;
-  }, [uid, currentConversationId, notify]);
+  }, [uid, notify]);
 
   // Suscribirse a conversaciones archivadas
   useEffect(() => {
@@ -116,7 +131,14 @@ export const OpenLailaPage = () => {
     const unsubscribe = subscribeToLailaConversations(
       uid,
       true,
-      (convs) => setArchivedConversations(convs),
+      (convs) => {
+        setArchivedConversations(convs);
+        setArchivedPreviewId((selectedId) =>
+          selectedId && convs.some((conversation) => conversation.id === selectedId)
+            ? selectedId
+            : null
+        );
+      },
       () => notify('Error al cargar archivados', { type: 'error' })
     );
     return unsubscribe;
@@ -130,36 +152,41 @@ export const OpenLailaPage = () => {
     }
     const unsubscribe = subscribeToLailaMessages(
       uid,
-      currentConversationId as string,
+      currentConversationId,
       (msgs) => setMessages(msgs),
       () => notify('No se pudo cargar el historial', { type: 'error' })
     );
     return unsubscribe;
   }, [uid, currentConversationId, notify]);
 
-  // Lógica para recuperar mensajes antiguos si no hay conversaciones nuevas
+  // Convierte una sola vez el historial anterior al modelo de conversaciones reales.
   useEffect(() => {
-    if (!uid || conversations.length > 0 || archivedConversations.length > 0) return;
+    if (!uid || migrationStartedRef.current) return;
+    migrationStartedRef.current = true;
 
-    // Suscribirse temporalmente a mensajes 'legacy' para ver si existen
-    const unsubscribe = subscribeToLailaMessages(
-      uid,
-      'legacy',
-      (msgs) => {
-        if (msgs.length > 0 && !currentConversationId) {
-          // Si hay mensajes antiguos, crear una conversación para ellos
-          createLailaConversation(uid, 'Chat recuperado').then(() => {
-            // Podríamos intentar mover los mensajes aquí, pero por ahora 
-            // solo permitiremos verlos usando el ID 'legacy' virtualmente
-            // o simplemente dejamos que el usuario vea que hay algo.
-            // Para una solución rápida y segura, usaremos 'legacy' como ID actual.
-            setCurrentConversationId('legacy');
-          });
+    migrateLegacyLailaMessages(uid)
+      .then((result) => {
+        if (result && !result.archived) {
+          localStorage.setItem(conversationStorageKey(uid), result.id);
+          setCurrentConversationId((selectedId) => selectedId ?? result.id);
         }
-      }
+      })
+      .catch(() => notify('No se pudo migrar el historial anterior', { type: 'warning' }));
+  }, [uid, notify]);
+
+  useEffect(() => {
+    if (!uid || !archivedPreviewId) {
+      setArchivedMessages([]);
+      return;
+    }
+
+    return subscribeToLailaMessages(
+      uid,
+      archivedPreviewId,
+      setArchivedMessages,
+      () => notify('No se pudo cargar la conversación archivada', { type: 'error' })
     );
-    return () => unsubscribe();
-  }, [uid, conversations.length, archivedConversations.length, currentConversationId]);
+  }, [uid, archivedPreviewId, notify]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -176,6 +203,7 @@ export const OpenLailaPage = () => {
       try {
         convId = await createLailaConversation(uid, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
         setCurrentConversationId(convId);
+        localStorage.setItem(conversationStorageKey(uid), convId);
       } catch (error) {
         notify('Error al crear la conversación', { type: 'error' });
         return;
@@ -184,7 +212,7 @@ export const OpenLailaPage = () => {
       // Si es el primer mensaje real, actualizar el título
       const userMsgs = messages.filter(m => m.role === 'user');
       if (userMsgs.length === 0) {
-        updateLailaConversationTitle(convId, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
+        await updateLailaConversationTitle(convId, text.substring(0, 30) + (text.length > 30 ? '...' : ''));
       }
     }
 
@@ -221,6 +249,7 @@ export const OpenLailaPage = () => {
     try {
       const newId = await createLailaConversation(uid);
       setCurrentConversationId(newId);
+      localStorage.setItem(conversationStorageKey(uid), newId);
       setActiveTab(0);
       notify('Nueva conversación iniciada', { type: 'info' });
     } catch {
@@ -231,8 +260,10 @@ export const OpenLailaPage = () => {
   const handleArchive = async () => {
     if (!currentConversationId || !uid) return;
     try {
-      await archiveLailaConversation(uid, currentConversationId, true);
+      await archiveLailaConversation(currentConversationId, true);
       setCurrentConversationId(null);
+      setMessages([]);
+      localStorage.removeItem(conversationStorageKey(uid));
       notify('Conversación archivada', { type: 'info' });
     } catch (error) {
       console.error('Error al archivar:', error);
@@ -243,8 +274,10 @@ export const OpenLailaPage = () => {
   const handleUnarchive = async (id: string) => {
     if (!uid) return;
     try {
-      await archiveLailaConversation(uid, id, false);
+      await archiveLailaConversation(id, false);
       setCurrentConversationId(id);
+      localStorage.setItem(conversationStorageKey(uid), id);
+      setArchivedPreviewId(null);
       setActiveTab(0);
       notify('Conversación restaurada', { type: 'info' });
     } catch {
@@ -299,7 +332,12 @@ export const OpenLailaPage = () => {
 
           {currentConversationId && (
             <Tooltip title="Archivar chat actual">
-              <IconButton onClick={handleArchive} color="warning" sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}>
+              <IconButton
+                onClick={handleArchive}
+                color="warning"
+                disabled={sending}
+                sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}
+              >
                 <ArchiveIcon />
               </IconButton>
             </Tooltip>
@@ -313,6 +351,28 @@ export const OpenLailaPage = () => {
           <Tab icon={<HistoryIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label={`Archivados (${archivedConversations.length})`} />
         </Tabs>
       </Box>
+
+      {activeTab === 0 && conversations.length > 0 && (
+        <FormControl size="small" sx={{ mb: 2, minWidth: 280 }}>
+          <InputLabel id="openlaila-conversation-label">Conversación activa</InputLabel>
+          <Select
+            labelId="openlaila-conversation-label"
+            label="Conversación activa"
+            value={currentConversationId ?? ''}
+            onChange={(event) => {
+              const conversationId = event.target.value;
+              setCurrentConversationId(conversationId);
+              if (uid) localStorage.setItem(conversationStorageKey(uid), conversationId);
+            }}
+          >
+            {conversations.map((conversation) => (
+              <MenuItem key={conversation.id} value={conversation.id}>
+                {conversation.title}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
 
       <Paper
         elevation={0}
@@ -388,38 +448,64 @@ export const OpenLailaPage = () => {
             </Box>
           </>
         ) : (
-          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
             {archivedConversations.length === 0 ? (
-              <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Box sx={{ p: 4, width: '100%', textAlign: 'center' }}>
                 <Typography color="text.secondary">No tienes chats archivados.</Typography>
               </Box>
             ) : (
-              <List>
-                {archivedConversations.map((conv) => (
-                  <ListItem
-                    key={conv.id}
-                    disablePadding
-                    divider
-                    secondaryAction={
-                      <Tooltip title="Restaurar chat">
-                        <IconButton edge="end" onClick={() => handleUnarchive(conv.id)}>
-                          <UnarchiveIcon />
-                        </IconButton>
-                      </Tooltip>
-                    }
-                  >
-                    <ListItemButton onClick={() => {
-                      setCurrentConversationId(conv.id);
-                      setActiveTab(0);
-                    }}>
-                      <ListItemText
-                        primary={conv.title}
-                        secondary={conv.lastMessageAt.toLocaleString()}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
-              </List>
+              <>
+                <List sx={{ width: { xs: '45%', md: '32%' }, overflowY: 'auto', borderRight: 1, borderColor: 'divider' }}>
+                  {archivedConversations.map((conv) => (
+                    <ListItem
+                      key={conv.id}
+                      disablePadding
+                      divider
+                      secondaryAction={
+                        <Tooltip title="Restaurar chat">
+                          <IconButton edge="end" onClick={() => handleUnarchive(conv.id)}>
+                            <UnarchiveIcon />
+                          </IconButton>
+                        </Tooltip>
+                      }
+                    >
+                      <ListItemButton
+                        selected={archivedPreviewId === conv.id}
+                        onClick={() => setArchivedPreviewId(conv.id)}
+                      >
+                        <ListItemText
+                          primary={conv.title}
+                          secondary={conv.lastMessageAt.toLocaleString()}
+                          sx={{ pr: 4 }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+                <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+                  {archivedPreviewId ? (
+                    <Stack spacing={2}>
+                      {archivedMessages.length > 0 ? (
+                        archivedMessages.map((message) => (
+                          <MessageBubble
+                            key={message.id}
+                            role={message.role}
+                            content={message.content}
+                            sources={message.sources}
+                            isDark={isDark}
+                          />
+                        ))
+                      ) : (
+                        <Typography color="text.secondary">Esta conversación no contiene mensajes.</Typography>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Typography color="text.secondary">
+                      Selecciona una conversación para visualizarla.
+                    </Typography>
+                  )}
+                </Box>
+              </>
             )}
           </Box>
         )}
