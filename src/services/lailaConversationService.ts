@@ -222,6 +222,26 @@ export const updateLailaConversationTitle = async (
   });
 };
 
+/**
+ * Elimina una conversación y todos sus mensajes asociados.
+ */
+export const deleteLailaConversation = async (conversationId: string): Promise<void> => {
+  const batch = writeBatch(db);
+
+  // 1. Buscar y eliminar todos los mensajes de la conversación
+  const messagesSnapshot = await getDocs(
+    query(collection(db, MESSAGES_COLLECTION), where('conversationId', '==', conversationId))
+  );
+  messagesSnapshot.docs.forEach((messageDoc) => {
+    batch.delete(messageDoc.ref);
+  });
+
+  // 2. Eliminar el documento de la conversación
+  batch.delete(doc(db, CONVERSATIONS_COLLECTION, conversationId));
+
+  await batch.commit();
+};
+
 /** 
  * Elimina (o limpia) mensajes. Nota: En este nuevo modelo, 
  * preferimos archivar o crear nuevos chats. 

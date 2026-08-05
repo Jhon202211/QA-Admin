@@ -21,6 +21,11 @@ import {
   ListItem,
   ListItemText,
   ListItemButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
@@ -32,6 +37,8 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import HistoryIcon from '@mui/icons-material/History';
 import ChatIcon from '@mui/icons-material/Chat';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useNotify } from 'react-admin';
 import { auth } from '../../firebase/config';
 import { askLaila, LAILA_USER_ROLE_LABELS } from '../../services/lailaChatService';
@@ -45,6 +52,7 @@ import {
   archiveLailaConversation,
   migrateLegacyLailaMessages,
   updateLailaConversationTitle,
+  deleteLailaConversation,
 } from '../../services/lailaConversationService';
 import type { LailaMessage, LailaConversation } from '../../types/openLaila';
 
@@ -78,6 +86,13 @@ export const OpenLailaPage = () => {
   const [userRole, setUserRole] = useState<LailaUserRole>(
     () => (localStorage.getItem(ROLE_STORAGE_KEY) as LailaUserRole) || 'empleado'
   );
+
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
 
   const handleRoleChange = (e: SelectChangeEvent) => {
     const role = e.target.value as LailaUserRole;
@@ -285,6 +300,44 @@ export const OpenLailaPage = () => {
     }
   };
 
+  const handleOpenRename = (id: string, currentTitle: string) => {
+    setEditingConversationId(id);
+    setRenameValue(currentTitle);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRename = async () => {
+    if (!editingConversationId || !renameValue.trim()) return;
+    try {
+      await updateLailaConversationTitle(editingConversationId, renameValue.trim());
+      setRenameDialogOpen(false);
+      setEditingConversationId(null);
+      notify('Nombre actualizado', { type: 'info' });
+    } catch {
+      notify('Error al actualizar el nombre', { type: 'error' });
+    }
+  };
+
+  const handleOpenDelete = (id: string) => {
+    setDeletingConversationId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingConversationId) return;
+    try {
+      await deleteLailaConversation(deletingConversationId);
+      setDeleteDialogOpen(false);
+      setDeletingConversationId(null);
+      if (archivedPreviewId === deletingConversationId) {
+        setArchivedPreviewId(null);
+      }
+      notify('Conversación eliminada', { type: 'info' });
+    } catch {
+      notify('Error al eliminar la conversación', { type: 'error' });
+    }
+  };
+
   return (
     <Box sx={{ pt: { xs: 1.5, sm: 3 }, pr: { xs: 1.5, sm: 3 }, pb: { xs: 1.5, sm: 3 }, pl: 0 }}>
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
@@ -353,25 +406,40 @@ export const OpenLailaPage = () => {
       </Box>
 
       {activeTab === 0 && conversations.length > 0 && (
-        <FormControl size="small" sx={{ mb: 2, minWidth: 280 }}>
-          <InputLabel id="openlaila-conversation-label">Conversación activa</InputLabel>
-          <Select
-            labelId="openlaila-conversation-label"
-            label="Conversación activa"
-            value={currentConversationId ?? ''}
-            onChange={(event) => {
-              const conversationId = event.target.value;
-              setCurrentConversationId(conversationId);
-              if (uid) localStorage.setItem(conversationStorageKey(uid), conversationId);
-            }}
-          >
-            {conversations.map((conversation) => (
-              <MenuItem key={conversation.id} value={conversation.id}>
-                {conversation.title}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+          <FormControl size="small" sx={{ minWidth: 280 }}>
+            <InputLabel id="openlaila-conversation-label">Conversación activa</InputLabel>
+            <Select
+              labelId="openlaila-conversation-label"
+              label="Conversación activa"
+              value={currentConversationId ?? ''}
+              onChange={(event) => {
+                const conversationId = event.target.value;
+                setCurrentConversationId(conversationId);
+                if (uid) localStorage.setItem(conversationStorageKey(uid), conversationId);
+              }}
+            >
+              {conversations.map((conversation) => (
+                <MenuItem key={conversation.id} value={conversation.id}>
+                  {conversation.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {currentConversationId && (
+            <Tooltip title="Editar nombre del chat">
+              <IconButton 
+                size="small" 
+                onClick={() => {
+                  const current = conversations.find(c => c.id === currentConversationId);
+                  if (current) handleOpenRename(current.id, current.title);
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
       )}
 
       <Paper
@@ -462,11 +530,23 @@ export const OpenLailaPage = () => {
                       disablePadding
                       divider
                       secondaryAction={
-                        <Tooltip title="Restaurar chat">
-                          <IconButton edge="end" onClick={() => handleUnarchive(conv.id)}>
-                            <UnarchiveIcon />
-                          </IconButton>
-                        </Tooltip>
+                        <Stack direction="row" spacing={0.5}>
+                          <Tooltip title="Editar nombre">
+                            <IconButton edge="end" onClick={() => handleOpenRename(conv.id, conv.title)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Restaurar chat">
+                            <IconButton edge="end" onClick={() => handleUnarchive(conv.id)}>
+                              <UnarchiveIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Eliminar permanentemente">
+                            <IconButton edge="end" color="error" onClick={() => handleOpenDelete(conv.id)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
                       }
                     >
                       <ListItemButton
@@ -510,6 +590,48 @@ export const OpenLailaPage = () => {
           </Box>
         )}
       </Paper>
+
+      {/* Diálogo para renombrar */}
+      <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Renombrar conversación</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Nuevo nombre"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRename();
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRenameDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleRename} color="primary" variant="contained">
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para eliminar */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>¿Eliminar conversación?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Esta acción no se puede deshacer. Se eliminarán permanentemente todos los mensajes de este chat.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleDelete} color="error" variant="contained">
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
