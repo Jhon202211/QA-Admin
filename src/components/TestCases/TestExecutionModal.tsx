@@ -9,6 +9,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Alert,
   Box,
   Button,
   Card,
@@ -34,6 +35,7 @@ import {
   Typography,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
@@ -67,6 +69,8 @@ interface TestExecutionModalProps {
   testCase: TestCase | null;
   onClose: () => void;
   onExecuted?: () => void;
+  /** Muestra el detalle de ejecución sin permitir editarlo ni guardar cambios (ej: casos archivados). */
+  readOnly?: boolean;
 }
 
 interface TimestampLike {
@@ -99,6 +103,7 @@ export const TestExecutionModal = ({
   testCase,
   onClose,
   onExecuted,
+  readOnly = false,
 }: TestExecutionModalProps) => {
   const notify = useNotify();
   const [update, { isPending }] = useUpdate();
@@ -254,6 +259,14 @@ export const TestExecutionModal = ({
       isDraftSyncReadyRef.current = true;
     };
 
+    if (readOnly) {
+      hydrate(persistedDraftData, false);
+      return () => {
+        cancelled = true;
+        isDraftSyncReadyRef.current = false;
+      };
+    }
+
     const loadDraft = async () => {
       let draftData: ExecutionDraftData = persistedDraftData;
       let hasDraft = false;
@@ -299,11 +312,11 @@ export const TestExecutionModal = ({
       cancelled = true;
       isDraftSyncReadyRef.current = false;
     };
-  }, [open, testCase, draftKey]);
+  }, [open, testCase, draftKey, readOnly]);
 
   // Guardar draft automáticamente cuando cambian los datos
   useEffect(() => {
-    if (!open || !draftKey || !testCase || !isDraftSyncReadyRef.current) return;
+    if (readOnly || !open || !draftKey || !testCase || !isDraftSyncReadyRef.current) return;
 
     const draftData = buildCurrentDraftData();
     const currentSnapshot = JSON.stringify(draftData);
@@ -343,7 +356,7 @@ export const TestExecutionModal = ({
         user.getIdToken(false).catch(() => {});
       }
     });
-  }, [buildCurrentDraftData, open, draftKey, testCase]);
+  }, [buildCurrentDraftData, open, draftKey, testCase, readOnly]);
 
   const hasSteps = steps.length > 0;
   const activeStep = steps[activeStepIndex];
@@ -416,7 +429,7 @@ export const TestExecutionModal = ({
   ]);
 
   useEffect(() => {
-    if (!open || !testCase || !isDraftSyncReadyRef.current) return;
+    if (readOnly || !open || !testCase || !isDraftSyncReadyRef.current) return;
 
     const draftData = buildCurrentDraftData();
     const currentSnapshot = JSON.stringify(draftData);
@@ -456,7 +469,7 @@ export const TestExecutionModal = ({
         window.clearTimeout(testCaseAutosaveTimeoutRef.current);
       }
     };
-  }, [buildCurrentDraftData, buildExecutionRecordData, open, testCase]);
+  }, [buildCurrentDraftData, buildExecutionRecordData, open, testCase, readOnly]);
 
   const aiArtifacts = testCase?.aiArtifacts;
   const techniqueTags = testCase?.tags ?? [];
@@ -467,7 +480,7 @@ export const TestExecutionModal = ({
   });
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || readOnly) return;
     const onPaste = (e: ClipboardEvent) => {
       const ref = uploadHandlerRef.current;
       if (!ref || ref.isUploading) return;
@@ -489,7 +502,7 @@ export const TestExecutionModal = ({
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [open]);
+  }, [open, readOnly]);
 
   useEffect(() => () => {
     if (remoteDraftSaveTimeoutRef.current) {
@@ -697,11 +710,15 @@ export const TestExecutionModal = ({
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <PlayArrowIcon sx={{ color: '#FF6B35' }} />
-          Ejecutar caso de prueba
+          {readOnly ? (
+            <VisibilityIcon sx={{ color: '#1E88E5' }} />
+          ) : (
+            <PlayArrowIcon sx={{ color: '#FF6B35' }} />
+          )}
+          {readOnly ? 'Detalle de ejecución' : 'Ejecutar caso de prueba'}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {autosaveStatus !== 'idle' && (
+          {!readOnly && autosaveStatus !== 'idle' && (
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mr: 1 }}>
               {autosaveStatus === 'saving' ? (
                 <CloudUploadIcon sx={{ fontSize: 16, color: 'text.secondary', animation: 'pulse 1.5s infinite' }} />
@@ -737,6 +754,11 @@ export const TestExecutionModal = ({
           `}
         </style>
       </DialogTitle>
+      {readOnly && (
+        <Alert severity="info" sx={{ borderRadius: 0 }}>
+          Modo de solo lectura — este caso pertenece a un proyecto archivado.
+        </Alert>
+      )}
       <DialogContent dividers sx={{ p: 0 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '320px 1fr' }, minHeight: 540 }}>
           {/* Panel izquierdo: lista de pasos */}
@@ -967,6 +989,7 @@ export const TestExecutionModal = ({
                         size="small"
                         value={noStepsStatus || 'not_executed'}
                         onChange={(e) => setNoStepsStatus(e.target.value as TestStep['status'])}
+                        disabled={readOnly}
                         sx={{ bgcolor: 'background.paper' }}
                       >
                         {STEP_STATUSES.map((status) => (
@@ -988,6 +1011,7 @@ export const TestExecutionModal = ({
                       placeholder="Describe el resultado obtenido, hallazgos o bugs encontrados..."
                       value={noStepsActualResult}
                       onChange={(e) => setNoStepsActualResult(e.target.value)}
+                      slotProps={{ input: { readOnly } }}
                       sx={{ bgcolor: 'background.paper' }}
                     />
                   </Stack>
@@ -1003,6 +1027,7 @@ export const TestExecutionModal = ({
                   onDraggingChange={setIsNoStepsDragging}
                   onUpload={processFileForNoSteps}
                   onDeleteEvidence={handleNoStepsDeleteEvidence}
+                  readOnly={readOnly}
                 />
 
                 <Divider />
@@ -1015,6 +1040,7 @@ export const TestExecutionModal = ({
                   placeholder="Notas generales, observaciones o bloqueos encontrados..."
                   value={executionNotes}
                   onChange={(e) => setExecutionNotes(e.target.value)}
+                  slotProps={{ input: { readOnly } }}
                 />
               </Stack>
             ) : activeStep ? (
@@ -1060,6 +1086,7 @@ export const TestExecutionModal = ({
                         size="small"
                         value={activeStep.status || 'not_executed'}
                         onChange={(e) => setStepValue('status', e.target.value)}
+                        disabled={readOnly}
                         sx={{ bgcolor: 'background.paper' }}
                       >
                         {STEP_STATUSES.map((status) => (
@@ -1081,6 +1108,7 @@ export const TestExecutionModal = ({
                       placeholder="Describe lo que ocurrió al ejecutar este paso..."
                       value={activeStep.actualResult || ''}
                       onChange={(e) => setStepValue('actualResult', e.target.value)}
+                      slotProps={{ input: { readOnly } }}
                       sx={{ bgcolor: 'background.paper' }}
                     />
                   </Stack>
@@ -1096,6 +1124,7 @@ export const TestExecutionModal = ({
                   onDraggingChange={setIsDragging}
                   onUpload={processFileForActiveStep}
                   onDeleteEvidence={handleDeleteEvidence}
+                  readOnly={readOnly}
                 />
 
                 <Divider />
@@ -1108,6 +1137,7 @@ export const TestExecutionModal = ({
                   placeholder="Notas generales, observaciones o bloqueos encontrados..."
                   value={executionNotes}
                   onChange={(e) => setExecutionNotes(e.target.value)}
+                  slotProps={{ input: { readOnly } }}
                 />
               </Stack>
             ) : (
@@ -1137,21 +1167,23 @@ export const TestExecutionModal = ({
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={onClose} disabled={isPending}>
-            Cancelar
+            {readOnly ? 'Cerrar' : 'Cancelar'}
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveExecution}
-            disabled={isPending || uploadProgress !== null}
-            sx={{
-              backgroundColor: '#3CCF91',
-              textTransform: 'none',
-              fontWeight: 700,
-              '&:hover': { backgroundColor: '#2eb37a' },
-            }}
-          >
-            Finalizar ejecución
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="contained"
+              onClick={handleSaveExecution}
+              disabled={isPending || uploadProgress !== null}
+              sx={{
+                backgroundColor: '#3CCF91',
+                textTransform: 'none',
+                fontWeight: 700,
+                '&:hover': { backgroundColor: '#2eb37a' },
+              }}
+            >
+              Finalizar ejecución
+            </Button>
+          )}
         </Box>
       </DialogActions>
     </Dialog>

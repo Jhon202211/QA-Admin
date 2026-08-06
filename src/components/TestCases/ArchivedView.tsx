@@ -20,10 +20,12 @@ import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
 import EditIcon from '@mui/icons-material/Edit';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useNavigate } from 'react-router-dom';
 import { useGetList, useRefresh, useUpdateMany, useNotify } from 'react-admin';
 import { useState } from 'react';
 import { getExecutionColor, getExecutionLabel, getPriorityColor, getPriorityLabel } from './testCaseUi';
+import { TestExecutionModal } from './TestExecutionModal';
 import type { TestCase, TestCaseCategory } from '../../types/testCase';
 
 export const ArchivedView = ({ projectSearch = '' }: { projectSearch?: string }) => {
@@ -39,6 +41,7 @@ export const ArchivedView = ({ projectSearch = '' }: { projectSearch?: string })
     project: '',
     count: 0,
   });
+  const [executionCase, setExecutionCase] = useState<TestCase | null>(null);
 
   const { data: testCases = [], isLoading } = useGetList('test_cases', {
     pagination: { page: 1, perPage: 1000 },
@@ -266,7 +269,7 @@ export const ArchivedView = ({ projectSearch = '' }: { projectSearch?: string })
                                 cursor: 'pointer',
                               },
                             }}
-                            onClick={() => navigate(`/test_cases/${testCase.id}`)}
+                            onClick={() => setExecutionCase(testCase)}
                           >
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }}>
@@ -290,16 +293,30 @@ export const ArchivedView = ({ projectSearch = '' }: { projectSearch?: string })
                               size="small"
                               sx={{ backgroundColor: getExecutionColor(testCase.executionResult), color: '#fff', fontWeight: 600 }}
                             />
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/test_cases/${testCase.id}/edit`);
-                              }}
-                              sx={{ color: '#FF6B35' }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
+                            <Tooltip title="Ver detalle de ejecución">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExecutionCase(testCase);
+                                }}
+                                sx={{ color: '#1E88E5' }}
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Editar caso de prueba">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/test_cases/${testCase.id}/edit`);
+                                }}
+                                sx={{ color: '#FF6B35' }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           </Box>
                         ))}
                       </Box>
@@ -311,6 +328,13 @@ export const ArchivedView = ({ projectSearch = '' }: { projectSearch?: string })
           </Accordion>
         ))
       )}
+
+      <TestExecutionModal
+        open={Boolean(executionCase)}
+        testCase={executionCase}
+        onClose={() => setExecutionCase(null)}
+        readOnly
+      />
 
       {/* Diálogo para desarchivar proyecto */}
       <Dialog open={unarchiveDialog.open} onClose={() => setUnarchiveDialog({ open: false, project: '', count: 0 })}>

@@ -40,6 +40,8 @@ interface EvidenceManagerProps {
   onDraggingChange: (value: boolean) => void;
   onUpload: (file: File, groupId: string) => Promise<void>;
   onDeleteEvidence: (evidence: EvidenceFile) => Promise<void>;
+  /** Oculta acciones de edición (cargar, mover, renombrar, eliminar) y deja solo la visualización. */
+  readOnly?: boolean;
 }
 
 const DEFAULT_GROUP_ID = 'default';
@@ -64,6 +66,7 @@ export const EvidenceManager = ({
   onDraggingChange,
   onUpload,
   onDeleteEvidence,
+  readOnly = false,
 }: EvidenceManagerProps) => {
   const orderedGroups = normalizeEvidenceGroups(groups);
   const totalEvidences = flattenEvidenceGroups(orderedGroups).length;
@@ -150,7 +153,7 @@ export const EvidenceManager = ({
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     onDraggingChange(false);
-    if (uploadProgress !== null) return;
+    if (readOnly || uploadProgress !== null) return;
     const file = event.dataTransfer.files[0];
     if (file) void onUpload(file, activeGroupId);
   };
@@ -158,10 +161,12 @@ export const EvidenceManager = ({
   return (
     <Box
       onDragOver={(event) => {
+        if (readOnly) return;
         event.preventDefault();
         if (!isDragging) onDraggingChange(true);
       }}
       onDragLeave={(event) => {
+        if (readOnly) return;
         if (!event.currentTarget.contains(event.relatedTarget as Node)) onDraggingChange(false);
       }}
       onDrop={handleDrop}
@@ -182,19 +187,23 @@ export const EvidenceManager = ({
             </Typography>
           )}
         </Typography>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-          <Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => handleCreateGroup('folder')} sx={{ textTransform: 'none' }}>
-            Carpeta
-          </Button>
-          <Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => handleCreateGroup('cycle')} sx={{ textTransform: 'none' }}>
-            Ciclo
-          </Button>
-        </Stack>
+        {!readOnly && (
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+            <Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => handleCreateGroup('folder')} sx={{ textTransform: 'none' }}>
+              Carpeta
+            </Button>
+            <Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => handleCreateGroup('cycle')} sx={{ textTransform: 'none' }}>
+              Ciclo
+            </Button>
+          </Stack>
+        )}
       </Stack>
 
-      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-        Formatos: JPG, JPEG, PNG, MP4 · Máximo 200 MB
-      </Typography>
+      {!readOnly && (
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+          Formatos: JPG, JPEG, PNG, MP4 · Máximo 200 MB
+        </Typography>
+      )}
 
       {uploadProgress !== null && (
         <Box sx={{ mb: 2 }}>
@@ -229,55 +238,57 @@ export const EvidenceManager = ({
                     {(group.evidences || []).length}
                   </Typography>
                 </Stack>
-                <Stack direction="row" spacing={0.25}>
-                  <Tooltip title="Subir posición">
-                    <span>
-                      <IconButton size="small" disabled={groupIndex === 0} onClick={() => handleMoveGroup(groupIndex, -1)}>
-                        <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+                {!readOnly && (
+                  <Stack direction="row" spacing={0.25}>
+                    <Tooltip title="Subir posición">
+                      <span>
+                        <IconButton size="small" disabled={groupIndex === 0} onClick={() => handleMoveGroup(groupIndex, -1)}>
+                          <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Bajar posición">
+                      <span>
+                        <IconButton size="small" disabled={groupIndex === orderedGroups.length - 1} onClick={() => handleMoveGroup(groupIndex, 1)}>
+                          <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Editar nombre">
+                      <IconButton size="small" onClick={() => handleRenameGroup(group)}>
+                        <EditIcon sx={{ fontSize: 16 }} />
                       </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title="Bajar posición">
-                    <span>
-                      <IconButton size="small" disabled={groupIndex === orderedGroups.length - 1} onClick={() => handleMoveGroup(groupIndex, 1)}>
-                        <ArrowDownwardIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title="Editar nombre">
-                    <IconButton size="small" onClick={() => handleRenameGroup(group)}>
-                      <EditIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Eliminar grupo">
-                    <span>
-                      <IconButton size="small" disabled={orderedGroups.length === 1} onClick={() => handleDeleteGroup(group)}>
-                        <DeleteOutlineIcon sx={{ fontSize: 16, color: orderedGroups.length === 1 ? 'inherit' : '#f44336' }} />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={uploadProgress !== null ? <CircularProgress size={14} /> : <AttachFileIcon />}
-                    onClick={() => document.getElementById(`evidence-input-${group.id}`)?.click()}
-                    disabled={uploadProgress !== null}
-                    sx={{ textTransform: 'none', borderColor: '#FF6B35', color: '#FF6B35', ml: 0.5 }}
-                  >
-                    Cargar
-                  </Button>
-                  <input
-                    id={`evidence-input-${group.id}`}
-                    type="file"
-                    accept={ALLOWED_EVIDENCE_EXTENSIONS}
-                    style={{ display: 'none' }}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) void onUpload(file, group.id);
-                      event.target.value = '';
-                    }}
-                  />
-                </Stack>
+                    </Tooltip>
+                    <Tooltip title="Eliminar grupo">
+                      <span>
+                        <IconButton size="small" disabled={orderedGroups.length === 1} onClick={() => handleDeleteGroup(group)}>
+                          <DeleteOutlineIcon sx={{ fontSize: 16, color: orderedGroups.length === 1 ? 'inherit' : '#f44336' }} />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={uploadProgress !== null ? <CircularProgress size={14} /> : <AttachFileIcon />}
+                      onClick={() => document.getElementById(`evidence-input-${group.id}`)?.click()}
+                      disabled={uploadProgress !== null}
+                      sx={{ textTransform: 'none', borderColor: '#FF6B35', color: '#FF6B35', ml: 0.5 }}
+                    >
+                      Cargar
+                    </Button>
+                    <input
+                      id={`evidence-input-${group.id}`}
+                      type="file"
+                      accept={ALLOWED_EVIDENCE_EXTENSIONS}
+                      style={{ display: 'none' }}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void onUpload(file, group.id);
+                        event.target.value = '';
+                      }}
+                    />
+                  </Stack>
+                )}
               </Stack>
 
               {(group.evidences || []).length > 0 ? (
@@ -318,39 +329,52 @@ export const EvidenceManager = ({
                             <OpenInNewIcon sx={{ fontSize: 16 }} />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Subir evidencia">
-                          <span>
-                            <IconButton size="small" disabled={evidenceIndex === 0} onClick={() => handleMoveEvidenceOrder(group, evidenceIndex, -1)} sx={{ color: '#fff', p: 0.4 }}>
-                              <ArrowUpwardIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title="Bajar evidencia">
-                          <span>
-                            <IconButton size="small" disabled={evidenceIndex === group.evidences.length - 1} onClick={() => handleMoveEvidenceOrder(group, evidenceIndex, 1)} sx={{ color: '#fff', p: 0.4 }}>
-                              <ArrowDownwardIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title="Eliminar evidencia">
-                          <IconButton size="small" onClick={() => onDeleteEvidence(ev)} disabled={deletingPath === ev.path} sx={{ color: '#f44336', p: 0.4 }}>
-                            {deletingPath === ev.path ? <CircularProgress size={14} sx={{ color: '#f44336' }} /> : <DeleteOutlineIcon sx={{ fontSize: 16 }} />}
-                          </IconButton>
-                        </Tooltip>
+                        {!readOnly && (
+                          <>
+                            <Tooltip title="Subir evidencia">
+                              <span>
+                                <IconButton size="small" disabled={evidenceIndex === 0} onClick={() => handleMoveEvidenceOrder(group, evidenceIndex, -1)} sx={{ color: '#fff', p: 0.4 }}>
+                                  <ArrowUpwardIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                            <Tooltip title="Bajar evidencia">
+                              <span>
+                                <IconButton size="small" disabled={evidenceIndex === group.evidences.length - 1} onClick={() => handleMoveEvidenceOrder(group, evidenceIndex, 1)} sx={{ color: '#fff', p: 0.4 }}>
+                                  <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                            <Tooltip title="Eliminar evidencia">
+                              <IconButton size="small" onClick={() => onDeleteEvidence(ev)} disabled={deletingPath === ev.path} sx={{ color: '#f44336', p: 0.4 }}>
+                                {deletingPath === ev.path ? <CircularProgress size={14} sx={{ color: '#f44336' }} /> : <DeleteOutlineIcon sx={{ fontSize: 16 }} />}
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                       </Stack>
 
-                      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ p: 0.75 }}>
-                        <DriveFileMoveIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                        <FormControl size="small" fullWidth>
-                          <Select value={group.id} onChange={(event) => handleMoveEvidence(ev, String(event.target.value))} sx={{ fontSize: 11, height: 26 }}>
-                            {orderedGroups.map((item) => (
-                              <MenuItem key={item.id} value={item.id}>
-                                {item.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Stack>
+                      {readOnly ? (
+                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ p: 0.75 }}>
+                          <DriveFileMoveIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                          <Typography variant="caption" sx={{ color: 'text.secondary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {group.name}
+                          </Typography>
+                        </Stack>
+                      ) : (
+                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ p: 0.75 }}>
+                          <DriveFileMoveIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                          <FormControl size="small" fullWidth>
+                            <Select value={group.id} onChange={(event) => handleMoveEvidence(ev, String(event.target.value))} sx={{ fontSize: 11, height: 26 }}>
+                              {orderedGroups.map((item) => (
+                                <MenuItem key={item.id} value={item.id}>
+                                  {item.name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Stack>
+                      )}
                     </Box>
                   ))}
                 </Box>
@@ -360,7 +384,7 @@ export const EvidenceManager = ({
                   <Typography variant="caption" display="block">
                     {isDragging ? 'Suelta aquí para adjuntar' : 'Sin evidencias en este grupo'}
                   </Typography>
-                  {!isDragging && (
+                  {!isDragging && !readOnly && (
                     <Typography variant="caption" display="block" sx={{ mt: 0.5, opacity: 0.6 }}>
                       Arrastra, pega (Ctrl+V) o usa el botón Cargar
                     </Typography>
