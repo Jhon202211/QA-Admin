@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -36,11 +36,22 @@ import EditIcon from '@mui/icons-material/Edit';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import DownloadIcon from '@mui/icons-material/Download';
+import SaveIcon from '@mui/icons-material/Save';
 import { useCreate, useNotify, useGetList } from 'react-admin';
 import { generateTestCasesFromUserStory } from '../../services/aiService';
 import type { AITestCaseSuggestion } from '../../services/aiService';
 import { knowledgeService } from '../../services/knowledgeService';
 import type { DecisionElements } from '../../types/testCase';
+import {
+  buildTestCaseDraftTitle,
+  createTestCaseDraftId,
+  hasMeaningfulTestCaseDraft,
+  readLocalTestCaseDraft,
+  removeLocalTestCaseDraft,
+  testCaseDraftService,
+  writeLocalTestCaseDraft,
+  type TestCaseConstructionDraftData,
+} from '../../services/testCaseDraftService';
 
 // ── Helpers de visualización ─────────────────────────────────────────────────
 
@@ -185,9 +196,25 @@ interface AIAgentProps {
   open: boolean;
   onClose: () => void;
   onCasesCreated?: () => void;
+  /** Si se indica, restaura ese borrador al abrir el modal. */
+  draftId?: string | null;
+  onDraftChange?: () => void;
 }
 
-export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
+const EMPTY_AI_LOCATION = {
+  project: 'QAScope',
+  module: '',
+  submodule: '',
+  testType: 'Funcionales',
+};
+
+export const AIAgent = ({
+  open,
+  onClose,
+  onCasesCreated,
+  draftId = null,
+  onDraftChange,
+}: AIAgentProps) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const notify = useNotify();
@@ -197,16 +224,6 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   const [kbReady, setKbReady] = useState(false);
   const [kbChunks, setKbChunks] = useState(0);
   const [kbDocuments, setKbDocuments] = useState(0);
-
-  // Inicializar el índice BM25 al abrir el modal
-  useEffect(() => {
-    if (!open) return;
-    knowledgeService.initialize().then(() => {
-      setKbReady(knowledgeService.isReady);
-      setKbChunks(knowledgeService.chunkCount);
-      setKbDocuments(knowledgeService.documentCount);
-    });
-  }, [open]);
 
   // Campos de entrada
   const [userStory, setUserStory] = useState('');
@@ -221,10 +238,123 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   const [error, setError] = useState<string | null>(null);
 
   // Campos de ubicación editables
-  const [editableProject, setEditableProject] = useState('QAScope');
-  const [editableModule, setEditableModule] = useState('');
-  const [editableSubmodule, setEditableSubmodule] = useState('');
-  const [editableTestType, setEditableTestType] = useState('Funcionales');
+  const [editableProject, setEditableProject] = useState(EMPTY_AI_LOCATION.project);
+  const [editableModule, setEditableModule] = useState(EMPTY_AI_LOCATION.module);
+  const [editableSubmodule, setEditableSubmodule] = useState(EMPTY_AI_LOCATION.submodule);
+  const [editableTestType, setEditableTestType] = useState(EMPTY_AI_LOCATION.testType);
+
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const skipNextAutosaveRef = useRef(false);
+  const remoteSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetFormState = useCallback(() => {
+    setUserStory('');
+    setAcceptanceCriteria('');
+    setBusinessRules('');
+    setHistoricalBugs('');
+    setTopK(6);
+    setSuggestion(null);
+    setError(null);
+    setEditableProject(EMPTY_AI_LOCATION.project);
+    setEditableModule(EMPTY_AI_LOCATION.module);
+    setEditableSubmodule(EMPTY_AI_LOCATION.submodule);
+    setEditableTestType(EMPTY_AI_LOCATION.testType);
+    setDraftSavedAt(null);
+  }, []);
+
+  const applyDraftData = useCallback((data: TestCaseConstructionDraftData) => {
+    skipNextAutosaveRef.current = true;
+    setUserStory(data.aiInput?.userStory || '');
+    setAcceptanceCriteria(data.aiInput?.acceptanceCriteria || '');
+    setBusinessRules(data.aiInput?.businessRules || '');
+    setHistoricalBugs(data.aiInput?.historicalBugs || '');
+    setTopK(data.aiInput?.topK || 6);
+    setSuggestion(data.suggestion || null);
+    setEditableProject(data.editableLocation?.project || EMPTY_AI_LOCATION.project);
+    setEditableModule(data.editableLocation?.module || EMPTY_AI_LOCATION.module);
+    setEditableSubmodule(data.editableLocation?.submodule || EMPTY_AI_LOCATION.submodule);
+    setEditableTestType(
+      normalizeTestType(data.editableLocation?.testType || data.suggestion?.test_type || EMPTY_AI_LOCATION.testType)
+    );
+    setDraftSavedAt(data.updatedAt || null);
+  }, []);
+
+  const clearDraftEverywhere = useCallback(
+    async (id: string | null) => {
+      if (!id) return;
+      removeLocalTestCaseDraft(id);
+      await testCaseDraftService.remove(id).catch((err) => {
+        console.error('Error removing AI agent draft:', err);
+      });
+      onDraftChange?.();
+    },
+    [onDraftChange]
+  );
+
+  // Inicializar el índice BM25 al abrir el modal
+  useEffect(() => {
+    if (!open) return;
+    knowledgeService.initialize().then(() => {
+      setKbReady(knowledgeService.isReady);
+      setKbChunks(knowledgeService.chunkCount);
+      setKbDocuments(knowledgeService.documentCount);
+    });
+  }, [open]);
+
+  // Hidratar / crear borrador al abrir
+  useEffect(() => {
+    if (!open) {
+      setHydrated(false);
+      setActiveDraftId(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const nextDraftId = draftId || createTestCaseDraftId();
+      setActiveDraftId(nextDraftId);
+
+      if (!draftId) {
+        resetFormState();
+        setHydrated(true);
+        return;
+      }
+
+      const localDraft = readLocalTestCaseDraft(draftId);
+      let remoteDraft: TestCaseConstructionDraftData | null = null;
+      try {
+        const remote = await testCaseDraftService.get(draftId);
+        remoteDraft = remote?.data || null;
+      } catch (err) {
+        console.warn('[AIAgent] No se pudo cargar el borrador remoto:', err);
+      }
+
+      if (cancelled) return;
+
+      const localUpdated = localDraft?.updatedAt ? Date.parse(localDraft.updatedAt) : 0;
+      const remoteUpdated = remoteDraft?.updatedAt ? Date.parse(String(remoteDraft.updatedAt)) : 0;
+      const preferred =
+        remoteDraft && remoteUpdated >= localUpdated ? remoteDraft : localDraft || remoteDraft;
+
+      if (preferred) {
+        applyDraftData(preferred);
+        if (remoteDraft && remoteUpdated > localUpdated) {
+          writeLocalTestCaseDraft(draftId, preferred);
+        }
+      } else {
+        resetFormState();
+      }
+      setHydrated(true);
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, draftId, applyDraftData, resetFormState]);
 
   // Determinar el tipo de prueba dinámicamente
   useEffect(() => {
@@ -232,6 +362,76 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
       setEditableTestType(normalizeTestType(suggestion.test_type));
     }
   }, [suggestion]);
+
+  // Autosave local + remoto (debounce)
+  useEffect(() => {
+    if (!open || !hydrated || !activeDraftId) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+
+    const draftData: TestCaseConstructionDraftData = {
+      source: 'ai_agent',
+      aiInput: {
+        userStory,
+        acceptanceCriteria,
+        businessRules,
+        historicalBugs,
+        topK,
+      },
+      editableLocation: {
+        project: editableProject,
+        module: editableModule,
+        submodule: editableSubmodule,
+        testType: editableTestType,
+      },
+      suggestion,
+      updatedAt: new Date().toISOString(),
+    };
+    draftData.title = buildTestCaseDraftTitle(draftData);
+
+    if (!hasMeaningfulTestCaseDraft(draftData)) {
+      removeLocalTestCaseDraft(activeDraftId);
+      if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
+      remoteSaveTimerRef.current = setTimeout(() => {
+        testCaseDraftService.remove(activeDraftId).catch(() => undefined);
+        onDraftChange?.();
+      }, 800);
+      setDraftSavedAt(null);
+      return;
+    }
+
+    writeLocalTestCaseDraft(activeDraftId, draftData);
+    setDraftSavedAt(draftData.updatedAt || null);
+
+    if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
+    remoteSaveTimerRef.current = setTimeout(() => {
+      testCaseDraftService.save(activeDraftId, draftData).catch((err) => {
+        console.warn('[AIAgent] No se pudo sincronizar el borrador:', err);
+      });
+      onDraftChange?.();
+    }, 800);
+
+    return () => {
+      if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
+    };
+  }, [
+    open,
+    hydrated,
+    activeDraftId,
+    userStory,
+    acceptanceCriteria,
+    businessRules,
+    historicalBugs,
+    topK,
+    editableProject,
+    editableModule,
+    editableSubmodule,
+    editableTestType,
+    suggestion,
+    onDraftChange,
+  ]);
 
   const { data: existingTestCases = [] } = useGetList('test_cases', {
     pagination: { page: 1, perPage: 10000 },
@@ -347,8 +547,9 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
         if (response?.id) createdCount += 1;
       }
 
+      await clearDraftEverywhere(activeDraftId);
       notify(`${createdCount} caso(s) de prueba creado(s) exitosamente`, { type: 'success' });
-      handleClose();
+      handleClose(true);
       onCasesCreated?.();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al crear los casos de prueba';
@@ -367,18 +568,13 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleClose = () => {
-    setUserStory('');
-    setAcceptanceCriteria('');
-    setBusinessRules('');
-    setHistoricalBugs('');
-    setTopK(6);
-    setSuggestion(null);
-    setError(null);
-    setEditableProject('QAScope');
-    setEditableModule('');
-    setEditableSubmodule('');
-    setEditableTestType('Funcionales');
+  const handleClose = (discardDraft = false) => {
+    if (discardDraft) {
+      void clearDraftEverywhere(activeDraftId);
+    }
+    resetFormState();
+    setActiveDraftId(null);
+    setHydrated(false);
     onClose();
   };
 
@@ -388,15 +584,25 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={() => handleClose(false)}
       maxWidth="lg"
       fullWidth
       scroll="paper"
       PaperProps={{ sx: { backgroundColor: isDark ? '#2B2D42' : '#FFFFFF' } }}
     >
-      <DialogTitle sx={{ color: 'text.primary', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <DialogTitle sx={{ color: 'text.primary', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         <AutoAwesomeIcon sx={{ color: '#FF6B35' }} />
         QA Test Case Architect Agent
+        {draftSavedAt && (
+          <Chip
+            size="small"
+            icon={<SaveIcon sx={{ fontSize: '14px !important' }} />}
+            label={`Borrador · ${new Date(draftSavedAt).toLocaleTimeString()}`}
+            color="success"
+            variant="outlined"
+            sx={{ height: 22, fontSize: '0.7rem' }}
+          />
+        )}
       </DialogTitle>
 
       <DialogContent dividers>
@@ -852,7 +1058,7 @@ export const AIAgent = ({ open, onClose, onCasesCreated }: AIAgentProps) => {
       </DialogContent>
 
       <DialogActions sx={{ p: 2, gap: 1 }}>
-        <Button onClick={handleClose} sx={{ color: 'text.secondary', textTransform: 'none' }}>
+        <Button onClick={() => handleClose(false)} sx={{ color: 'text.secondary', textTransform: 'none' }}>
           Cancelar
         </Button>
         {suggestion && (

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import React from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,18 +18,26 @@ import {
   IconButton,
   Divider,
   useTheme,
+  Chip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import SaveIcon from '@mui/icons-material/Save';
 import { useCreate, useNotify } from 'react-admin';
 import type { TestCaseCategory } from '../../types/testCase';
+import {
+  buildTestCaseDraftTitle,
+  createTestCaseDraftId,
+  hasMeaningfulTestCaseDraft,
+  readLocalTestCaseDraft,
+  removeLocalTestCaseDraft,
+  testCaseDraftService,
+  writeLocalTestCaseDraft,
+  type TestCaseConstructionDraftData,
+  type TestCaseWizardStepItem,
+} from '../../services/testCaseDraftService';
 
-interface StepItem {
-  id: string;
-  order: number;
-  description: string;
-  expectedResult: string;
-}
+interface StepItem extends TestCaseWizardStepItem {}
 
 // ── Step 1: Proyecto ──────────────────────────────────────────────────────────
 const Step1Project = ({ formData, setFormData, isReadOnly }: any) => (
@@ -298,6 +305,9 @@ interface CreateTestCaseWizardProps {
   onClose: () => void;
   initialProject?: string;
   initialCategory?: TestCaseCategory;
+  /** Si se indica, restaura ese borrador al abrir el modal. */
+  draftId?: string | null;
+  onDraftChange?: () => void;
 }
 
 export const CreateTestCaseWizard = ({
@@ -305,6 +315,8 @@ export const CreateTestCaseWizard = ({
   onClose,
   initialProject,
   initialCategory,
+  draftId = null,
+  onDraftChange,
 }: CreateTestCaseWizardProps) => {
   const theme = useTheme();
 
@@ -317,16 +329,137 @@ export const CreateTestCaseWizard = ({
   const [activeStep, setActiveStep] = useState(getInitialStep());
   const [formData, setFormData] = useState(EMPTY_FORM(initialProject, initialCategory));
   const [testSteps, setTestSteps] = useState<StepItem[]>([]);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const skipNextAutosaveRef = useRef(false);
+  const remoteSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [create] = useCreate();
   const notify = useNotify();
 
-  React.useEffect(() => {
-    if (open) {
-      setActiveStep(getInitialStep());
-      setFormData(EMPTY_FORM(initialProject, initialCategory));
-      setTestSteps([]);
+  const clearDraftEverywhere = useCallback(
+    async (id: string | null) => {
+      if (!id) return;
+      removeLocalTestCaseDraft(id);
+      await testCaseDraftService.remove(id).catch((err) => {
+        console.error('Error removing wizard draft:', err);
+      });
+      onDraftChange?.();
+    },
+    [onDraftChange]
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setHydrated(false);
+      setActiveDraftId(null);
+      return;
     }
-  }, [open, initialProject, initialCategory]);
+
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const nextDraftId = draftId || createTestCaseDraftId();
+      setActiveDraftId(nextDraftId);
+
+      if (!draftId) {
+        skipNextAutosaveRef.current = true;
+        setActiveStep(getInitialStep());
+        setFormData(EMPTY_FORM(initialProject, initialCategory));
+        setTestSteps([]);
+        setDraftSavedAt(null);
+        setHydrated(true);
+        return;
+      }
+
+      const localDraft = readLocalTestCaseDraft(draftId);
+      let remoteDraft: TestCaseConstructionDraftData | null = null;
+      try {
+        const remote = await testCaseDraftService.get(draftId);
+        remoteDraft = remote?.data || null;
+      } catch (err) {
+        console.warn('[Wizard] No se pudo cargar el borrador remoto:', err);
+      }
+
+      if (cancelled) return;
+
+      const localUpdated = localDraft?.updatedAt ? Date.parse(localDraft.updatedAt) : 0;
+      const remoteUpdated = remoteDraft?.updatedAt ? Date.parse(String(remoteDraft.updatedAt)) : 0;
+      const preferred =
+        remoteDraft && remoteUpdated >= localUpdated ? remoteDraft : localDraft || remoteDraft;
+
+      if (preferred) {
+        skipNextAutosaveRef.current = true;
+        setActiveStep(
+          typeof preferred.activeStep === 'number' ? preferred.activeStep : getInitialStep()
+        );
+        setFormData({
+          ...EMPTY_FORM(initialProject, initialCategory),
+          ...(preferred.formData || {}),
+        });
+        setTestSteps(preferred.testSteps || []);
+        setDraftSavedAt(preferred.updatedAt || null);
+        if (remoteDraft && remoteUpdated > localUpdated) {
+          writeLocalTestCaseDraft(draftId, preferred);
+        }
+      } else {
+        skipNextAutosaveRef.current = true;
+        setActiveStep(getInitialStep());
+        setFormData(EMPTY_FORM(initialProject, initialCategory));
+        setTestSteps([]);
+        setDraftSavedAt(null);
+      }
+      setHydrated(true);
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, draftId, initialProject, initialCategory]);
+
+  useEffect(() => {
+    if (!open || !hydrated || !activeDraftId) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+
+    const draftData: TestCaseConstructionDraftData = {
+      source: 'wizard',
+      activeStep,
+      formData,
+      testSteps,
+      updatedAt: new Date().toISOString(),
+    };
+    draftData.title = buildTestCaseDraftTitle(draftData);
+
+    if (!hasMeaningfulTestCaseDraft(draftData)) {
+      removeLocalTestCaseDraft(activeDraftId);
+      if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
+      remoteSaveTimerRef.current = setTimeout(() => {
+        testCaseDraftService.remove(activeDraftId).catch(() => undefined);
+        onDraftChange?.();
+      }, 800);
+      setDraftSavedAt(null);
+      return;
+    }
+
+    writeLocalTestCaseDraft(activeDraftId, draftData);
+    setDraftSavedAt(draftData.updatedAt || null);
+
+    if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
+    remoteSaveTimerRef.current = setTimeout(() => {
+      testCaseDraftService.save(activeDraftId, draftData).catch((err) => {
+        console.warn('[Wizard] No se pudo sincronizar el borrador:', err);
+      });
+      onDraftChange?.();
+    }, 800);
+
+    return () => {
+      if (remoteSaveTimerRef.current) clearTimeout(remoteSaveTimerRef.current);
+    };
+  }, [open, hydrated, activeDraftId, activeStep, formData, testSteps, onDraftChange]);
 
   const handleNext = () => {
     if (activeStep === 0 && !formData.testProject.trim()) {
@@ -370,26 +503,33 @@ export const CreateTestCaseWizard = ({
           automated: false,
         },
       });
+      await clearDraftEverywhere(activeDraftId);
       notify('Caso de prueba creado exitosamente', { type: 'success' });
-      handleClose();
+      handleClose(true);
     } catch {
       notify('Error al crear el caso de prueba', { type: 'error' });
     }
   };
 
-  const handleClose = () => {
+  const handleClose = (discardDraft = false) => {
+    if (discardDraft) {
+      void clearDraftEverywhere(activeDraftId);
+    }
     setActiveStep(0);
     setFormData(EMPTY_FORM(initialProject, initialCategory));
     setTestSteps([]);
+    setActiveDraftId(null);
+    setDraftSavedAt(null);
+    setHydrated(false);
     onClose();
   };
 
   const renderStepContent = (step: number) => {
     switch (step) {
       case 0:
-        return <Step1Project formData={formData} setFormData={setFormData} isReadOnly={!!initialProject} />;
+        return <Step1Project formData={formData} setFormData={setFormData} isReadOnly={!!initialProject && !draftId} />;
       case 1:
-        return <Step2Category formData={formData} setFormData={setFormData} isReadOnly={!!initialCategory} />;
+        return <Step2Category formData={formData} setFormData={setFormData} isReadOnly={!!initialCategory && !draftId} />;
       case 2:
         return <Step3TestCase formData={formData} setFormData={setFormData} />;
       case 3:
@@ -402,7 +542,7 @@ export const CreateTestCaseWizard = ({
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={() => handleClose(false)}
       maxWidth="md"
       fullWidth
       PaperProps={{
@@ -412,8 +552,18 @@ export const CreateTestCaseWizard = ({
         },
       }}
     >
-      <DialogTitle sx={{ color: 'text.primary', fontWeight: 600 }}>
+      <DialogTitle sx={{ color: 'text.primary', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         Crear Nuevo Caso de Prueba
+        {draftSavedAt && (
+          <Chip
+            size="small"
+            icon={<SaveIcon sx={{ fontSize: '14px !important' }} />}
+            label={`Borrador · ${new Date(draftSavedAt).toLocaleTimeString()}`}
+            color="success"
+            variant="outlined"
+            sx={{ height: 22, fontSize: '0.7rem' }}
+          />
+        )}
       </DialogTitle>
       <DialogContent sx={{ overflowY: 'auto' }}>
         <Stepper activeStep={activeStep} sx={{ mb: 4, mt: 2 }}>
@@ -426,11 +576,11 @@ export const CreateTestCaseWizard = ({
         {renderStepContent(activeStep)}
       </DialogContent>
       <DialogActions sx={{ p: 3 }}>
-        <Button onClick={handleClose} sx={{ color: 'text.secondary' }}>
+        <Button onClick={() => handleClose(false)} sx={{ color: 'text.secondary' }}>
           Cancelar
         </Button>
         <Box sx={{ flex: '1 1 auto' }} />
-        {activeStep > (initialProject && initialCategory ? 2 : initialProject ? 1 : 0) && (
+        {activeStep > (initialProject && initialCategory && !draftId ? 2 : initialProject && !draftId ? 1 : 0) && (
           <Button onClick={handleBack} sx={{ color: 'text.primary' }}>
             Atrás
           </Button>

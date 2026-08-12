@@ -58,12 +58,15 @@ async function refreshCurrentUserToken(force = false, retries = 0): Promise<void
   }
 }
 
-/** Verifica si hay borradores (drafts) activos de ejecuciones de pruebas manuales */
+/** Verifica si hay borradores activos (ejecuciones o casos en construcción). */
 export function hasActiveExecutionDrafts(): boolean {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('execution_draft_')) {
+      if (
+        key &&
+        (key.startsWith('execution_draft_') || key.startsWith('test_case_draft_'))
+      ) {
         return true;
       }
     }
@@ -109,7 +112,7 @@ export function setupAuthSessionMaintenance(): () => void {
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
     if (hasActiveExecutionDrafts()) {
       e.preventDefault();
-      e.returnValue = 'Tienes borradores de ejecución pendientes. Los cambios no guardados se mantendrán localmente.';
+      e.returnValue = 'Tienes borradores pendientes. Los cambios no guardados se mantendrán localmente.';
       return e.returnValue;
     }
   };
