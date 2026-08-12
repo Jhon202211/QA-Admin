@@ -4,14 +4,59 @@ import {
   signOut,
   setPersistence,
   browserLocalPersistence,
-  onIdTokenChanged,
 } from 'firebase/auth';
 
 const REMEMBERED_EMAIL_KEY = 'qa_remembered_email';
 
-/** Refresco proactivo del ID token (expira ~1h); evita fallos tras mucho tiempo en segundo plano. */
-const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // Reducido a 20 min para mayor seguridad
+/** Firebase renueva automáticamente el ID token; esto ayuda al reanudar pestañas suspendidas. */
+const TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 1000;
 const ACTIVITY_REFRESH_THROTTLE_MS = 5 * 60 * 1000;
+const TOKEN_REFRESH_RETRY_DELAY_MS = 1500;
+
+const TRANSIENT_AUTH_ERROR_CODES = new Set([
+  'auth/network-request-failed',
+  'auth/too-many-requests',
+  'unavailable',
+  'deadline-exceeded',
+]);
+
+const INVALID_SESSION_ERROR_CODES = new Set([
+  'auth/id-token-expired',
+  'auth/invalid-user-token',
+  'auth/user-disabled',
+  'auth/user-token-expired',
+]);
+
+const getErrorCode = (error: unknown): string | undefined =>
+  (error as { code?: string } | null)?.code;
+
+const isTransientAuthError = (error: unknown): boolean =>
+  TRANSIENT_AUTH_ERROR_CODES.has(getErrorCode(error) ?? '');
+
+const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
+
+/**
+ * Obtiene un token vigente y reintenta únicamente fallos transitorios.
+ * El refresh token permanece bajo control del SDK de Firebase.
+ */
+async function refreshCurrentUserToken(force = false, retries = 0): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('No hay una sesión de Firebase activa');
+  }
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await user.getIdToken(force);
+      return;
+    } catch (error) {
+      if (!isTransientAuthError(error) || attempt >= retries) {
+        throw error;
+      }
+      await wait(TOKEN_REFRESH_RETRY_DELAY_MS * (attempt + 1));
+    }
+  }
+}
 
 /** Verifica si hay borradores (drafts) activos de ejecuciones de pruebas manuales */
 export function hasActiveExecutionDrafts(): boolean {
@@ -33,19 +78,19 @@ export function hasActiveExecutionDrafts(): boolean {
  * Firebase renueva solo, pero el throttling del navegador en pestañas ocultas puede retrasarlo.
  */
 export function setupAuthSessionMaintenance(): () => void {
-  setPersistence(auth, browserLocalPersistence).catch(() => {
-    /* Si IndexedDB no está disponible, Firebase usará el fallback posible del navegador. */
+  setPersistence(auth, browserLocalPersistence).catch((error) => {
+    console.warn('[Auth] No se pudo habilitar la persistencia local:', error);
   });
 
   let lastActivityRefresh = 0;
 
   const refresh = (force = false) => {
-    const user = auth.currentUser;
-    if (user) {
-      user.getIdToken(force).catch(() => {
-        /* red / revocación: siguiente lectura de Firestore o checkAuth lo gestionarán */
-      });
-    }
+    if (!auth.currentUser) return;
+    refreshCurrentUserToken(force, force ? 1 : 0).catch((error) => {
+      // No cerrar sesión por un fallo en segundo plano. checkAuth/checkError decidirán
+      // cuando una operación autenticada necesite realmente el token.
+      console.warn('[Auth] No se pudo renovar el token en segundo plano:', getErrorCode(error) ?? error);
+    });
   };
 
   const onVisibility = () => {
@@ -59,6 +104,8 @@ export function setupAuthSessionMaintenance(): () => void {
     refresh(false);
   };
 
+  const onOnline = () => refresh(true);
+
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
     if (hasActiveExecutionDrafts()) {
       e.preventDefault();
@@ -69,25 +116,19 @@ export function setupAuthSessionMaintenance(): () => void {
 
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('focus', onActivity);
-  window.addEventListener('online', onActivity);
+  window.addEventListener('online', onOnline);
   window.addEventListener('mousemove', onActivity, { passive: true });
   window.addEventListener('keydown', onActivity);
   window.addEventListener('beforeunload', onBeforeUnload);
-  const unsubscribeToken = onIdTokenChanged(auth, (user) => {
-    if (user) {
-      user.getIdToken(false).catch(() => {});
-    }
-  });
   const intervalId = window.setInterval(() => refresh(false), TOKEN_REFRESH_INTERVAL_MS);
 
   return () => {
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('focus', onActivity);
-    window.removeEventListener('online', onActivity);
+    window.removeEventListener('online', onOnline);
     window.removeEventListener('mousemove', onActivity);
     window.removeEventListener('keydown', onActivity);
     window.removeEventListener('beforeunload', onBeforeUnload);
-    unsubscribeToken();
     window.clearInterval(intervalId);
   };
 }
@@ -116,21 +157,38 @@ export const authProvider = {
       return Promise.reject(error);
     }
   },
-  checkError: (error: unknown) => {
+  checkError: async (error: unknown) => {
     const status = (error as { status?: number })?.status;
-    const code = (error as { code?: string })?.code;
-    
-    // Manejar errores de HTTP (react-admin estándar) y de Firebase Firestore
-    if (
-      status === 401 || 
-      status === 403 || 
-      code === 'permission-denied' || 
-      code === 'unauthenticated' ||
-      code === 'auth/user-token-expired'
-    ) {
+    const code = getErrorCode(error);
+
+    // Una regla o rol insuficiente no significa que la sesión haya expirado.
+    if (status === 403 || code === 'permission-denied') {
+      return;
+    }
+
+    const mayBeExpired = status === 401 || code === 'unauthenticated' ||
+      INVALID_SESSION_ERROR_CODES.has(code ?? '');
+    if (!mayBeExpired) {
+      return;
+    }
+
+    await auth.authStateReady().catch(() => undefined);
+    if (!auth.currentUser) {
       return Promise.reject();
     }
-    return Promise.resolve();
+
+    try {
+      // Antes de expulsar al usuario, comprobar si Firebase puede renovar la sesión.
+      await refreshCurrentUserToken(true, 1);
+      return;
+    } catch (refreshError) {
+      // Una caída de red no debe destruir una sesión persistida que puede recuperarse.
+      if (isTransientAuthError(refreshError)) {
+        console.warn('[Auth] La sesión no pudo verificarse por un problema temporal de red.');
+        return;
+      }
+      return Promise.reject(refreshError);
+    }
   },
   checkAuth: async () => {
     try {
@@ -138,16 +196,25 @@ export const authProvider = {
       // desde IndexedDB (persistencia local).
       await auth.authStateReady();
       
-      if (auth.currentUser) {
-        // Refrescar token en segundo plano si es posible
-        auth.currentUser.getIdToken(false).catch(() => {});
-        return Promise.resolve();
+      if (!auth.currentUser) {
+        return Promise.reject();
       }
-      return Promise.reject();
-    } catch {
-      // Fallback en caso de error en la inicialización
-      if (auth.currentUser) return Promise.resolve();
-      return Promise.reject();
+
+      try {
+        await refreshCurrentUserToken(false, 1);
+      } catch (error) {
+        if (INVALID_SESSION_ERROR_CODES.has(getErrorCode(error) ?? '')) {
+          return Promise.reject(error);
+        }
+        // Mantener la sesión local ante red inestable; Firestore podrá reintentar después.
+        console.warn('[Auth] No se pudo verificar la sesión temporalmente:', getErrorCode(error) ?? error);
+      }
+      return;
+    } catch (error) {
+      if (auth.currentUser && !INVALID_SESSION_ERROR_CODES.has(getErrorCode(error) ?? '')) {
+        return;
+      }
+      return Promise.reject(error);
     }
   },
   getPermissions: () => Promise.resolve(),

@@ -20,6 +20,25 @@ interface DataItem {
   [key: string]: any;
 }
 
+type DataProviderError = Error & {
+  code?: string;
+  status?: number;
+  cause?: unknown;
+};
+
+const wrapFirestoreError = (resource: string, error: any): DataProviderError => {
+  const codeLabel = error?.code ? ` (${error.code})` : '';
+  const message = error?.message || 'Error desconocido leyendo Firestore';
+  const wrapped = new Error(`No se pudo cargar ${resource}${codeLabel}: ${message}`) as DataProviderError;
+
+  // react-admin entrega este error a authProvider.checkError; preservar los
+  // metadatos evita confundir permisos insuficientes con una sesión expirada.
+  wrapped.code = error?.code;
+  wrapped.status = error?.status;
+  wrapped.cause = error;
+  return wrapped;
+};
+
 const withTimeout = async <T>(promise: Promise<T>, ms = 15000): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -73,9 +92,8 @@ export const dataProvider = {
       } as DataItem));
     } catch (error: any) {
       const code = error?.code ? ` (${error.code})` : '';
-      const message = error?.message || 'Error desconocido leyendo Firestore';
       console.error(`[Firestore] getList ${resource}${code}:`, error);
-      throw new Error(`No se pudo cargar ${resource}${code}: ${message}`);
+      throw wrapFirestoreError(resource, error);
     }
 
     // Filtrado
