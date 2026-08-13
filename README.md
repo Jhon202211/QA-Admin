@@ -135,10 +135,10 @@ Query enriquecida (historia + criterios + reglas + bugs)
 ```
 public/knowledge/
 ├── manifest.json           ← lista de archivos a indexar
-├── bugs_historicos.txt     ← 390+ bugs reales del sistema (63 KB)
-├── reglas_negocio.txt      ← reglas del dominio de negocio
-├── criterios_acceso.txt    ← criterios de acceso al sistema
-├── features_mejoras.txt    ← nuevas funcionalidades y mejoras (UX/Performance)
+├── bugs_historicos.md      ← 390+ bugs reales del sistema
+├── reglas_negocio.md       ← reglas del dominio de negocio
+├── criterios_acceso.md     ← criterios de acceso al sistema
+├── features_mejoras.md     ← nuevas funcionalidades y mejoras (UX/Performance)
 └── Laila/
     ├── manifest.json       ← documentos funcionales adicionales
     └── *.md                ← manuales, roles, errores y preguntas frecuentes
@@ -152,13 +152,13 @@ la personalidad del chatbot, no conocimiento funcional.
 
 ### Agregar o actualizar conocimiento
 
-1. Agregar o editar archivos `.md`, `.txt` o `.pdf` en `public/knowledge/` o
+1. Agregar o editar preferentemente archivos `.md` (también se admiten `.txt` o `.pdf`) en `public/knowledge/` o
    `public/knowledge/Laila/`
 2. Actualizar el `manifest.json` correspondiente con el nombre del nuevo archivo
 3. No requiere recompilación — los archivos se sirven como assets estáticos
 
 ```json
-["bugs_historicos.txt", "reglas_negocio.txt", "criterios_acceso.txt", "nuevo_archivo.txt"]
+["bugs_historicos.md", "reglas_negocio.md", "criterios_acceso.md", "nuevo_archivo.md"]
 ```
 
 ---
@@ -169,7 +169,7 @@ la personalidad del chatbot, no conocimiento funcional.
 
 - **Modelo de IA**: reutiliza exactamente la misma configuración de proveedor/modelo de **Configuración → Integraciones** que usa el agente de Pruebas Manuales (`getLLMConfig()` en `src/services/aiService.ts`). No requiere configuración adicional.
 - **Base de conocimiento propia**: indexa archivos ubicados en `public/knowledge/Laila/`, usando el mismo motor BM25 (`src/services/bm25.ts`). Soporta dos formatos:
-  - **`.md` / `.txt` (recomendado)**: se cargan como texto plano directamente, sin procesamiento adicional.
+  - **`.md` (recomendado)** / `.txt`: se cargan como texto plano directamente, sin procesamiento adicional.
   - **`.pdf`**: se extrae el texto en el navegador vía `pdfjs-dist` (más pesado y con menor fidelidad de formato que un `.md`).
 - **Historial persistente**: cada mensaje se guarda en Firestore, colección `openlaila_messages`, asociado al `uid` del usuario autenticado (`src/services/lailaConversationService.ts`).
 - **Instrucciones / personalidad del bot**: el system prompt (identidad "Laila", reglas anti-alucinación, permisos por rol, reglas de escalamiento, cierre de conversación, etc.) vive en `public/knowledge/Laila/instructions.md` — **no** se lista en `manifest.json` (no se indexa por BM25, se inyecta siempre completo al inicio del prompt). Se puede editar sin recompilar la app.

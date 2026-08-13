@@ -1,2 +1,2 @@
-CRITERIOS / CONTEXTO DE ACCESO (ejemplo)
+# CRITERIOS / CONTEXTO DE ACCESO (ejemplo)
 - Completa con criterios y restricciones relevantes.
