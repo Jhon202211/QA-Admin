@@ -62,7 +62,7 @@ const conversationStorageKey = (userId: string) => `openlaila_current_conversati
 const WELCOME_MESSAGE =
   '¡Hola! Soy **OpenLaila**, tu asistente de soporte. Puedo responder preguntas basándome en la base de conocimiento de la plataforma. ¿En qué puedo ayudarte hoy?';
 
-export const OpenLailaPage = () => {
+export const ChatbotPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const notify = useNotify();
@@ -343,10 +343,10 @@ export const OpenLailaPage = () => {
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
         <Box>
           <Typography variant="h4" sx={{ color: 'text.primary', fontWeight: 700, fontFamily: "'Ubuntu Sans', sans-serif" }}>
-            OpenLaila
+            Chatbot
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-            Chatbot de soporte con base de conocimiento propia (RAG sobre documentos PDF).
+            Asistente OpenLaila con base de conocimiento propia (RAG sobre documentos MD/PDF).
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">

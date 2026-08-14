@@ -1,7 +1,9 @@
 import { Admin, Resource, Layout, AppBar, CustomRoutes } from 'react-admin';
-import { BrowserRouter, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
-import { OpenLailaPage } from './pages/OpenLaila/OpenLailaPage';
+import { ChatbotPage } from './pages/IA/ChatbotPage';
+import { KnowledgeBasePage } from './pages/IA/KnowledgeBasePage';
+import { AgentInstructionsPage } from './pages/IA/AgentInstructionsPage';
 import { authProvider } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box, useTheme, useMediaQuery } from '@mui/material';
@@ -18,15 +20,10 @@ import { useSidebarState } from 'react-admin';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import { AppMenu } from './components/navigation/AppMenu';
-import { ReliabilityDashboardPage } from './pages/Reliability/ReliabilityDashboardPage';
-import { ReliabilityAnalysisPage } from './pages/Reliability/ReliabilityAnalysisPage';
-import { SystemIncidentCreate, SystemIncidentEdit, SystemIncidentsPage } from './pages/Reliability/SystemIncidentsPage';
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
@@ -199,21 +196,16 @@ function App() {
           requireAuth
         >
           <CustomRoutes>
-            <Route path="/reliability/dashboard" element={<ReliabilityDashboardPage />} />
-            <Route path="/reliability/analysis" element={<ReliabilityAnalysisPage />} />
+            <Route path="/ia" element={<Navigate to="/ia/chatbot" replace />} />
+            <Route path="/ia/chatbot" element={<ChatbotPage />} />
+            <Route path="/ia/conocimiento" element={<KnowledgeBasePage />} />
+            <Route path="/ia/instrucciones" element={<AgentInstructionsPage />} />
+            <Route path="/openlaila" element={<Navigate to="/ia/chatbot" replace />} />
+            <Route path="/openlaila/*" element={<Navigate to="/ia/chatbot" replace />} />
           </CustomRoutes>
           <Resource name="test_cases" list={TestCasesPage} create={TestCaseCreate} edit={TestCaseEditPage} icon={AssignmentIcon} options={{ label: 'Pruebas manuales' }} />
           <Resource name="test_planning" list={TestPlanningPage} create={TestPlanningCreate} edit={TestPlanningEdit} icon={EventNoteIcon} />
           <Resource name="automation" list={AutomationRunnerPage} create={AutomationCaseCreate} edit={AutomationCaseEdit} icon={PlayCircleIcon} options={{ label: 'Automatización' }} />
-          <Resource name="openlaila" list={OpenLailaPage} icon={AutoAwesomeIcon} options={{ label: 'OpenLaila' }} />
-          <Resource
-            name="system_incidents"
-            list={SystemIncidentsPage}
-            create={SystemIncidentCreate}
-            edit={SystemIncidentEdit}
-            icon={MonitorHeartIcon}
-            options={{ label: 'Incidentes' }}
-          />
           <Resource name="configuration" list={ConfigurationPage} icon={SettingsIcon} options={{ label: 'Configuración' }} />
         </Admin>
         <Footer />

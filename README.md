@@ -110,93 +110,48 @@ Los casos se guardan en Firebase Firestore con `category` (tipo de prueba), `tag
 
 ## Knowledge Base (RAG con BM25)
 
-El agente implementa un pipeline **RAG (Retrieval-Augmented Generation)** completo ejecutándose en el browser, sin dependencias de servidor externo.
+El agente implementa un pipeline **RAG (Retrieval-Augmented Generation)** en el browser.
 
 ### Arquitectura del pipeline
 
 ```
 Query enriquecida (historia + criterios + reglas + bugs)
-    → BM25Retriever  (public/knowledge/)
+    → BM25Retriever  (catálogo Firestore + archivos S3)
     → buildSystemPrompt()  ← inyecta chunks relevantes en el system message
-    → OpenAI GPT
+    → LLM configurado
     → JSON estructurado con casos de prueba
 ```
 
 ### Implementación BM25
 
-- **Motor**: BM25 (Okapi BM25) implementado en TypeScript puro (`src/services/knowledgeService.ts`)
-- **Parámetros**: `k1=1.5`, `b=0.75` (estándar)
-- **Chunking**: 400 palabras por chunk, 50 palabras de solapamiento (igual que el backend Python de referencia)
-- **Tokenización**: lowercase + eliminación de puntuación + filtro de tokens cortos (preserva caracteres españoles)
-- **Carga**: lazy al primer uso, índice en memoria (se reconstruye en cada sesión)
+- **Motor**: BM25 (Okapi BM25) en TypeScript (`src/services/bm25.ts` / `knowledgeService.ts`)
+- **Parámetros**: `k1=1.5`, `b=0.75`
+- **Chunking**: 400 palabras por chunk, 50 de solapamiento
+- **Carga**: catálogo remoto (`laila_knowledge_docs` en Firestore); contenido en S3 o `inlineContent`
 
-### Archivos del knowledge base
+### Bloques de conocimiento
 
-```
-public/knowledge/
-├── manifest.json           ← lista de archivos a indexar
-├── bugs_historicos.md      ← 390+ bugs reales del sistema
-├── reglas_negocio.md       ← reglas del dominio de negocio
-├── criterios_acceso.md     ← criterios de acceso al sistema
-├── features_mejoras.md     ← nuevas funcionalidades y mejoras (UX/Performance)
-└── Laila/
-    ├── manifest.json       ← documentos funcionales adicionales
-    └── *.md                ← manuales, roles, errores y preguntas frecuentes
-```
-
-El agente de casos de prueba combina automáticamente los documentos de
-`public/knowledge/manifest.json` y `public/knowledge/Laila/manifest.json` en un
-único índice. Conserva el prefijo `Laila/` en las fuentes para mantener la
-trazabilidad. `Laila/instructions.md` se excluye expresamente porque contiene
-la personalidad del chatbot, no conocimiento funcional.
+Administrables en **IA → Base de conocimiento**:
+1. **Conocimiento de plataforma** — manuales, FAQs, diccionarios
+2. **Historial y reglas** — bugs históricos, features/mejoras, reglas de negocio
 
 ### Agregar o actualizar conocimiento
 
-1. Agregar o editar preferentemente archivos `.md` (también se admiten `.txt` o `.pdf`) en `public/knowledge/` o
-   `public/knowledge/Laila/`
-2. Actualizar el `manifest.json` correspondiente con el nombre del nuevo archivo
-3. No requiere recompilación — los archivos se sirven como assets estáticos
-
-```json
-["bugs_historicos.md", "reglas_negocio.md", "criterios_acceso.md", "nuevo_archivo.md"]
-```
+Desde **IA → Base de conocimiento**: subir a S3, ver/editar contenido y activar/desactivar documentos.
+Las instrucciones del chatbot se editan en **IA → Instrucciones del agente** (Firestore).
 
 ---
 
-## OpenLaila (Chatbot de soporte)
+## Módulo IA (Chatbot, conocimiento e instrucciones)
 
-**OpenLaila** es un chatbot conversacional de soporte, independiente del agente de generación de casos de prueba, disponible en el menú lateral (`/openlaila`).
+El menú **IA** agrupa:
+- **Chatbot** (`/ia/chatbot`): asistente OpenLaila con RAG
+- **Base de conocimiento** (`/ia/conocimiento`): catálogo por bloques (plataforma / historial y reglas)
+- **Instrucciones del agente** (`/ia/instrucciones`): system prompt editable en Firestore
 
-- **Modelo de IA**: reutiliza exactamente la misma configuración de proveedor/modelo de **Configuración → Integraciones** que usa el agente de Pruebas Manuales (`getLLMConfig()` en `src/services/aiService.ts`). No requiere configuración adicional.
-- **Base de conocimiento propia**: indexa archivos ubicados en `public/knowledge/Laila/`, usando el mismo motor BM25 (`src/services/bm25.ts`). Soporta dos formatos:
-  - **`.md` (recomendado)** / `.txt`: se cargan como texto plano directamente, sin procesamiento adicional.
-  - **`.pdf`**: se extrae el texto en el navegador vía `pdfjs-dist` (más pesado y con menor fidelidad de formato que un `.md`).
-- **Historial persistente**: cada mensaje se guarda en Firestore, colección `openlaila_messages`, asociado al `uid` del usuario autenticado (`src/services/lailaConversationService.ts`).
-- **Instrucciones / personalidad del bot**: el system prompt (identidad "Laila", reglas anti-alucinación, permisos por rol, reglas de escalamiento, cierre de conversación, etc.) vive en `public/knowledge/Laila/instructions.md` — **no** se lista en `manifest.json` (no se indexa por BM25, se inyecta siempre completo al inicio del prompt). Se puede editar sin recompilar la app.
-- **Rol simulado**: el selector "Rol simulado" en la UI del chat reemplaza el placeholder `{user_rol}` de `instructions.md`, permitiendo probar cómo respondería Laila según el nivel de permisos del usuario (Admin, Property Owner, Coordinador, Recepción, Centro de Control, Empleado).
-
-### Agregar documentos a la base de conocimiento de OpenLaila
-
-Los PDFs originales se guardan como fuente en `knowledge-sources/Laila/` (fuera de `public/`, para no inflar el bundle servido al navegador con binarios). Solo los `.md` convertidos viven en `public/knowledge/Laila/` y son los que realmente se indexan.
-
-1. Copiar el/los archivo(s) `.pdf` dentro de `knowledge-sources/Laila/`.
-2. Convertirlos a Markdown:
-
-   ```bash
-   npm run knowledge:laila:convert
-   ```
-
-   Esto usa `@opendocsg/pdf2md` (script en `scripts/convertLailaPdfsToMarkdown.mjs`) para leer cada `.pdf` de `knowledge-sources/Laila/` y generar el `.md` correspondiente en `public/knowledge/Laila/`.
-
-3. Agregar el nombre del archivo `.md` generado a `public/knowledge/Laila/manifest.json`, por ejemplo:
-
-```json
-["manual_usuario.md", "politicas_soporte.md"]
-```
-
-4. No requiere recompilación — el índice BM25 se construye en el navegador la primera vez que se abre el chat.
-
-> También se puede colocar un `.pdf` o `.txt` directamente en `public/knowledge/Laila/` y listarlo en el manifest sin convertir — `lailaKnowledgeService.ts` detecta la extensión y extrae el texto en el navegador (`.pdf` vía `pdfjs-dist`) o lo lee tal cual (`.md`/`.txt`). Se recomienda `.md` por mejor calidad y rendimiento.
+- **Modelo de IA**: misma configuración de **Configuración → Integraciones** (`getLLMConfig()`).
+- **Historial**: Firestore (`openlaila_conversations`, `openlaila_messages`).
+- **Rol simulado**: reemplaza `{user_rol}` en las instrucciones.
 
 ---
 
