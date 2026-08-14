@@ -70,19 +70,28 @@ async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
 }
 
 /**
- * Descarga un documento validado y devuelve su texto. Los Markdown y TXT se
- * leen directamente; los PDF se procesan con pdf.js.
+ * Descarga un documento desde una URL absoluta (S3 firmada, asset público, etc.)
+ * y devuelve su texto. Los Markdown y TXT se leen directamente; los PDF con pdf.js.
  */
-export async function loadKnowledgeFile(baseUrl: string, filename: string): Promise<string> {
-  const response = await fetch(`${baseUrl}/${encodeURIComponent(filename)}`);
+export async function loadKnowledgeFromUrl(url: string, filenameHint = ''): Promise<string> {
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
 
-  const isPdf = filename.toLowerCase().endsWith('.pdf');
+  const pathForExt = filenameHint || url.split('?')[0];
+  const isPdf = pathForExt.toLowerCase().endsWith('.pdf');
   const text = isPdf
     ? await extractPdfText(await response.arrayBuffer())
     : await response.text();
 
   return text.trim();
+}
+
+/**
+ * Descarga un documento validado y devuelve su texto. Los Markdown y TXT se
+ * leen directamente; los PDF se procesan con pdf.js.
+ */
+export async function loadKnowledgeFile(baseUrl: string, filename: string): Promise<string> {
+  return loadKnowledgeFromUrl(`${baseUrl}/${encodeURIComponent(filename)}`, filename);
 }

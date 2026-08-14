@@ -1,15 +1,12 @@
 import { callChatCompletion, getLLMConfig } from './aiService';
 import type { ChatMessage } from './aiService';
 import { lailaKnowledgeService } from './lailaKnowledgeService';
+import { getAgentInstructions } from './lailaKnowledgeAdminService';
 import type { LailaMessage } from '../types/openLaila';
 
-const INSTRUCTIONS_URL = '/knowledge/Laila/instructions.md';
-
 /**
- * Fallback usado solo si `instructions.md` no está disponible (ej: no se
- * subió el archivo todavía). El archivo real vive como asset estático en
- * `public/knowledge/Laila/instructions.md` para poder ajustar el
- * comportamiento del bot sin recompilar la app.
+ * Fallback usado solo si no hay instrucciones en Firestore ni en
+ * `public/knowledge/Laila/instructions.md`.
  */
 const FALLBACK_INSTRUCTIONS = `Eres "OpenLaila", el asistente virtual de soporte de QAScope.
 
@@ -41,16 +38,21 @@ export const LAILA_USER_ROLE_LABELS: Record<LailaUserRole, string> = {
 
 const MAX_HISTORY_MESSAGES = 16;
 
-// Cache en memoria: las instrucciones son estáticas durante la sesión.
+// Cache en memoria durante la sesión; invalidar tras editar en admin.
 let instructionsPromise: Promise<string> | null = null;
 
 async function loadInstructions(): Promise<string> {
   if (!instructionsPromise) {
-    instructionsPromise = fetch(INSTRUCTIONS_URL)
-      .then((res) => (res.ok ? res.text() : FALLBACK_INSTRUCTIONS))
+    instructionsPromise = getAgentInstructions()
+      .then((result) => result.content.trim() || FALLBACK_INSTRUCTIONS)
       .catch(() => FALLBACK_INSTRUCTIONS);
   }
   return instructionsPromise;
+}
+
+/** Invalida el cache de instrucciones (llamar tras guardar en admin). */
+export function invalidateLailaInstructionsCache(): void {
+  instructionsPromise = null;
 }
 
 function buildSystemPrompt(
@@ -79,9 +81,8 @@ export interface LailaReply {
  * recuperando contexto relevante de la base de conocimiento (BM25) y usando
  * el mismo proveedor/modelo de IA configurado para "Pruebas manuales".
  *
- * Las pautas de comportamiento (identidad, anti-alucinaciones, permisos por
- * rol, reglas de escalamiento, etc.) se cargan desde
- * `public/knowledge/Laila/instructions.md`.
+ * Las pautas de comportamiento se cargan desde Firestore
+ * (`laila_agent_config/instructions`) con fallback al asset estático.
  */
 export const askLaila = async (
   userMessage: string,

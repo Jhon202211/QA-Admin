@@ -16,12 +16,11 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SettingsIcon from '@mui/icons-material/Settings';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import InsightsIcon from '@mui/icons-material/Insights';
-import ReportProblemIcon from '@mui/icons-material/ReportProblem';
-import HubIcon from '@mui/icons-material/Hub';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import ChatIcon from '@mui/icons-material/Chat';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
@@ -77,11 +76,13 @@ export const AppMenu = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [, setOpen] = useSidebarState();
 
-  const isReliabilityRoute = useMemo(
-    () => location.pathname.startsWith('/reliability') || location.pathname.startsWith('/system_incidents'),
+  const isAiRoute = useMemo(
+    () =>
+      location.pathname.startsWith('/ia') ||
+      location.pathname.startsWith('/openlaila'),
     [location.pathname]
   );
-  const [reliabilityOpen, setReliabilityOpen] = useState(isReliabilityRoute);
+  const [aiOpen, setAiOpen] = useState(isAiRoute);
 
   const handleNavClick = () => {
     if (isMobile) setOpen(false);
@@ -112,49 +113,45 @@ export const AppMenu = () => {
           active={location.pathname.startsWith('/automation')}
           onClick={handleNavClick}
         />
-        <MenuLinkItem
-          to="/openlaila"
-          label="OpenLaila"
-          icon={<AutoAwesomeIcon />}
-          active={location.pathname.startsWith('/openlaila')}
-          onClick={handleNavClick}
-        />
 
         <ListItemButton
-          onClick={() => setReliabilityOpen((current) => !current)}
-          selected={isReliabilityRoute}
+          onClick={() => setAiOpen((current) => !current)}
+          selected={isAiRoute}
           sx={itemStyles}
         >
           <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
-            <MonitorHeartIcon />
+            <SmartToyIcon />
           </ListItemIcon>
-          <ListItemText primary="Reliability" />
-          {reliabilityOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          <ListItemText primary="IA" />
+          {aiOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
         </ListItemButton>
 
-        <Collapse in={reliabilityOpen || isReliabilityRoute} timeout="auto" unmountOnExit>
+        <Collapse in={aiOpen || isAiRoute} timeout="auto" unmountOnExit>
           <List disablePadding>
             <MenuLinkItem
-              to="/reliability/dashboard"
-              label="Dashboard"
-              icon={<InsightsIcon fontSize="small" />}
-              active={location.pathname.startsWith('/reliability/dashboard')}
+              to="/ia/chatbot"
+              label="Chatbot"
+              icon={<ChatIcon fontSize="small" />}
+              active={
+                location.pathname.startsWith('/ia/chatbot') ||
+                location.pathname.startsWith('/openlaila')
+              }
               nested
               onClick={handleNavClick}
             />
             <MenuLinkItem
-              to="/system_incidents"
-              label="Incidentes"
-              icon={<ReportProblemIcon fontSize="small" />}
-              active={location.pathname.startsWith('/system_incidents')}
+              to="/ia/conocimiento"
+              label="Base de conocimiento"
+              icon={<MenuBookIcon fontSize="small" />}
+              active={location.pathname.startsWith('/ia/conocimiento')}
               nested
               onClick={handleNavClick}
             />
             <MenuLinkItem
-              to="/reliability/analysis"
-              label="Análisis"
-              icon={<HubIcon fontSize="small" />}
-              active={location.pathname.startsWith('/reliability/analysis')}
+              to="/ia/instrucciones"
+              label="Instrucciones del agente"
+              icon={<PsychologyIcon fontSize="small" />}
+              active={location.pathname.startsWith('/ia/instrucciones')}
               nested
               onClick={handleNavClick}
             />
