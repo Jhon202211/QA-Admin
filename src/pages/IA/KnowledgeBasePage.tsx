@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -8,9 +8,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
   IconButton,
+  InputLabel,
   LinearProgress,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   Switch,
   Table,
@@ -32,6 +36,7 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import { useNotify } from 'react-admin';
 import {
   ALLOWED_KNOWLEDGE_EXTENSIONS,
+  KNOWLEDGE_CATEGORY_META,
   deleteKnowledgeDoc,
   fetchKnowledgeDocText,
   importStaticKnowledgeToCatalog,
@@ -41,6 +46,7 @@ import {
   saveKnowledgeDocText,
   setKnowledgeDocEnabled,
   uploadKnowledgeDoc,
+  type KnowledgeCategory,
   type LailaKnowledgeDoc,
 } from '../../services/lailaKnowledgeAdminService';
 import { getS3Config } from '../../services/evidenceService';
@@ -53,6 +59,126 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const CategoryTable = ({
+  title,
+  description,
+  docs,
+  expectedCount,
+  onToggle,
+  onOpen,
+  onReplace,
+  onDelete,
+}: {
+  title: string;
+  description: string;
+  docs: LailaKnowledgeDoc[];
+  expectedCount: number;
+  onToggle: (doc: LailaKnowledgeDoc, enabled: boolean) => void;
+  onOpen: (doc: LailaKnowledgeDoc, mode: 'view' | 'edit') => void;
+  onReplace: (doc: LailaKnowledgeDoc) => void;
+  onDelete: (doc: LailaKnowledgeDoc) => void;
+}) => {
+  const isPdf = (docMeta: LailaKnowledgeDoc) => docMeta.name.toLowerCase().endsWith('.pdf');
+  const countColor =
+    docs.length === expectedCount ? 'success' : docs.length < expectedCount ? 'warning' : 'default';
+
+  return (
+    <Paper variant="outlined" sx={{ overflow: 'auto', mb: 2 }}>
+      <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
+          <Chip
+            size="small"
+            color={countColor}
+            label={`${docs.length} / ${expectedCount}`}
+          />
+        </Stack>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          {description}
+        </Typography>
+      </Box>
+
+      {docs.length === 0 ? (
+        <Box sx={{ p: 3 }}>
+          <Typography color="text.secondary">
+            No hay documentos en este bloque. Usa “Importar estáticos” o súbelos a S3.
+          </Typography>
+        </Box>
+      ) : (
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Nombre</TableCell>
+              <TableCell>Origen</TableCell>
+              <TableCell>Tamaño</TableCell>
+              <TableCell align="center">Activo</TableCell>
+              <TableCell align="right">Acciones</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {docs.map((docMeta) => (
+              <TableRow key={docMeta.id} hover>
+                <TableCell>
+                  <Typography variant="body2" fontWeight={600}>
+                    {docMeta.name}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={
+                      docMeta.inlineContent
+                        ? 'Editado'
+                        : docMeta.source === 's3'
+                          ? 'S3'
+                          : 'Estático'
+                    }
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell>{formatBytes(docMeta.size)}</TableCell>
+                <TableCell align="center">
+                  <Switch
+                    checked={docMeta.enabled}
+                    onChange={(_, checked) => onToggle(docMeta, checked)}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title={isPdf(docMeta) ? 'Ver PDF' : 'Ver contenido'}>
+                    <IconButton size="small" onClick={() => onOpen(docMeta, 'view')}>
+                      <VisibilityOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  {!isPdf(docMeta) && (
+                    <Tooltip title="Editar contenido">
+                      <IconButton size="small" onClick={() => onOpen(docMeta, 'edit')}>
+                        <EditOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Tooltip title="Reemplazar archivo">
+                    <IconButton size="small" onClick={() => onReplace(docMeta)}>
+                      <UploadFileIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Eliminar">
+                    <IconButton color="error" size="small" onClick={() => onDelete(docMeta)}>
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </Paper>
+  );
+};
+
 export const KnowledgeBasePage = () => {
   const notify = useNotify();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -62,6 +188,7 @@ export const KnowledgeBasePage = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState<KnowledgeCategory>('plataforma');
   const [selectedDoc, setSelectedDoc] = useState<LailaKnowledgeDoc | null>(null);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit'>('view');
   const [documentContent, setDocumentContent] = useState('');
@@ -69,6 +196,15 @@ export const KnowledgeBasePage = () => {
   const [savingContent, setSavingContent] = useState(false);
   const [replacingDoc, setReplacingDoc] = useState<LailaKnowledgeDoc | null>(null);
   const s3Ready = Boolean(getS3Config());
+
+  const plataformaDocs = useMemo(
+    () => docs.filter((d) => d.category === 'plataforma'),
+    [docs]
+  );
+  const historialDocs = useMemo(
+    () => docs.filter((d) => d.category === 'historial_reglas'),
+    [docs]
+  );
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -99,7 +235,7 @@ export const KnowledgeBasePage = () => {
     setProgress(0);
     try {
       for (const file of Array.from(fileList)) {
-        await uploadKnowledgeDoc(file, setProgress);
+        await uploadKnowledgeDoc(file, uploadCategory, setProgress);
       }
       await lailaKnowledgeService.reinitialize();
       notify('Documento(s) subidos a la base de conocimiento', { type: 'success' });
@@ -218,13 +354,14 @@ export const KnowledgeBasePage = () => {
   const handleImportStatic = async () => {
     setImporting(true);
     try {
-      const count = await importStaticKnowledgeToCatalog();
+      const result = await importStaticKnowledgeToCatalog();
       await lailaKnowledgeService.reinitialize();
+      const total = result.imported + result.updated;
       notify(
-        count > 0
-          ? `Se importaron ${count} documento(s) estáticos al catálogo`
-          : 'No había documentos nuevos que importar',
-        { type: count > 0 ? 'success' : 'info' }
+        total > 0
+          ? `Sincronizados ${total} documento(s): plataforma ${result.plataforma}, historial ${result.historial}`
+          : 'El catálogo ya estaba al día',
+        { type: total > 0 ? 'success' : 'info' }
       );
       await refresh();
     } catch {
@@ -242,15 +379,27 @@ export const KnowledgeBasePage = () => {
             Base de conocimiento
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-            Documentos que alimentan el chatbot (RAG). Archivos en S3; catálogo y estado en Firestore.
+            Dos bloques: plataforma (8 docs) e historial y reglas (3). `instructions.md` se administra en Instrucciones del agente.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
+        <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
           <Chip
             label={s3Ready ? 'S3 configurado' : 'S3 no configurado'}
             color={s3Ready ? 'success' : 'warning'}
             size="small"
           />
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel id="kb-upload-category-label">Bloque al subir</InputLabel>
+            <Select
+              labelId="kb-upload-category-label"
+              label="Bloque al subir"
+              value={uploadCategory}
+              onChange={(e) => setUploadCategory(e.target.value as KnowledgeCategory)}
+            >
+              <MenuItem value="plataforma">{KNOWLEDGE_CATEGORY_META.plataforma.label}</MenuItem>
+              <MenuItem value="historial_reglas">{KNOWLEDGE_CATEGORY_META.historial_reglas.label}</MenuItem>
+            </Select>
+          </FormControl>
           <Button startIcon={<RefreshIcon />} onClick={() => void refresh()} disabled={loading}>
             Actualizar
           </Button>
@@ -295,99 +444,41 @@ export const KnowledgeBasePage = () => {
         </Box>
       )}
 
-      <Paper variant="outlined" sx={{ overflow: 'auto' }}>
-        {loading ? (
-          <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}>
-            <CircularProgress size={32} />
-          </Box>
-        ) : docs.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>
-              Aún no hay documentos en el catálogo. Importa los archivos estáticos existentes o súbelos a S3.
-            </Typography>
-            <Button variant="outlined" onClick={() => void handleImportStatic()} disabled={importing}>
-              Importar desde public/knowledge/Laila
-            </Button>
-          </Box>
-        ) : (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Nombre</TableCell>
-                <TableCell>Origen</TableCell>
-                <TableCell>Tamaño</TableCell>
-                <TableCell align="center">Activo</TableCell>
-                <TableCell align="right">Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {docs.map((docMeta) => (
-                <TableRow key={docMeta.id} hover>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600}>
-                      {docMeta.name}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={
-                        docMeta.inlineContent
-                          ? 'Editado'
-                          : docMeta.source === 's3'
-                            ? 'S3'
-                            : 'Estático'
-                      }
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>{formatBytes(docMeta.size)}</TableCell>
-                  <TableCell align="center">
-                    <Switch
-                      checked={docMeta.enabled}
-                      onChange={(_, checked) => void handleToggle(docMeta, checked)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title={isPdf(docMeta) ? 'Ver PDF' : 'Ver contenido'}>
-                      <IconButton
-                        size="small"
-                        onClick={() => void handleOpenDocument(docMeta, 'view')}
-                      >
-                        <VisibilityOutlinedIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    {!isPdf(docMeta) && (
-                      <Tooltip title="Editar contenido">
-                        <IconButton
-                          size="small"
-                          onClick={() => void handleOpenDocument(docMeta, 'edit')}
-                        >
-                          <EditOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    <Tooltip title="Reemplazar archivo">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleReplaceClick(docMeta)}
-                      >
-                        <UploadFileIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Eliminar">
-                      <IconButton color="error" size="small" onClick={() => void handleDelete(docMeta)}>
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Paper>
+      {loading ? (
+        <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress size={32} />
+        </Box>
+      ) : (
+        <>
+          <CategoryTable
+            title={KNOWLEDGE_CATEGORY_META.plataforma.label}
+            description={KNOWLEDGE_CATEGORY_META.plataforma.description}
+            docs={plataformaDocs}
+            expectedCount={KNOWLEDGE_CATEGORY_META.plataforma.expectedCount}
+            onToggle={(doc, enabled) => void handleToggle(doc, enabled)}
+            onOpen={(doc, mode) => void handleOpenDocument(doc, mode)}
+            onReplace={handleReplaceClick}
+            onDelete={(doc) => void handleDelete(doc)}
+          />
+          <CategoryTable
+            title={KNOWLEDGE_CATEGORY_META.historial_reglas.label}
+            description={KNOWLEDGE_CATEGORY_META.historial_reglas.description}
+            docs={historialDocs}
+            expectedCount={KNOWLEDGE_CATEGORY_META.historial_reglas.expectedCount}
+            onToggle={(doc, enabled) => void handleToggle(doc, enabled)}
+            onOpen={(doc, mode) => void handleOpenDocument(doc, mode)}
+            onReplace={handleReplaceClick}
+            onDelete={(doc) => void handleDelete(doc)}
+          />
+          {docs.length === 0 && (
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
+              <Button variant="outlined" onClick={() => void handleImportStatic()} disabled={importing}>
+                Importar desde public/knowledge
+              </Button>
+            </Box>
+          )}
+        </>
+      )}
 
       <Dialog
         open={Boolean(selectedDoc)}

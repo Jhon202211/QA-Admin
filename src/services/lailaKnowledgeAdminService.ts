@@ -17,8 +17,38 @@ import { loadKnowledgeFromUrl } from './knowledgeFileLoader';
 
 export const LAILA_KNOWLEDGE_COLLECTION = 'laila_knowledge_docs';
 export const LAILA_AGENT_CONFIG_DOC = 'laila_agent_config/instructions';
-const S3_PREFIX = 'knowledge/laila';
-const STATIC_DIR = '/knowledge/Laila';
+const S3_PREFIX = 'knowledge';
+const STATIC_LAILA_DIR = '/knowledge/Laila';
+const STATIC_ROOT_DIR = '/knowledge';
+
+export type KnowledgeCategory = 'plataforma' | 'historial_reglas';
+
+export const KNOWLEDGE_CATEGORY_META: Record<
+  KnowledgeCategory,
+  { id: KnowledgeCategory; label: string; description: string; expectedCount: number }
+> = {
+  plataforma: {
+    id: 'plataforma',
+    label: 'Conocimiento de plataforma',
+    description: 'Manuales, FAQs y diccionarios de la aplicación (sin instructions.md).',
+    expectedCount: 8,
+  },
+  historial_reglas: {
+    id: 'historial_reglas',
+    label: 'Historial y reglas',
+    description: 'Bugs históricos, features/mejoras y reglas de negocio.',
+    expectedCount: 3,
+  },
+};
+
+/** Archivos estáticos del bloque Historial y reglas (sin criterios_acceso). */
+export const HISTORIAL_STATIC_FILES = [
+  'bugs_historicos.md',
+  'features_mejoras.md',
+  'reglas_negocio.md',
+] as const;
+
+const HISTORIAL_FILE_SET = new Set<string>(HISTORIAL_STATIC_FILES);
 
 export const ALLOWED_KNOWLEDGE_EXTENSIONS = ['.md', '.txt', '.pdf'];
 export const MAX_KNOWLEDGE_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
@@ -33,6 +63,7 @@ export interface LailaKnowledgeDoc {
   size: number;
   enabled: boolean;
   source: 's3' | 'static';
+  category: KnowledgeCategory;
   inlineContent?: string;
   updatedAt: Date | null;
 }
@@ -43,10 +74,22 @@ export interface LailaInstructions {
   source: 'firestore' | 'static';
 }
 
+export interface ImportStaticResult {
+  imported: number;
+  updated: number;
+  plataforma: number;
+  historial: number;
+}
+
 const getExtension = (filename: string) => {
   const i = filename.lastIndexOf('.');
   return i >= 0 ? filename.slice(i).toLowerCase() : '';
 };
+
+const docIdFromName = (name: string) => name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_');
+
+export const inferKnowledgeCategory = (name: string): KnowledgeCategory =>
+  HISTORIAL_FILE_SET.has(name) ? 'historial_reglas' : 'plataforma';
 
 export const validateKnowledgeFile = (file: File): string | null => {
   const ext = getExtension(file.name);
@@ -78,31 +121,43 @@ const createS3Client = () => {
   };
 };
 
+const mapDoc = (id: string, data: Record<string, unknown>): LailaKnowledgeDoc => {
+  const name = String(data.name || '');
+  const rawCategory = data.category;
+  const category: KnowledgeCategory =
+    rawCategory === 'plataforma' || rawCategory === 'historial_reglas'
+      ? rawCategory
+      : inferKnowledgeCategory(name);
+
+  return {
+    id,
+    name,
+    storagePath: String(data.storagePath || ''),
+    url: String(data.url || ''),
+    mimeType: String(data.mimeType || 'text/plain'),
+    size: Number(data.size) || 0,
+    enabled: data.enabled !== false,
+    source: data.source === 'static' ? 'static' : 's3',
+    category,
+    inlineContent: typeof data.inlineContent === 'string' ? data.inlineContent : undefined,
+    updatedAt:
+      data.updatedAt && typeof (data.updatedAt as { toDate?: () => Date }).toDate === 'function'
+        ? (data.updatedAt as { toDate: () => Date }).toDate()
+        : null,
+  };
+};
+
 /** Lista documentos registrados en Firestore (catálogo editable). */
 export const listKnowledgeDocs = async (): Promise<LailaKnowledgeDoc[]> => {
   const q = query(collection(db, LAILA_KNOWLEDGE_COLLECTION), orderBy('name'));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      name: data.name as string,
-      storagePath: (data.storagePath as string) || '',
-      url: (data.url as string) || '',
-      mimeType: (data.mimeType as string) || 'text/plain',
-      size: Number(data.size) || 0,
-      enabled: data.enabled !== false,
-      source: (data.source as 's3' | 'static') || 's3',
-      inlineContent:
-        typeof data.inlineContent === 'string' ? data.inlineContent : undefined,
-      updatedAt: data.updatedAt?.toDate?.() ?? null,
-    };
-  });
+  return snap.docs.map((d) => mapDoc(d.id, d.data() as Record<string, unknown>));
 };
 
 /** Sube un archivo a S3 y registra metadatos en Firestore. */
 export const uploadKnowledgeDoc = async (
   file: File,
+  category: KnowledgeCategory,
   onProgress?: (percent: number) => void
 ): Promise<LailaKnowledgeDoc> => {
   const validationError = validateKnowledgeFile(file);
@@ -110,7 +165,7 @@ export const uploadKnowledgeDoc = async (
 
   const { s3, client } = createS3Client();
   const safeName = file.name.replace(/[/\\]/g, '_').trim();
-  const storagePath = `${S3_PREFIX}/${safeName}`;
+  const storagePath = `${S3_PREFIX}/${category}/${safeName}`;
   onProgress?.(10);
 
   const body = new Uint8Array(await file.arrayBuffer());
@@ -135,9 +190,8 @@ export const uploadKnowledgeDoc = async (
   onProgress?.(90);
 
   const url = `https://${s3.bucket}.s3.${s3.region}.amazonaws.com/${storagePath}`;
-  const id = safeName.toLowerCase().replace(/[^a-z0-9._-]+/g, '_');
-  const ref = doc(db, LAILA_KNOWLEDGE_COLLECTION, id);
-  await setDoc(ref, {
+  const id = docIdFromName(safeName);
+  await setDoc(doc(db, LAILA_KNOWLEDGE_COLLECTION, id), {
     name: safeName,
     storagePath,
     url,
@@ -145,6 +199,7 @@ export const uploadKnowledgeDoc = async (
     size: file.size,
     enabled: true,
     source: 's3',
+    category,
     updatedAt: serverTimestamp(),
   });
   onProgress?.(100);
@@ -158,11 +213,12 @@ export const uploadKnowledgeDoc = async (
     size: file.size,
     enabled: true,
     source: 's3',
+    category,
     updatedAt: new Date(),
   };
 };
 
-/** Reemplaza un documento conservando su registro y estado en el catálogo. */
+/** Reemplaza un documento conservando su registro, categoría y estado. */
 export const replaceKnowledgeDoc = async (
   docMeta: LailaKnowledgeDoc,
   file: File,
@@ -173,7 +229,7 @@ export const replaceKnowledgeDoc = async (
 
   const { s3, client } = createS3Client();
   const safeName = file.name.replace(/[/\\]/g, '_').trim();
-  const storagePath = `${S3_PREFIX}/${safeName}`;
+  const storagePath = `${S3_PREFIX}/${docMeta.category}/${safeName}`;
   onProgress?.(10);
 
   await client.send(
@@ -196,6 +252,7 @@ export const replaceKnowledgeDoc = async (
       size: file.size,
       enabled: docMeta.enabled,
       source: 's3',
+      category: docMeta.category,
       inlineContent: null,
       updatedAt: serverTimestamp(),
     },
@@ -264,6 +321,16 @@ export const setKnowledgeDocEnabled = async (id: string, enabled: boolean): Prom
   });
 };
 
+export const setKnowledgeDocCategory = async (
+  id: string,
+  category: KnowledgeCategory
+): Promise<void> => {
+  await updateDoc(doc(db, LAILA_KNOWLEDGE_COLLECTION, id), {
+    category,
+    updatedAt: serverTimestamp(),
+  });
+};
+
 export const deleteKnowledgeDoc = async (docMeta: LailaKnowledgeDoc): Promise<void> => {
   if (docMeta.source === 's3' && docMeta.storagePath) {
     const s3 = getS3Config();
@@ -283,36 +350,107 @@ export const deleteKnowledgeDoc = async (docMeta: LailaKnowledgeDoc): Promise<vo
   await deleteDoc(doc(db, LAILA_KNOWLEDGE_COLLECTION, docMeta.id));
 };
 
-/**
- * Importa los archivos estáticos de public/knowledge/Laila al catálogo Firestore
- * (sin subir a S3). Útil como puente hasta migrar todo a S3.
- */
-export const importStaticKnowledgeToCatalog = async (): Promise<number> => {
-  const manifestRes = await fetch(`${STATIC_DIR}/manifest.json`);
-  if (!manifestRes.ok) return 0;
-  const files = (await manifestRes.json()) as string[];
-  if (!Array.isArray(files)) return 0;
-
-  let imported = 0;
-  for (const name of files) {
-    if (typeof name !== 'string' || !name.trim()) continue;
-    const id = name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_');
-    const existing = await getDoc(doc(db, LAILA_KNOWLEDGE_COLLECTION, id));
-    if (existing.exists()) continue;
-
-    await setDoc(doc(db, LAILA_KNOWLEDGE_COLLECTION, id), {
-      name,
-      storagePath: '',
-      url: `${STATIC_DIR}/${encodeURIComponent(name)}`,
-      mimeType: name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'text/markdown',
-      size: 0,
-      enabled: true,
-      source: 'static',
-      updatedAt: serverTimestamp(),
-    });
-    imported += 1;
+const upsertStaticDoc = async (
+  name: string,
+  baseUrl: string,
+  category: KnowledgeCategory
+): Promise<'imported' | 'updated' | 'skipped'> => {
+  if (name.toLowerCase() === 'instructions.md' || name.toLowerCase() === 'criterios_acceso.md') {
+    return 'skipped';
   }
-  return imported;
+
+  const id = docIdFromName(name);
+  const ref = doc(db, LAILA_KNOWLEDGE_COLLECTION, id);
+  const existing = await getDoc(ref);
+  const payload = {
+    name,
+    storagePath: '',
+    url: `${baseUrl}/${encodeURIComponent(name)}`,
+    mimeType: name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'text/markdown',
+    size: existing.exists() ? Number(existing.data()?.size) || 0 : 0,
+    enabled: existing.exists() ? existing.data()?.enabled !== false : true,
+    source: 'static' as const,
+    category,
+    updatedAt: serverTimestamp(),
+  };
+
+  if (!existing.exists()) {
+    await setDoc(ref, payload);
+    return 'imported';
+  }
+
+  const data = existing.data() || {};
+  const needsUpdate =
+    data.category !== category ||
+    data.source === 's3' ||
+    data.url !== payload.url ||
+    data.name !== name;
+
+  // No pisar documentos ya migrados a S3; solo corrige categoría si falta.
+  if (data.source === 's3') {
+    if (data.category !== category) {
+      await updateDoc(ref, { category, updatedAt: serverTimestamp() });
+      return 'updated';
+    }
+    return 'skipped';
+  }
+
+  if (needsUpdate) {
+    await setDoc(ref, payload, { merge: true });
+    return 'updated';
+  }
+  return 'skipped';
+};
+
+/**
+ * Importa/sincroniza estáticos:
+ * - Plataforma: manifiesto Laila (sin instructions.md)
+ * - Historial y reglas: bugs, features y reglas_negocio (sin criterios_acceso)
+ */
+export const importStaticKnowledgeToCatalog = async (): Promise<ImportStaticResult> => {
+  let imported = 0;
+  let updated = 0;
+  let plataforma = 0;
+  let historial = 0;
+
+  const lailaManifestRes = await fetch(`${STATIC_LAILA_DIR}/manifest.json`);
+  if (lailaManifestRes.ok) {
+    const files = (await lailaManifestRes.json()) as unknown;
+    if (Array.isArray(files)) {
+      for (const entry of files) {
+        if (typeof entry !== 'string' || !entry.trim()) continue;
+        const result = await upsertStaticDoc(entry.trim(), STATIC_LAILA_DIR, 'plataforma');
+        if (result === 'imported') {
+          imported += 1;
+          plataforma += 1;
+        } else if (result === 'updated') {
+          updated += 1;
+          plataforma += 1;
+        }
+      }
+    }
+  }
+
+  for (const name of HISTORIAL_STATIC_FILES) {
+    const result = await upsertStaticDoc(name, STATIC_ROOT_DIR, 'historial_reglas');
+    if (result === 'imported') {
+      imported += 1;
+      historial += 1;
+    } else if (result === 'updated') {
+      updated += 1;
+      historial += 1;
+    }
+  }
+
+  // Elimina del catálogo el archivo deprecado criterios_acceso si aún aparece.
+  const criteriosId = docIdFromName('criterios_acceso.md');
+  const criteriosRef = doc(db, LAILA_KNOWLEDGE_COLLECTION, criteriosId);
+  const criteriosSnap = await getDoc(criteriosRef);
+  if (criteriosSnap.exists() && criteriosSnap.data()?.source === 'static') {
+    await deleteDoc(criteriosRef);
+  }
+
+  return { imported, updated, plataforma, historial };
 };
 
 /** Obtiene URL de lectura (presignada si es S3). */
@@ -320,7 +458,10 @@ export const resolveKnowledgeReadUrl = async (docMeta: LailaKnowledgeDoc): Promi
   if (docMeta.source === 's3' && docMeta.storagePath && getS3Config()) {
     return getPresignedUrl(docMeta.storagePath);
   }
-  return docMeta.url || `${STATIC_DIR}/${encodeURIComponent(docMeta.name)}`;
+  if (docMeta.url) return docMeta.url;
+  const base =
+    docMeta.category === 'historial_reglas' ? STATIC_ROOT_DIR : STATIC_LAILA_DIR;
+  return `${base}/${encodeURIComponent(docMeta.name)}`;
 };
 
 /** Carga el texto de un documento del catálogo. */
@@ -346,7 +487,7 @@ export const getAgentInstructions = async (): Promise<LailaInstructions> => {
     }
   }
 
-  const res = await fetch(`${STATIC_DIR}/instructions.md`);
+  const res = await fetch(`${STATIC_LAILA_DIR}/instructions.md`);
   const content = res.ok
     ? await res.text()
     : 'Eres OpenLaila, el asistente virtual de soporte de QAScope.';
