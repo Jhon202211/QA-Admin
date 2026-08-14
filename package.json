@@ -9,8 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "automation:server": "node automation-server.js",
-    "automation:test": "npx playwright test",
-    "knowledge:laila:convert": "node scripts/convertLailaPdfsToMarkdown.mjs"
+    "automation:test": "npx playwright test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1013.0",

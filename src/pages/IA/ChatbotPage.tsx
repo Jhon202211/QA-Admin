@@ -62,7 +62,7 @@ const conversationStorageKey = (userId: string) => `openlaila_current_conversati
 const WELCOME_MESSAGE =
   '¡Hola! Soy **OpenLaila**, tu asistente de soporte. Puedo responder preguntas basándome en la base de conocimiento de la plataforma. ¿En qué puedo ayudarte hoy?';
 
-export const OpenLailaPage = () => {
+export const ChatbotPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const notify = useNotify();

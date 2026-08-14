@@ -5,8 +5,7 @@ import { getAgentInstructions } from './lailaKnowledgeAdminService';
 import type { LailaMessage } from '../types/openLaila';
 
 /**
- * Fallback usado solo si no hay instrucciones en Firestore ni en
- * `public/knowledge/Laila/instructions.md`.
+ * Fallback usado solo si no hay instrucciones guardadas en Firestore.
  */
 const FALLBACK_INSTRUCTIONS = `Eres "OpenLaila", el asistente virtual de soporte de QAScope.
 

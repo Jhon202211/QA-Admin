@@ -32,14 +32,12 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import Inventory2Icon from '@mui/icons-material/Inventory2';
 import { useNotify } from 'react-admin';
 import {
   ALLOWED_KNOWLEDGE_EXTENSIONS,
   KNOWLEDGE_CATEGORY_META,
   deleteKnowledgeDoc,
   fetchKnowledgeDocText,
-  importStaticKnowledgeToCatalog,
   listKnowledgeDocs,
   replaceKnowledgeDoc,
   resolveKnowledgeReadUrl,
@@ -51,12 +49,17 @@ import {
 } from '../../services/lailaKnowledgeAdminService';
 import { getS3Config } from '../../services/evidenceService';
 import { lailaKnowledgeService } from '../../services/lailaKnowledgeService';
+import { knowledgeService } from '../../services/knowledgeService';
 
 const formatBytes = (bytes: number) => {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const refreshIndexes = async () => {
+  await Promise.all([lailaKnowledgeService.reinitialize(), knowledgeService.reinitialize()]);
 };
 
 const CategoryTable = ({
@@ -89,11 +92,7 @@ const CategoryTable = ({
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {title}
           </Typography>
-          <Chip
-            size="small"
-            color={countColor}
-            label={`${docs.length} / ${expectedCount}`}
-          />
+          <Chip size="small" color={countColor} label={`${docs.length} / ${expectedCount}`} />
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {description}
@@ -103,7 +102,7 @@ const CategoryTable = ({
       {docs.length === 0 ? (
         <Box sx={{ p: 3 }}>
           <Typography color="text.secondary">
-            No hay documentos en este bloque. Usa “Importar estáticos” o súbelos a S3.
+            No hay documentos en este bloque. Súbelos a S3 o créalos editando y guardando contenido.
           </Typography>
         </Box>
       ) : (
@@ -129,12 +128,13 @@ const CategoryTable = ({
                   <Chip
                     size="small"
                     label={
-                      docMeta.inlineContent
-                        ? 'Editado'
-                        : docMeta.source === 's3'
-                          ? 'S3'
-                          : 'Estático'
+                      docMeta.source === 's3'
+                        ? 'S3'
+                        : docMeta.inlineContent
+                          ? 'Firestore'
+                          : 'Sin archivo'
                     }
+                    color={docMeta.source === 's3' || docMeta.inlineContent ? 'default' : 'warning'}
                     variant="outlined"
                   />
                 </TableCell>
@@ -159,7 +159,7 @@ const CategoryTable = ({
                       </IconButton>
                     </Tooltip>
                   )}
-                  <Tooltip title="Reemplazar archivo">
+                  <Tooltip title="Reemplazar archivo (S3)">
                     <IconButton size="small" onClick={() => onReplace(docMeta)}>
                       <UploadFileIcon fontSize="small" />
                     </IconButton>
@@ -187,7 +187,6 @@ export const KnowledgeBasePage = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [importing, setImporting] = useState(false);
   const [uploadCategory, setUploadCategory] = useState<KnowledgeCategory>('plataforma');
   const [selectedDoc, setSelectedDoc] = useState<LailaKnowledgeDoc | null>(null);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit'>('view');
@@ -237,7 +236,7 @@ export const KnowledgeBasePage = () => {
       for (const file of Array.from(fileList)) {
         await uploadKnowledgeDoc(file, uploadCategory, setProgress);
       }
-      await lailaKnowledgeService.reinitialize();
+      await refreshIndexes();
       notify('Documento(s) subidos a la base de conocimiento', { type: 'success' });
       await refresh();
     } catch (e) {
@@ -253,7 +252,7 @@ export const KnowledgeBasePage = () => {
     try {
       await setKnowledgeDocEnabled(docMeta.id, enabled);
       setDocs((prev) => prev.map((d) => (d.id === docMeta.id ? { ...d, enabled } : d)));
-      await lailaKnowledgeService.reinitialize();
+      await refreshIndexes();
     } catch {
       notify('No se pudo actualizar el documento', { type: 'error' });
     }
@@ -263,7 +262,7 @@ export const KnowledgeBasePage = () => {
     if (!window.confirm(`¿Eliminar "${docMeta.name}" de la base de conocimiento?`)) return;
     try {
       await deleteKnowledgeDoc(docMeta);
-      await lailaKnowledgeService.reinitialize();
+      await refreshIndexes();
       notify('Documento eliminado', { type: 'info' });
       await refresh();
     } catch {
@@ -271,19 +270,15 @@ export const KnowledgeBasePage = () => {
     }
   };
 
-  const isPdf = (docMeta: LailaKnowledgeDoc) =>
-    docMeta.name.toLowerCase().endsWith('.pdf');
+  const isPdf = (docMeta: LailaKnowledgeDoc) => docMeta.name.toLowerCase().endsWith('.pdf');
 
-  const handleOpenDocument = async (
-    docMeta: LailaKnowledgeDoc,
-    mode: 'view' | 'edit'
-  ) => {
+  const handleOpenDocument = async (docMeta: LailaKnowledgeDoc, mode: 'view' | 'edit') => {
     if (isPdf(docMeta)) {
       try {
         const url = await resolveKnowledgeReadUrl(docMeta);
         window.open(url, '_blank', 'noopener,noreferrer');
-      } catch {
-        notify('No se pudo abrir el PDF', { type: 'error' });
+      } catch (e) {
+        notify(e instanceof Error ? e.message : 'No se pudo abrir el PDF', { type: 'error' });
       }
       return;
     }
@@ -294,9 +289,17 @@ export const KnowledgeBasePage = () => {
     setLoadingContent(true);
     try {
       setDocumentContent(await fetchKnowledgeDocText(docMeta));
-    } catch {
-      notify('No se pudo cargar el contenido del documento', { type: 'error' });
-      setSelectedDoc(null);
+    } catch (e) {
+      if (mode === 'edit') {
+        setDocumentContent('');
+        notify(
+          'Sin contenido remoto. Puedes pegar el texto y guardar (Firestore) o subir el archivo a S3.',
+          { type: 'warning' }
+        );
+      } else {
+        notify(e instanceof Error ? e.message : 'No se pudo cargar el contenido', { type: 'error' });
+        setSelectedDoc(null);
+      }
     } finally {
       setLoadingContent(false);
     }
@@ -307,7 +310,7 @@ export const KnowledgeBasePage = () => {
     setSavingContent(true);
     try {
       await saveKnowledgeDocText(selectedDoc, documentContent);
-      await lailaKnowledgeService.reinitialize();
+      await refreshIndexes();
       notify('Contenido actualizado correctamente', { type: 'success' });
       setSelectedDoc(null);
       await refresh();
@@ -336,7 +339,7 @@ export const KnowledgeBasePage = () => {
     setProgress(0);
     try {
       await replaceKnowledgeDoc(replacingDoc, file, setProgress);
-      await lailaKnowledgeService.reinitialize();
+      await refreshIndexes();
       notify('Documento reemplazado correctamente', { type: 'success' });
       await refresh();
     } catch (e) {
@@ -351,26 +354,6 @@ export const KnowledgeBasePage = () => {
     }
   };
 
-  const handleImportStatic = async () => {
-    setImporting(true);
-    try {
-      const result = await importStaticKnowledgeToCatalog();
-      await lailaKnowledgeService.reinitialize();
-      const total = result.imported + result.updated;
-      notify(
-        total > 0
-          ? `Sincronizados ${total} documento(s): plataforma ${result.plataforma}, historial ${result.historial}`
-          : 'El catálogo ya estaba al día',
-        { type: total > 0 ? 'success' : 'info' }
-      );
-      await refresh();
-    } catch {
-      notify('Error al importar documentos estáticos', { type: 'error' });
-    } finally {
-      setImporting(false);
-    }
-  };
-
   return (
     <Box sx={{ pt: { xs: 1.5, sm: 3 }, pr: { xs: 1.5, sm: 3 }, pb: { xs: 1.5, sm: 3 }, pl: 0 }}>
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
@@ -379,7 +362,7 @@ export const KnowledgeBasePage = () => {
             Base de conocimiento
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-            Dos bloques: plataforma (8 docs) e historial y reglas (3). `instructions.md` se administra en Instrucciones del agente.
+            Catálogo en Firestore; archivos en S3. Alimenta el chatbot y el agente de casos de prueba.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
@@ -402,14 +385,6 @@ export const KnowledgeBasePage = () => {
           </FormControl>
           <Button startIcon={<RefreshIcon />} onClick={() => void refresh()} disabled={loading}>
             Actualizar
-          </Button>
-          <Button
-            startIcon={<Inventory2Icon />}
-            onClick={() => void handleImportStatic()}
-            disabled={importing}
-            variant="outlined"
-          >
-            Importar estáticos
           </Button>
           <Button
             variant="contained"
@@ -470,13 +445,6 @@ export const KnowledgeBasePage = () => {
             onReplace={handleReplaceClick}
             onDelete={(doc) => void handleDelete(doc)}
           />
-          {docs.length === 0 && (
-            <Box sx={{ textAlign: 'center', mt: 1 }}>
-              <Button variant="outlined" onClick={() => void handleImportStatic()} disabled={importing}>
-                Importar desde public/knowledge
-              </Button>
-            </Box>
-          )}
         </>
       )}
 

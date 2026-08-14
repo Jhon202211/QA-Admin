@@ -21,7 +21,7 @@ import { invalidateLailaInstructionsCache } from '../../services/lailaChatServic
 export const AgentInstructionsPage = () => {
   const notify = useNotify();
   const [content, setContent] = useState('');
-  const [source, setSource] = useState<'firestore' | 'static'>('static');
+  const [source, setSource] = useState<'firestore' | 'fallback'>('fallback');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,8 +77,8 @@ export const AgentInstructionsPage = () => {
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip
             size="small"
-            label={source === 'firestore' ? 'Firestore' : 'Archivo estático'}
-            color={source === 'firestore' ? 'success' : 'default'}
+            label={source === 'firestore' ? 'Firestore' : 'Sin guardar aún'}
+            color={source === 'firestore' ? 'success' : 'warning'}
           />
           {updatedAt && (
             <Typography variant="caption" color="text.secondary">

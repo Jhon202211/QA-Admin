@@ -1,7 +1,7 @@
 import { Admin, Resource, Layout, AppBar, CustomRoutes } from 'react-admin';
 import { BrowserRouter, Navigate, Route, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
-import { OpenLailaPage } from './pages/OpenLaila/OpenLailaPage';
+import { ChatbotPage } from './pages/IA/ChatbotPage';
 import { KnowledgeBasePage } from './pages/IA/KnowledgeBasePage';
 import { AgentInstructionsPage } from './pages/IA/AgentInstructionsPage';
 import { authProvider } from './firebase/auth';
@@ -197,7 +197,7 @@ function App() {
         >
           <CustomRoutes>
             <Route path="/ia" element={<Navigate to="/ia/chatbot" replace />} />
-            <Route path="/ia/chatbot" element={<OpenLailaPage />} />
+            <Route path="/ia/chatbot" element={<ChatbotPage />} />
             <Route path="/ia/conocimiento" element={<KnowledgeBasePage />} />
             <Route path="/ia/instrucciones" element={<AgentInstructionsPage />} />
             <Route path="/openlaila" element={<Navigate to="/ia/chatbot" replace />} />
