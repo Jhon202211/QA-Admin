@@ -13,7 +13,8 @@ import {
   writeBatch,
   runTransaction,
 } from 'firebase/firestore';
-import { db } from './config';
+import { auth, db } from './config';
+import { refreshAuthToken } from './auth';
 
 interface DataItem {
   id: string;
@@ -37,6 +38,33 @@ const wrapFirestoreError = (resource: string, error: any): DataProviderError => 
   wrapped.status = error?.status;
   wrapped.cause = error;
   return wrapped;
+};
+
+const isUnauthenticatedError = (error: unknown): boolean =>
+  (error as { code?: string } | null)?.code === 'unauthenticated';
+
+const logFirestoreError = (resource: string, error: unknown) => {
+  const code = (error as { code?: string } | null)?.code;
+  const codeLabel = code ? ` (${code})` : '';
+  console.error(`[Firestore] ${resource}${codeLabel}:`, error);
+};
+
+async function withFirestoreAuthRetry<T>(resource: string, operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: unknown) {
+    if (isUnauthenticatedError(error) && auth.currentUser) {
+      try {
+        await refreshAuthToken(true, 1);
+        return await operation();
+      } catch (retryError: unknown) {
+        logFirestoreError(`${resource} retry`, retryError);
+        throw wrapFirestoreError(resource, retryError);
+      }
+    }
+    logFirestoreError(resource, error);
+    throw wrapFirestoreError(resource, error);
+  }
 };
 
 const withTimeout = async <T>(promise: Promise<T>, ms = 15000): Promise<T> => {
@@ -82,19 +110,14 @@ const convertDateToTimestamp = (data: any) => {
 
 export const dataProvider = {
   getList: async (resource: string, params: any = {}) => {
-    let data: DataItem[] = [];
-    try {
+    const snapshot = await withFirestoreAuthRetry(resource, () => {
       const collectionRef = collection(db, resource);
-      const snapshot = await withTimeout(getDocs(collectionRef));
-      data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...convertTimestampToDate(doc.data())
-      } as DataItem));
-    } catch (error: any) {
-      const code = error?.code ? ` (${error.code})` : '';
-      console.error(`[Firestore] getList ${resource}${code}:`, error);
-      throw wrapFirestoreError(resource, error);
-    }
+      return withTimeout(getDocs(collectionRef));
+    });
+    let data: DataItem[] = snapshot.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...convertTimestampToDate(docSnap.data())
+    } as DataItem));
 
     // Filtrado
     if (params.filter) {
@@ -146,151 +169,167 @@ export const dataProvider = {
   },
 
   getOne: async (resource: string, params: any) => {
-    const docRef = doc(db, resource, params.id.toString());
-    const docSnap = await getDoc(docRef);
+    return withFirestoreAuthRetry(resource, async () => {
+      const docRef = doc(db, resource, params.id.toString());
+      const docSnap = await getDoc(docRef);
 
-    if (!docSnap.exists()) {
-      throw new Error('Document not found');
-    }
+      if (!docSnap.exists()) {
+        throw new Error('Document not found');
+      }
 
-    return {
-      data: {
-        id: docSnap.id,
-        ...convertTimestampToDate(docSnap.data())
-      },
-    };
+      return {
+        data: {
+          id: docSnap.id,
+          ...convertTimestampToDate(docSnap.data())
+        },
+      };
+    });
   },
 
   getMany: async (resource: string, params: any) => {
-    const data = await Promise.all(
-      params.ids.map((id: string | number) => {
-        const docRef = doc(db, resource, id.toString());
-        return getDoc(docRef).then(doc => ({
-          id: doc.id,
-          ...convertTimestampToDate(doc.data())
-        }));
-      })
-    );
+    return withFirestoreAuthRetry(resource, async () => {
+      const data = await Promise.all(
+        params.ids.map((id: string | number) => {
+          const docRef = doc(db, resource, id.toString());
+          return getDoc(docRef).then(docSnap => ({
+            id: docSnap.id,
+            ...convertTimestampToDate(docSnap.data())
+          }));
+        })
+      );
 
-    return { data };
+      return { data };
+    });
   },
 
   create: async (resource: string, params: any) => {
-    const collectionRef = collection(db, resource);
-    let caseKey = params.data.caseKey;
-    // Si el usuario no proporciona caseKey, generarlo con contador atómico
-    if (!caseKey) {
-      const counterRef = doc(db, '_counters', 'caseKey');
+    return withFirestoreAuthRetry(resource, async () => {
+      const collectionRef = collection(db, resource);
+      let caseKey = params.data.caseKey;
+      // Si el usuario no proporciona caseKey, generarlo con contador atómico
+      if (!caseKey) {
+        const counterRef = doc(db, '_counters', 'caseKey');
 
-      // Si el contador no existe, inicializarlo con el máximo actual de los casos
-      const counterSnap = await getDoc(counterRef);
-      if (!counterSnap.exists()) {
-        const snapshot = await getDocs(collectionRef);
-        const existing = snapshot.docs
-          .map(d => (d.data() as { caseKey?: string }).caseKey)
-          .filter((k): k is string => typeof k === 'string' && /^CP\d+$/.test(k))
-          .map(k => parseInt(k.replace('CP', ''), 10));
-        const maxExisting = existing.length > 0 ? Math.max(...existing) : 0;
-        await setDoc(counterRef, { value: maxExisting });
+        // Si el contador no existe, inicializarlo con el máximo actual de los casos
+        const counterSnap = await getDoc(counterRef);
+        if (!counterSnap.exists()) {
+          const snapshot = await getDocs(collectionRef);
+          const existing = snapshot.docs
+            .map(d => (d.data() as { caseKey?: string }).caseKey)
+            .filter((k): k is string => typeof k === 'string' && /^CP\d+$/.test(k))
+            .map(k => parseInt(k.replace('CP', ''), 10));
+          const maxExisting = existing.length > 0 ? Math.max(...existing) : 0;
+          await setDoc(counterRef, { value: maxExisting });
+        }
+
+        const nextNum = await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(counterRef);
+          const current = snap.exists() ? (snap.data()?.value ?? 0) : 0;
+          const next = current + 1;
+          transaction.set(counterRef, { value: next });
+          return next;
+        });
+        caseKey = `CP${nextNum.toString().padStart(3, '0')}`;
       }
-
-      const nextNum = await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(counterRef);
-        const current = snap.exists() ? (snap.data()?.value ?? 0) : 0;
-        const next = current + 1;
-        transaction.set(counterRef, { value: next });
-        return next;
+      const data = convertDateToTimestamp({ ...params.data, caseKey });
+      const docRef = await addDoc(collectionRef, {
+        ...data,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       });
-      caseKey = `CP${nextNum.toString().padStart(3, '0')}`;
-    }
-    const data = convertDateToTimestamp({ ...params.data, caseKey });
-    const docRef = await addDoc(collectionRef, {
-      ...data,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
 
-    return {
-      data: {
-        id: docRef.id,
-        ...params.data,
-        caseKey,
-      },
-    };
+      return {
+        data: {
+          id: docRef.id,
+          ...params.data,
+          caseKey,
+        },
+      };
+    });
   },
 
   update: async (resource: string, params: any) => {
-    const { id, data } = params;
-    const docRef = doc(db, resource, id.toString());
-    const updateData = convertDateToTimestamp(data);
-    
-    await updateDoc(docRef, {
-      ...updateData,
-      updatedAt: Timestamp.now(),
-    });
-
-    return {
-      data: {
-        id,
-        ...data,
-      },
-    };
-  },
-
-  delete: async (resource: string, params: any) => {
-    const docRef = doc(db, resource, params.id.toString());
-    await deleteDoc(docRef);
-
-    return {
-      data: params,
-    };
-  },
-
-  deleteMany: async (resource: string, params: any) => {
-    const { ids } = params;
-    const batch = writeBatch(db);
-    ids.forEach((id: string | number) => {
+    return withFirestoreAuthRetry(resource, async () => {
+      const { id, data } = params;
       const docRef = doc(db, resource, id.toString());
-      batch.delete(docRef);
-    });
-    await batch.commit();
+      const updateData = convertDateToTimestamp(data);
 
-    return {
-      data: ids,
-    };
-  },
-
-  updateMany: async (resource: string, params: any) => {
-    const { ids, data } = params;
-    const updateData = convertDateToTimestamp(data);
-    const batch = writeBatch(db);
-    
-    ids.forEach((id: string | number) => {
-      const docRef = doc(db, resource, id.toString());
-      batch.update(docRef, {
+      await updateDoc(docRef, {
         ...updateData,
         updatedAt: Timestamp.now(),
       });
-    });
-    await batch.commit();
 
-    return {
-      data: ids,
-    };
+      return {
+        data: {
+          id,
+          ...data,
+        },
+      };
+    });
+  },
+
+  delete: async (resource: string, params: any) => {
+    return withFirestoreAuthRetry(resource, async () => {
+      const docRef = doc(db, resource, params.id.toString());
+      await deleteDoc(docRef);
+
+      return {
+        data: params,
+      };
+    });
+  },
+
+  deleteMany: async (resource: string, params: any) => {
+    return withFirestoreAuthRetry(resource, async () => {
+      const { ids } = params;
+      const batch = writeBatch(db);
+      ids.forEach((id: string | number) => {
+        const docRef = doc(db, resource, id.toString());
+        batch.delete(docRef);
+      });
+      await batch.commit();
+
+      return {
+        data: ids,
+      };
+    });
+  },
+
+  updateMany: async (resource: string, params: any) => {
+    return withFirestoreAuthRetry(resource, async () => {
+      const { ids, data } = params;
+      const updateData = convertDateToTimestamp(data);
+      const batch = writeBatch(db);
+
+      ids.forEach((id: string | number) => {
+        const docRef = doc(db, resource, id.toString());
+        batch.update(docRef, {
+          ...updateData,
+          updatedAt: Timestamp.now(),
+        });
+      });
+      await batch.commit();
+
+      return {
+        data: ids,
+      };
+    });
   },
 
   getManyReference: async (resource: string, params: any) => {
-    const { target, id } = params;
-    const collectionRef = collection(db, resource);
-    const q = query(collectionRef, where(target, '==', id));
-    const snapshot = await getDocs(q);
+    return withFirestoreAuthRetry(resource, async () => {
+      const { target, id } = params;
+      const collectionRef = collection(db, resource);
+      const q = query(collectionRef, where(target, '==', id));
+      const snapshot = await getDocs(q);
 
-    return {
-      data: snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...convertTimestampToDate(doc.data())
-      })),
-      total: snapshot.size,
-    };
+      return {
+        data: snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...convertTimestampToDate(docSnap.data())
+        })),
+        total: snapshot.size,
+      };
+    });
   },
 };

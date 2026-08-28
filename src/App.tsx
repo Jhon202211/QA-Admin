@@ -1,4 +1,5 @@
 import { Admin, Resource, Layout, AppBar, CustomRoutes } from 'react-admin';
+import { QueryClient, focusManager } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, useLocation } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { ChatbotPage } from './pages/IA/ChatbotPage';
@@ -24,6 +25,46 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import { AutomationRunnerPage, AutomationCaseCreate, AutomationCaseEdit } from './pages/AutomationRunner/AutomationRunnerPage';
 import { ConfigurationPage } from './pages/Configuration/ConfigurationPage';
 import { AppMenu } from './components/navigation/AppMenu';
+
+const FOCUS_REFETCH_DELAY_MS = 400;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,
+    },
+  },
+});
+
+focusManager.setEventListener((setFocused) => {
+  let timer: number | undefined;
+
+  const scheduleFocus = () => {
+    if (timer !== undefined) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = undefined;
+      setFocused(true);
+    }, FOCUS_REFETCH_DELAY_MS);
+  };
+
+  const onVisibilityOrFocus = () => {
+    if (document.visibilityState === 'visible') {
+      scheduleFocus();
+    } else {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = undefined;
+      setFocused(false);
+    }
+  };
+
+  window.addEventListener('visibilitychange', onVisibilityOrFocus);
+  window.addEventListener('focus', onVisibilityOrFocus);
+  return () => {
+    window.removeEventListener('visibilitychange', onVisibilityOrFocus);
+    window.removeEventListener('focus', onVisibilityOrFocus);
+    if (timer !== undefined) window.clearTimeout(timer);
+  };
+});
 
 const CustomAppBar = (props: any) => {
   const location = useLocation();
@@ -190,6 +231,7 @@ function App() {
         <Admin
           authProvider={authProvider}
           dataProvider={dataProvider as any}
+          queryClient={queryClient}
           layout={CustomLayout}
           loginPage={LoginPage}
           dashboard={Dashboard}
