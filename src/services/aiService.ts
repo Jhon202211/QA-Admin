@@ -99,7 +99,10 @@ Reglas:
 - La técnica aplicada debe ser una de las mencionadas en la sección de técnicas.
 - Cada caso debe tener al menos 3 pasos detallados
 
-Responde SOLO en JSON válido con esta estructura exacta:
+Responde SOLO en JSON válido. Prohibido usar markdown, backticks o texto fuera del JSON.
+El JSON raíz DEBE ser un objeto (nunca un array suelto).
+
+Si cubres UN módulo, usa esta estructura exacta:
 {
   "project": "Nombre del sistema (ej: 'Control de Acceso', 'Reservas')",
   "module": "Nombre del módulo",
@@ -138,6 +141,11 @@ Responde SOLO en JSON válido con esta estructura exacta:
       }
     }
   ]
+}
+
+Si cubres VARIOS módulos o funcionalidades, envuélvelos así (sigue siendo un objeto raíz):
+{
+  "guides": [ { ...estructura de cada módulo... } ]
 }`;
 
 /**
@@ -509,20 +517,165 @@ export const generateTestCasesFromUserStory = async (
 
 // ── Llamada al LLM (OpenAI-compatible: OpenAI, Ollama Cloud, DeepSeek) ───────
 
-/**
- * Extrae JSON de la respuesta del LLM.
- * Busca el primer '{' y el último '}' para ignorar texto adicional
- * que el modelo pueda incluir antes o después del bloque JSON.
- */
-function extractJSON(text: string): string {
-  const firstOpen = text.indexOf('{');
-  const lastClose = text.lastIndexOf('}');
+const SUGGESTION_WRAPPER_KEYS = [
+  'guides',
+  'items',
+  'results',
+  'suggestions',
+  'data',
+  'modules',
+] as const;
 
-  if (firstOpen === -1 || lastClose === -1 || lastClose < firstOpen) {
-    return text.trim();
+function stripMarkdownFences(text: string): string {
+  let cleaned = text.trim();
+  const wrapped = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (wrapped) return wrapped[1].trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '');
+  cleaned = cleaned.replace(/\s*```\s*$/i, '');
+  return cleaned.trim();
+}
+
+function stripTrailingCommas(text: string): string {
+  return text.replace(/,\s*(?=[}\]])/g, '');
+}
+
+/**
+ * Extrae valores JSON completos ({...} o [...]) ignorando texto extra.
+ * Si un valor está truncado, avanza un carácter para recuperar objetos internos cerrados.
+ */
+function extractCompleteJSONValues(text: string): string[] {
+  const values: string[] = [];
+  let i = 0;
+
+  while (i < text.length) {
+    while (i < text.length && text[i] !== '{' && text[i] !== '[') i++;
+    if (i >= text.length) break;
+
+    const start = i;
+    const stack: string[] = [];
+    let inString = false;
+    let escaped = false;
+    let complete = false;
+    let end = start;
+
+    for (let j = start; j < text.length; j++) {
+      const ch = text[j];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escaped = true;
+          continue;
+        }
+        if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+      if (ch === '{' || ch === '[') {
+        stack.push(ch);
+        continue;
+      }
+      if (ch === '}' || ch === ']') {
+        const open = stack.pop();
+        if ((ch === '}' && open !== '{') || (ch === ']' && open !== '[')) break;
+        if (stack.length === 0) {
+          values.push(text.slice(start, j + 1));
+          complete = true;
+          end = j + 1;
+          break;
+        }
+      }
+    }
+
+    i = complete ? end : start + 1;
   }
 
-  return text.slice(firstOpen, lastClose + 1).trim();
+  return values;
+}
+
+function tryParseJSON(text: string): unknown | undefined {
+  try {
+    return JSON.parse(text);
+  } catch {
+    try {
+      return JSON.parse(stripTrailingCommas(text));
+    } catch {
+      return undefined;
+    }
+  }
+}
+
+/**
+ * Parsea la respuesta del LLM aunque venga:
+ * - envuelta en fences markdown (```json)
+ * - como array de guías
+ * - como varios objetos concatenados `{...},{...}`
+ * - truncada a mitad de un objeto (se recuperan los completos)
+ */
+function parseLLMJson(raw: string): unknown {
+  const cleaned = stripMarkdownFences(raw);
+  const direct = tryParseJSON(cleaned);
+  if (direct !== undefined) return direct;
+
+  const parsedValues = extractCompleteJSONValues(cleaned)
+    .map((value) => tryParseJSON(value))
+    .filter((value) => value !== undefined);
+
+  if (parsedValues.length === 1) return parsedValues[0];
+  if (parsedValues.length > 1) return parsedValues;
+
+  throw new SyntaxError('No se pudo extraer JSON válido de la respuesta del LLM');
+}
+
+function isSuggestionLike(value: unknown): value is AITestCaseSuggestion {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Array.isArray((value as AITestCaseSuggestion).test_cases);
+}
+
+function unwrapSuggestions(parsed: unknown): AITestCaseSuggestion[] {
+  if (Array.isArray(parsed)) {
+    return parsed.flatMap((item) => unwrapSuggestions(item));
+  }
+  if (isSuggestionLike(parsed)) return [parsed];
+
+  if (parsed && typeof parsed === 'object') {
+    const record = parsed as Record<string, unknown>;
+    for (const key of SUGGESTION_WRAPPER_KEYS) {
+      if (key in record) return unwrapSuggestions(record[key]);
+    }
+  }
+
+  return [];
+}
+
+function uniqueJoined(values: Array<string | undefined>): string {
+  return Array.from(new Set(values.map((value) => (value || '').trim()).filter(Boolean))).join(' / ');
+}
+
+function mergeSuggestions(items: AITestCaseSuggestion[]): AITestCaseSuggestion {
+  const valid = items.filter((item) => Array.isArray(item?.test_cases) && item.test_cases.length > 0);
+  if (valid.length === 0) {
+    throw new Error('La respuesta del LLM no tiene la estructura esperada');
+  }
+
+  const primary = valid[0];
+  const applicableTable = valid.find((item) => item.decision_table?.applicable)?.decision_table;
+
+  return {
+    project: primary.project || primary.module,
+    module: uniqueJoined(valid.map((item) => item.module)) || primary.module,
+    submodule: uniqueJoined(valid.map((item) => item.submodule)) || primary.submodule,
+    test_type: primary.test_type,
+    conditions: valid.flatMap((item) => item.conditions ?? []),
+    decision_table:
+      applicableTable ?? primary.decision_table ?? { applicable: false, headers: [], rows: [] },
+    test_cases: valid.flatMap((item) => item.test_cases ?? []),
+  };
 }
 
 export const callLLM = async (
@@ -545,6 +698,7 @@ export const callLLM = async (
       { role: 'user', content: query },
     ],
     temperature: 0.1, // Reducimos temperatura para mayor determinismo en el formato
+    max_tokens: 8192,
   };
   if (supportsJsonMode) body.response_format = { type: 'json_object' };
 
@@ -568,26 +722,33 @@ export const callLLM = async (
   const raw = data.choices[0]?.message?.content;
   if (!raw) throw new Error('No se recibió respuesta del LLM');
 
-  let parsed: AITestCaseSuggestion;
-  const cleaned = extractJSON(raw);
+  const finishReason = data.choices[0]?.finish_reason;
+  if (finishReason === 'length') {
+    console.warn('[callLLM] La respuesta del LLM se truncó por max_tokens; se intentará recuperar lo completo');
+  }
 
+  let parsedUnknown: unknown;
   try {
-    parsed = JSON.parse(cleaned);
+    parsedUnknown = parseLLMJson(raw);
   } catch (e) {
     console.error('[callLLM] Error al parsear JSON del LLM:', e);
     console.error('[callLLM] Respuesta raw:', raw);
-    console.error('[callLLM] Intento de limpieza:', cleaned);
     throw new Error('La respuesta del LLM no es un JSON válido');
   }
 
-  if (!parsed.module || !parsed.submodule || !parsed.test_type || !parsed.test_cases) {
+  const suggestions = unwrapSuggestions(parsedUnknown);
+  let parsed: AITestCaseSuggestion;
+  try {
+    parsed = mergeSuggestions(suggestions);
+  } catch (e) {
+    console.error('[callLLM] Estructura JSON inválida:', parsedUnknown);
+    throw e instanceof Error ? e : new Error('La respuesta del LLM no tiene la estructura esperada');
+  }
+
+  if (!parsed.module || !parsed.submodule || !parsed.test_type || !parsed.test_cases?.length) {
     console.error('[callLLM] Estructura JSON inválida:', parsed);
     throw new Error('La respuesta del LLM no tiene la estructura esperada');
   }
-
-  parsed.project        = parsed.project        || parsed.module;
-  parsed.conditions     = parsed.conditions     ?? [];
-  parsed.decision_table = parsed.decision_table ?? { applicable: false, headers: [], rows: [] };
 
   return parsed;
 };
