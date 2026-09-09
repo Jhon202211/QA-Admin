@@ -26,6 +26,10 @@ import type { TestCase } from '../../types/testCase';
 import { dataProvider } from '../../firebase/dataProvider';
 import { executionDraftService, type ExecutionDraftRecord } from '../../services/executionDraftService';
 import {
+  collectExecutionDraftVersions,
+  type ExecutionDraftVersion,
+} from './executionDraftVersions';
+import {
   buildTestCaseDraftTitle,
   listLocalTestCaseDraftIds,
   readLocalTestCaseDraft,
@@ -46,6 +50,7 @@ type ConstructionDraftListItem = {
 export const DraftsView = ({ projectSearch = '' }: { projectSearch?: string }) => {
   const [draftIds, setDraftIds] = useState<string[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
+  const [selectedDraft, setSelectedDraft] = useState<ExecutionDraftVersion | null>(null);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [remoteDrafts, setRemoteDrafts] = useState<ExecutionDraftRecord[]>([]);
   const [constructionDrafts, setConstructionDrafts] = useState<ConstructionDraftListItem[]>([]);
@@ -176,12 +181,52 @@ export const DraftsView = ({ projectSearch = '' }: { projectSearch?: string }) =
     ? constructionDrafts.filter((draft) => draft.title.toLowerCase().includes(searchQuery))
     : constructionDrafts;
 
-  const handleOpenExecution = (testCase: TestCase) => {
+  const readLocalDraft = (testCaseId: string) => {
+    const raw = localStorage.getItem(`execution_draft_${testCaseId}`);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+
+  const versionsForCase = (testCase: TestCase): ExecutionDraftVersion[] =>
+    collectExecutionDraftVersions(
+      testCase.id,
+      testCase,
+      remoteDrafts.find((draft) => draft.testCaseId === testCase.id),
+      readLocalDraft(testCase.id)
+    );
+
+  const handleUseVersion = async (testCase: TestCase, version: ExecutionDraftVersion) => {
+    const siblings = versionsForCase(testCase);
+    const maxPhotos = Math.max(0, ...siblings.map((item) => item.photoCount));
+    if (version.photoCount < maxPhotos) {
+      if (
+        !window.confirm(
+          `Esta versión tiene ${version.photoCount} foto(s) y hay otra con ${maxPhotos}. ¿Quieres abrir esta de todos modos?`
+        )
+      ) {
+        return;
+      }
+    }
+
+    const payload = {
+      ...version.data,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(`execution_draft_${testCase.id}`, JSON.stringify(payload));
+    await executionDraftService.save(testCase.id, payload).catch((err) => {
+      console.error('Error promoting execution draft version:', err);
+    });
+    setSelectedDraft(version);
     setSelectedTestCase(testCase);
   };
 
   const handleCloseExecution = () => {
     setSelectedTestCase(null);
+    setSelectedDraft(null);
     loadDrafts();
   };
 
@@ -413,23 +458,34 @@ export const DraftsView = ({ projectSearch = '' }: { projectSearch?: string }) =
                 Ejecuciones en borrador
               </Typography>
               <List sx={{ width: '100%', bgcolor: 'background.paper', borderRadius: 2 }}>
-                {filteredDraftCases.map((tc) => (
-                  <ListItem
-                    key={tc.id}
-                    secondaryAction={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Tooltip title="Continuar ejecución">
-                          <IconButton
-                            onClick={() => handleOpenExecution(tc)}
-                            sx={{
-                              color: '#43A047',
-                              '&:hover': { bgcolor: 'rgba(67, 160, 71, 0.1)' },
-                            }}
-                          >
-                            <PlayArrowIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar borrador">
+                {filteredDraftCases.map((tc) => {
+                  const versions = versionsForCase(tc);
+                  const maxPhotos = Math.max(0, ...versions.map((version) => version.photoCount));
+
+                  return (
+                    <Box
+                      key={tc.id}
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        mb: 1.5,
+                        p: 2,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <ListItemIcon sx={{ minWidth: 40, mt: 0.5 }}>
+                          <SaveIcon sx={{ color: '#FF6B35' }} />
+                        </ListItemIcon>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            {tc.caseKey} - {tc.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            Proyecto: {tc.testProject}. Elige la versión que quieres conservar.
+                          </Typography>
+                        </Box>
+                        <Tooltip title="Eliminar todos los borradores de este caso">
                           <IconButton
                             onClick={() => handleClearDraft(tc.id)}
                             sx={{
@@ -441,59 +497,60 @@ export const DraftsView = ({ projectSearch = '' }: { projectSearch?: string }) =
                           </IconButton>
                         </Tooltip>
                       </Box>
-                    }
-                    sx={{
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      mb: 1.5,
-                      p: 2,
-                      '&:hover': {
-                        borderColor: '#FF6B35',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                      },
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <ListItemIcon>
-                      <SaveIcon sx={{ color: '#FF6B35' }} />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                          {tc.caseKey} - {tc.name}
-                        </Typography>
-                      }
-                      secondary={
-                        <Box sx={{ mt: 1, display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                            Proyecto: {tc.testProject}
-                          </Typography>
-                          <Chip
-                            label={
-                              remoteDrafts.some((draft) => draft.testCaseId === tc.id)
-                                ? 'Sincronizado'
-                                : 'Local'
-                            }
-                            size="small"
+
+                      <List dense disablePadding sx={{ mt: 1.5, pl: 5 }}>
+                        {versions.map((version) => (
+                          <ListItem
+                            key={version.id}
                             sx={{
-                              height: 20,
-                              fontSize: '0.65rem',
-                              bgcolor: remoteDrafts.some((draft) => draft.testCaseId === tc.id)
-                                ? 'rgba(67, 160, 71, 0.1)'
-                                : 'rgba(255, 107, 53, 0.1)',
-                              color: remoteDrafts.some((draft) => draft.testCaseId === tc.id)
-                                ? '#2E7D32'
-                                : '#FF6B35',
-                              border: 'none',
-                              fontWeight: 700,
+                              border: '1px solid',
+                              borderColor: version.photoCount === maxPhotos && maxPhotos > 0 ? '#43A047' : 'divider',
+                              borderRadius: 1,
+                              mb: 1,
+                              pr: 16,
+                              bgcolor: version.photoCount === maxPhotos && maxPhotos > 0
+                                ? 'rgba(67, 160, 71, 0.06)'
+                                : 'background.paper',
                             }}
-                          />
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                ))}
+                            secondaryAction={
+                              <Button
+                                size="small"
+                                variant={version.photoCount === maxPhotos ? 'contained' : 'outlined'}
+                                startIcon={<PlayArrowIcon />}
+                                onClick={() => void handleUseVersion(tc, version)}
+                                sx={{
+                                  bgcolor: version.photoCount === maxPhotos ? '#43A047' : undefined,
+                                  '&:hover': {
+                                    bgcolor: version.photoCount === maxPhotos ? '#2E7D32' : undefined,
+                                  },
+                                }}
+                              >
+                                Usar esta
+                              </Button>
+                            }
+                          >
+                            <ListItemText
+                              primary={
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {version.label}
+                                  {version.photoCount === maxPhotos && maxPhotos > 0 ? ' · más fotos' : ''}
+                                </Typography>
+                              }
+                              secondary={
+                                <Typography variant="caption" color="text.secondary">
+                                  {version.photoCount} foto{version.photoCount === 1 ? '' : 's'}
+                                  {version.updatedAt
+                                    ? ` · ${new Date(version.updatedAt).toLocaleString()}`
+                                    : ''}
+                                </Typography>
+                              }
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  );
+                })}
                 {filteredFallbackDrafts.map((draft) => (
                   <ListItem
                     key={draft.id}
@@ -557,6 +614,7 @@ export const DraftsView = ({ projectSearch = '' }: { projectSearch?: string }) =
         <TestExecutionModal
           open={Boolean(selectedTestCase)}
           testCase={selectedTestCase}
+          initialDraft={selectedDraft?.data as never}
           onClose={handleCloseExecution}
           onExecuted={handleCloseExecution}
         />
