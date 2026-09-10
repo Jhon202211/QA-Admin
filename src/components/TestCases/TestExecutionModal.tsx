@@ -63,6 +63,10 @@ import { EvidenceManager } from './EvidenceManager';
 import { flattenEvidenceGroups, normalizeEvidenceGroups } from './evidenceGroups';
 import { executionDraftService } from '../../services/executionDraftService';
 import { dataProvider } from '../../firebase/dataProvider';
+import {
+  isPoorerExecution,
+  pickRichestExecution,
+} from './executionOverwriteGuard';
 
 interface TestExecutionModalProps {
   open: boolean;
@@ -71,6 +75,8 @@ interface TestExecutionModalProps {
   onExecuted?: () => void;
   /** Muestra el detalle de ejecución sin permitir editarlo ni guardar cambios (ej: casos archivados). */
   readOnly?: boolean;
+  /** Versión de borrador elegida por el usuario; se abre tal cual, sin mezclar con otras. */
+  initialDraft?: ExecutionDraftData | null;
 }
 
 interface TimestampLike {
@@ -78,7 +84,7 @@ interface TimestampLike {
 }
 
 interface ExecutionDraftStep {
-  id: string;
+  id?: string;
   status?: TestStep['status'];
   actualResult?: string;
   evidences?: EvidenceFile[];
@@ -104,6 +110,7 @@ export const TestExecutionModal = ({
   onClose,
   onExecuted,
   readOnly = false,
+  initialDraft = null,
 }: TestExecutionModalProps) => {
   const notify = useNotify();
   const [update, { isPending }] = useUpdate();
@@ -134,12 +141,16 @@ export const TestExecutionModal = ({
     isUploading: boolean;
   } | null>(null);
   const persistedDraftSnapshotRef = useRef('');
+  const persistedRichBaselineRef = useRef<ExecutionDraftData>({});
   const isDraftSyncReadyRef = useRef(false);
+  const reconnectGuardRef = useRef(false);
   const remoteDraftSaveTimeoutRef = useRef<number | null>(null);
   const testCaseAutosaveTimeoutRef = useRef<number | null>(null);
   const testCaseAutosaveSnapshotRef = useRef('');
   const testCaseAutosaveSequenceRef = useRef(0);
+  const testCaseRef = useRef(testCase);
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  testCaseRef.current = testCase;
 
   const buildPersistedDraftData = (currentTestCase: TestCase) => ({
     steps: (currentTestCase.steps || []).map((step, index) => ({
@@ -198,63 +209,67 @@ export const TestExecutionModal = ({
     ),
   });
 
-  const getDraftUpdatedAtTime = (value: ExecutionDraftData['updatedAt']) => {
-    if (!value) return 0;
-    if (value instanceof Date) return value.getTime();
-    if (typeof value === 'string') return new Date(value).getTime() || 0;
-    
-    // Para objetos tipo Timestamp de Firebase
-    const maybeTimestamp = value as TimestampLike;
-    if (typeof maybeTimestamp.toDate === 'function') {
-      return maybeTimestamp.toDate().getTime();
+  const cancelPersistTimers = useCallback(() => {
+    if (remoteDraftSaveTimeoutRef.current) {
+      window.clearTimeout(remoteDraftSaveTimeoutRef.current);
+      remoteDraftSaveTimeoutRef.current = null;
     }
-    
-    return 0;
-  };
+    if (testCaseAutosaveTimeoutRef.current) {
+      window.clearTimeout(testCaseAutosaveTimeoutRef.current);
+      testCaseAutosaveTimeoutRef.current = null;
+    }
+  }, []);
+
+  const applyExecutionDraft = useCallback((draftData: ExecutionDraftData, currentTestCase: TestCase) => {
+    setSteps(
+      (currentTestCase.steps || []).map((step, index) => {
+        const stepId = step.id || `step-${index}`;
+        const draftStep = draftData?.steps?.find((s) => s.id === stepId || s.id === step.id);
+        return {
+          ...step,
+          id: stepId,
+          order: step.order || index + 1,
+          status: draftStep?.status || step.status || 'not_executed',
+          actualResult: draftStep?.actualResult || step.actualResult || '',
+          evidences: draftStep?.evidences || step.evidences || [],
+          evidenceGroups: normalizeEvidenceGroups(
+            draftStep?.evidenceGroups || step.evidenceGroups,
+            draftStep?.evidences || step.evidences || []
+          ),
+        };
+      })
+    );
+
+    setActiveStepIndex(draftData?.activeStepIndex || 0);
+    setExecutionNotes(draftData?.notes || currentTestCase.notes || '');
+    setUploadProgress(null);
+    setNoStepsStatus(draftData?.noStepsStatus || (currentTestCase.executionResult as TestStep['status']) || 'not_executed');
+    setNoStepsActualResult(draftData?.noStepsActualResult || currentTestCase.actualResult || '');
+    setNoStepsEvidences(draftData?.noStepsEvidences || currentTestCase.generalEvidences || []);
+    setNoStepsEvidenceGroups(
+      normalizeEvidenceGroups(
+        draftData?.noStepsEvidenceGroups || currentTestCase.generalEvidenceGroups,
+        draftData?.noStepsEvidences || currentTestCase.generalEvidences || []
+      )
+    );
+  }, []);
 
   useEffect(() => {
     if (!open || !testCase || !draftKey) return;
 
     isDraftSyncReadyRef.current = false;
+    reconnectGuardRef.current = typeof navigator !== 'undefined' && navigator.onLine === false;
     const persistedDraftData = buildPersistedDraftData(testCase);
     persistedDraftSnapshotRef.current = JSON.stringify(persistedDraftData);
+    persistedRichBaselineRef.current = persistedDraftData;
     let cancelled = false;
 
-    const hydrate = (draftData: ExecutionDraftData, hasDraft: boolean) => {
+    const hydrate = (draftData: ExecutionDraftData, hasRicherDraft: boolean) => {
       if (cancelled) return;
 
-      setSteps(
-        (testCase.steps || []).map((step, index) => {
-          const stepId = step.id || `step-${index}`;
-          const draftStep = draftData?.steps?.find((s) => s.id === stepId || s.id === step.id);
-          return {
-            ...step,
-            id: stepId,
-            order: step.order || index + 1,
-            status: draftStep?.status || step.status || 'not_executed',
-            actualResult: draftStep?.actualResult || step.actualResult || '',
-            evidences: draftStep?.evidences || step.evidences || [],
-            evidenceGroups: normalizeEvidenceGroups(
-              draftStep?.evidenceGroups || step.evidenceGroups,
-              draftStep?.evidences || step.evidences || []
-            ),
-          };
-        })
-      );
-      
-      setActiveStepIndex(draftData?.activeStepIndex || 0);
-      setExecutionNotes(draftData?.notes || testCase.notes || '');
-      setUploadProgress(null);
-      setNoStepsStatus(draftData?.noStepsStatus || (testCase.executionResult as TestStep['status']) || 'not_executed');
-      setNoStepsActualResult(draftData?.noStepsActualResult || testCase.actualResult || '');
-      setNoStepsEvidences(draftData?.noStepsEvidences || testCase.generalEvidences || []);
-      setNoStepsEvidenceGroups(
-        normalizeEvidenceGroups(
-          draftData?.noStepsEvidenceGroups || testCase.generalEvidenceGroups,
-          draftData?.noStepsEvidences || testCase.generalEvidences || []
-        )
-      );
-      testCaseAutosaveSnapshotRef.current = hasDraft ? '' : normalizeDraftSnapshot(draftData);
+      applyExecutionDraft(draftData, testCase);
+      persistedRichBaselineRef.current = draftData;
+      testCaseAutosaveSnapshotRef.current = hasRicherDraft ? '' : normalizeDraftSnapshot(draftData);
       setAutosaveStatus('idle');
       isDraftSyncReadyRef.current = true;
     };
@@ -267,18 +282,22 @@ export const TestExecutionModal = ({
       };
     }
 
+    if (initialDraft) {
+      hydrate({ ...persistedDraftData, ...initialDraft }, true);
+      return () => {
+        cancelled = true;
+        isDraftSyncReadyRef.current = false;
+      };
+    }
+
     const loadDraft = async () => {
-      let draftData: ExecutionDraftData = persistedDraftData;
-      let hasDraft = false;
-      let localUpdatedAt = 0;
+      let localDraft: ExecutionDraftData | null = null;
+      let remoteDraftData: ExecutionDraftData | null = null;
 
       const savedDraft = localStorage.getItem(draftKey);
       if (savedDraft) {
         try {
-          const parsedDraft = JSON.parse(savedDraft) as ExecutionDraftData;
-          draftData = { ...persistedDraftData, ...parsedDraft };
-          localUpdatedAt = getDraftUpdatedAtTime(parsedDraft?.updatedAt);
-          hasDraft = true;
+          localDraft = { ...persistedDraftData, ...(JSON.parse(savedDraft) as ExecutionDraftData) };
         } catch (e) {
           console.error('Error parsing draft:', e);
           localStorage.removeItem(draftKey);
@@ -287,23 +306,27 @@ export const TestExecutionModal = ({
 
       try {
         const remoteDraft = await executionDraftService.get(testCase.id);
-        const remoteUpdatedAt = getDraftUpdatedAtTime(remoteDraft?.updatedAt);
-        if (remoteDraft?.data && remoteUpdatedAt >= localUpdatedAt) {
-          draftData = { ...persistedDraftData, ...remoteDraft.data };
-          hasDraft = true;
-          localStorage.setItem(
-            draftKey,
-            JSON.stringify({
-              ...remoteDraft.data,
-              updatedAt: remoteUpdatedAt ? new Date(remoteUpdatedAt).toISOString() : new Date().toISOString(),
-            })
-          );
+        if (remoteDraft?.data) {
+          remoteDraftData = { ...persistedDraftData, ...remoteDraft.data };
         }
       } catch (e) {
         console.error('Error loading remote execution draft:', e);
       }
 
-      hydrate(draftData, hasDraft);
+      const richest = pickRichestExecution([persistedDraftData, localDraft, remoteDraftData]) || persistedDraftData;
+      const hasRicherDraft = isPoorerExecution(persistedDraftData, richest);
+
+      if (hasRicherDraft && richest === remoteDraftData) {
+        localStorage.setItem(
+          draftKey,
+          JSON.stringify({
+            ...richest,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      }
+
+      hydrate(richest, hasRicherDraft);
     };
 
     void loadDraft();
@@ -312,17 +335,22 @@ export const TestExecutionModal = ({
       cancelled = true;
       isDraftSyncReadyRef.current = false;
     };
-  }, [open, testCase, draftKey, readOnly]);
+  }, [applyExecutionDraft, initialDraft, open, testCase, draftKey, readOnly]);
 
   // Guardar draft automáticamente cuando cambian los datos
   useEffect(() => {
     if (readOnly || !open || !draftKey || !testCase || !isDraftSyncReadyRef.current) return;
+    if (reconnectGuardRef.current) return;
 
     const draftData = buildCurrentDraftData();
     const currentSnapshot = JSON.stringify(draftData);
     const hasUnsavedChanges = currentSnapshot !== persistedDraftSnapshotRef.current;
 
     if (hasUnsavedChanges) {
+      if (isPoorerExecution(draftData, persistedRichBaselineRef.current)) {
+        return;
+      }
+
       const draftWithTimestamp = {
         ...draftData,
         updatedAt: new Date().toISOString(),
@@ -333,9 +361,16 @@ export const TestExecutionModal = ({
         window.clearTimeout(remoteDraftSaveTimeoutRef.current);
       }
       remoteDraftSaveTimeoutRef.current = window.setTimeout(() => {
-        executionDraftService.save(testCase.id, draftWithTimestamp).catch((e) => {
-          console.error('Error saving remote execution draft:', e);
-        });
+        if (reconnectGuardRef.current || isPoorerExecution(draftData, persistedRichBaselineRef.current)) {
+          return;
+        }
+        executionDraftService.save(testCase.id, draftWithTimestamp)
+          .then(() => {
+            persistedRichBaselineRef.current = draftData;
+          })
+          .catch((e) => {
+            console.error('Error saving remote execution draft:', e);
+          });
       }, 800);
     } else {
       localStorage.removeItem(draftKey);
@@ -430,10 +465,14 @@ export const TestExecutionModal = ({
 
   useEffect(() => {
     if (readOnly || !open || !testCase || !isDraftSyncReadyRef.current) return;
+    if (reconnectGuardRef.current) return;
 
     const draftData = buildCurrentDraftData();
     const currentSnapshot = JSON.stringify(draftData);
     if (currentSnapshot === testCaseAutosaveSnapshotRef.current) return;
+    if (isPoorerExecution(draftData, persistedRichBaselineRef.current)) {
+      return;
+    }
 
     const dataToSave = buildExecutionRecordData('draft');
     if (!dataToSave) return;
@@ -444,6 +483,9 @@ export const TestExecutionModal = ({
 
     setAutosaveStatus('saving');
     testCaseAutosaveTimeoutRef.current = window.setTimeout(() => {
+      if (reconnectGuardRef.current || isPoorerExecution(draftData, persistedRichBaselineRef.current)) {
+        return;
+      }
       const sequence = ++testCaseAutosaveSequenceRef.current;
       dataProvider.update('test_cases', {
         id: testCase.id,
@@ -452,6 +494,7 @@ export const TestExecutionModal = ({
       })
         .then(() => {
           testCaseAutosaveSnapshotRef.current = currentSnapshot;
+          persistedRichBaselineRef.current = draftData;
           if (sequence === testCaseAutosaveSequenceRef.current) {
             setAutosaveStatus('saved');
           }
@@ -503,6 +546,56 @@ export const TestExecutionModal = ({
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
   }, [open, readOnly]);
+
+  useEffect(() => {
+    if (!open || readOnly) return;
+
+    const onOffline = () => {
+      reconnectGuardRef.current = true;
+      cancelPersistTimers();
+    };
+
+    const onOnline = () => {
+      const currentTestCase = testCaseRef.current;
+      if (!currentTestCase) {
+        reconnectGuardRef.current = false;
+        return;
+      }
+
+      const restoreIfPoorer = async () => {
+        const current = buildCurrentDraftData();
+
+        try {
+          const remoteDraft = await executionDraftService.get(currentTestCase.id);
+          if (remoteDraft?.data && isPoorerExecution(persistedRichBaselineRef.current, remoteDraft.data)) {
+            persistedRichBaselineRef.current = remoteDraft.data;
+          }
+        } catch (e) {
+          console.error('Error comparing remote execution draft after reconnect:', e);
+        }
+
+        if (isPoorerExecution(current, persistedRichBaselineRef.current)) {
+          applyExecutionDraft(persistedRichBaselineRef.current, currentTestCase);
+        }
+
+        reconnectGuardRef.current = false;
+      };
+
+      void restoreIfPoorer();
+    };
+
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      onOffline();
+    }
+
+    return () => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [applyExecutionDraft, buildCurrentDraftData, cancelPersistTimers, open, readOnly]);
 
   useEffect(() => () => {
     if (remoteDraftSaveTimeoutRef.current) {
