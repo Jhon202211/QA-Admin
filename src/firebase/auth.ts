@@ -14,6 +14,14 @@ const ACTIVITY_REFRESH_THROTTLE_MS = 5 * 60 * 1000;
 const TOKEN_REFRESH_RETRY_DELAY_MS = 1500;
 const AUTH_GRACE_MS = 5000;
 
+/** Mínimo de supervivencia de sesión por inactividad. No es la duración del ID token (~1 h). */
+export const IDLE_SESSION_MIN_MS = 2 * 60 * 60 * 1000;
+
+const STALE_ID_TOKEN_ERROR_CODES = new Set([
+  'auth/id-token-expired',
+  'auth/user-token-expired',
+]);
+
 const TRANSIENT_AUTH_ERROR_CODES = new Set([
   'auth/network-request-failed',
   'auth/too-many-requests',
@@ -35,6 +43,9 @@ const isTransientAuthError = (error: unknown): boolean =>
 
 const isIrrecoverableSessionError = (error: unknown): boolean =>
   IRRECOVERABLE_SESSION_ERROR_CODES.has(getErrorCode(error) ?? '');
+
+const isStaleIdTokenError = (error: unknown): boolean =>
+  STALE_ID_TOKEN_ERROR_CODES.has(getErrorCode(error) ?? '');
 
 const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
 
@@ -63,6 +74,56 @@ async function refreshCurrentUserToken(force = false, retries = 0): Promise<void
 
 export async function refreshAuthToken(force = false, retries = 1): Promise<void> {
   await refreshCurrentUserToken(force, retries);
+}
+
+/**
+ * Rehidrata Auth y renueva el ID token (incluido tras ≥ 2 h inactivo).
+ * No cierra sesión por tiempo sin uso; solo falla si no hay usuario o el refresh está revocado.
+ */
+export async function resumeAuthSession(): Promise<User | null> {
+  const user = await ensureCurrentUser();
+  if (!user) return null;
+
+  try {
+    await refreshCurrentUserToken(false, 1);
+    return auth.currentUser;
+  } catch (error) {
+    if (isTransientAuthError(error)) {
+      console.warn('[Auth] No se pudo renovar el token por un problema temporal de red.');
+      return auth.currentUser;
+    }
+
+    if (isStaleIdTokenError(error)) {
+      try {
+        await refreshCurrentUserToken(true, 1);
+        return auth.currentUser;
+      } catch (forcedError) {
+        if (isTransientAuthError(forcedError)) {
+          return auth.currentUser;
+        }
+        if (isIrrecoverableSessionError(forcedError) && !auth.currentUser) {
+          throw forcedError;
+        }
+        if (auth.currentUser) {
+          console.warn(
+            '[Auth] Token inactivo; la sesión persistida sigue vigente:',
+            getErrorCode(forcedError) ?? forcedError
+          );
+          return auth.currentUser;
+        }
+        throw forcedError;
+      }
+    }
+
+    if (isIrrecoverableSessionError(error) && !auth.currentUser) {
+      throw error;
+    }
+    if (auth.currentUser) {
+      console.warn('[Auth] No se pudo verificar la sesión temporalmente:', getErrorCode(error) ?? error);
+      return auth.currentUser;
+    }
+    throw error;
+  }
 }
 
 let didCompleteInitialAuth = false;
@@ -124,21 +185,17 @@ export function hasActiveExecutionDrafts(): boolean {
 }
 
 /**
- * Mantiene el token válido cuando la pestaña vuelve al frente o tras largos periodos inactivos.
- * Firebase renueva solo, pero el throttling del navegador en pestañas ocultas puede retrasarlo.
+ * Mantiene la sesión al volver de inactividad (mínimo 2 h, IDLE_SESSION_MIN_MS).
+ * El ID token de Firebase dura ~1 h; aquí se renueva con el refresh persistido.
+ * No hay ni debe haber un timer que haga signOut por no uso.
  */
 export function setupAuthSessionMaintenance(): () => void {
   let lastActivityRefresh = 0;
 
   const refresh = () => {
-    ensureCurrentUser()
-      .then((user) => {
-        if (!user) return;
-        return refreshCurrentUserToken(false, 0);
-      })
-      .catch((error) => {
-        console.warn('[Auth] No se pudo renovar el token en segundo plano:', getErrorCode(error) ?? error);
-      });
+    void resumeAuthSession().catch((error) => {
+      console.warn('[Auth] No se pudo renovar el token en segundo plano:', getErrorCode(error) ?? error);
+    });
   };
 
   const onVisibility = () => {
@@ -219,25 +276,15 @@ export const authProvider = {
       return;
     }
 
-    const user = await ensureCurrentUser();
-    if (!user) {
-      return Promise.reject();
-    }
-
     try {
-      await refreshCurrentUserToken(true, 1);
+      const user = await resumeAuthSession();
+      if (!user) {
+        return Promise.reject();
+      }
       return;
     } catch (refreshError) {
-      if (isTransientAuthError(refreshError)) {
-        console.warn('[Auth] La sesión no pudo verificarse por un problema temporal de red.');
-        return;
-      }
-      if (isIrrecoverableSessionError(refreshError)) {
-        return Promise.reject(refreshError);
-      }
-      // Cualquier otro fallo con usuario aún presente no debe expulsar.
-      if (auth.currentUser) {
-        console.warn('[Auth] No se pudo verificar la sesión temporalmente:', getErrorCode(refreshError) ?? refreshError);
+      if (isTransientAuthError(refreshError) || auth.currentUser) {
+        console.warn('[Auth] La sesión no pudo verificarse temporalmente; no se cierra por inactividad.');
         return;
       }
       return Promise.reject(refreshError);
@@ -245,18 +292,9 @@ export const authProvider = {
   },
   checkAuth: async () => {
     try {
-      const user = await ensureCurrentUser();
+      const user = await resumeAuthSession();
       if (!user) {
         return Promise.reject();
-      }
-
-      try {
-        await refreshCurrentUserToken(false, 1);
-      } catch (error) {
-        if (isIrrecoverableSessionError(error)) {
-          return Promise.reject(error);
-        }
-        console.warn('[Auth] No se pudo verificar la sesión temporalmente:', getErrorCode(error) ?? error);
       }
       return;
     } catch (error) {

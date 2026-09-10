@@ -5,7 +5,7 @@ import { Dashboard } from './pages/Dashboard/DashboardPage';
 import { ChatbotPage } from './pages/IA/ChatbotPage';
 import { KnowledgeBasePage } from './pages/IA/KnowledgeBasePage';
 import { AgentInstructionsPage } from './pages/IA/AgentInstructionsPage';
-import { authProvider } from './firebase/auth';
+import { authProvider, resumeAuthSession } from './firebase/auth';
 import { dataProvider } from './firebase/dataProvider';
 import { Typography, Box, useTheme, useMediaQuery } from '@mui/material';
 import LoginPage from './pages/LoginPage';
@@ -43,7 +43,9 @@ focusManager.setEventListener((setFocused) => {
     if (timer !== undefined) window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       timer = undefined;
-      setFocused(true);
+      void resumeAuthSession()
+        .catch(() => undefined)
+        .finally(() => setFocused(true));
     }, FOCUS_REFETCH_DELAY_MS);
   };
 
