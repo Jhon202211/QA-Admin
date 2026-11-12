@@ -39,6 +39,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/proxy\/deepseek/, ''),
       },
+      '/proxy/groq': {
+        target: 'https://api.groq.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/proxy\/groq/, ''),
+      },
     },
   }
 })

@@ -8,12 +8,14 @@
  *   /proxy/openai/**    →  https://api.openai.com/**
  *   /proxy/ollama/**    →  https://ollama.com/**
  *   /proxy/deepseek/**  →  https://api.deepseek.com/**
+ *   /proxy/groq/**      →  https://api.groq.com/**
  */
 
 const SERVICE_URLS = {
   openai:   'https://api.openai.com',
   ollama:   'https://ollama.com',
   deepseek: 'https://api.deepseek.com',
+  groq:     'https://api.groq.com',
 };
 
 const CORS_HEADERS = {

@@ -169,7 +169,7 @@ function buildSystemPrompt(contextChunks: KnowledgeChunk[]): string {
 
 // ── Configuración multi-proveedor ────────────────────────────────────────────
 
-export type LLMProvider = 'openai' | 'ollama_cloud' | 'deepseek';
+export type LLMProvider = 'openai' | 'ollama_cloud' | 'deepseek' | 'groq';
 
 export interface LLMConfig {
   provider: LLMProvider;
@@ -182,6 +182,7 @@ const PROVIDER_DEFAULTS: Record<LLMProvider, { model: string; baseUrl: string }>
   openai:       { model: 'gpt-4o-mini',    baseUrl: 'https://api.openai.com/v1' },
   ollama_cloud: { model: 'llama3.2',        baseUrl: 'https://ollama.com/v1' },
   deepseek:     { model: 'deepseek-chat',   baseUrl: 'https://api.deepseek.com/v1' },
+  groq:         { model: 'llama-3.3-70b-versatile', baseUrl: 'https://api.groq.com/openai/v1' },
 };
 
 /**
@@ -193,6 +194,7 @@ const PROXY_PATHS: Record<LLMProvider, string> = {
   openai:       '/proxy/openai/v1',
   ollama_cloud: '/proxy/ollama/v1',
   deepseek:     '/proxy/deepseek/v1',
+  groq:         '/proxy/groq/openai/v1',
 };
 
 /**
@@ -228,21 +230,25 @@ export const getLLMConfig = (): LLMConfig | null => {
       openai:       cfg.openaiApiKey?.trim()   ?? '',
       ollama_cloud: cfg.ollamaApiKey?.trim()   ?? '',
       deepseek:     cfg.deepseekApiKey?.trim() ?? '',
+      groq:         cfg.groqApiKey?.trim()     ?? '',
     };
     const modelMap: Record<LLMProvider, string> = {
       openai:       cfg.openaiModel    || defaults.model,
       ollama_cloud: cfg.ollamaModel    || defaults.model,
       deepseek:     cfg.deepseekModel  || defaults.model,
+      groq:         cfg.groqModel      || defaults.model,
     };
     const rawUrlMap: Record<LLMProvider, string> = {
       openai:       defaults.baseUrl,
       ollama_cloud: cfg.ollamaBaseUrl   || defaults.baseUrl,
       deepseek:     cfg.deepseekBaseUrl || defaults.baseUrl,
+      groq:         defaults.baseUrl,
     };
     const urlMap: Record<LLMProvider, string> = {
       openai:       resolveBaseUrl('openai',       rawUrlMap.openai),
       ollama_cloud: resolveBaseUrl('ollama_cloud', rawUrlMap.ollama_cloud),
       deepseek:     resolveBaseUrl('deepseek',     rawUrlMap.deepseek),
+      groq:         resolveBaseUrl('groq',         rawUrlMap.groq),
     };
 
     const apiKey = keyMap[provider];

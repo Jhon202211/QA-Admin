@@ -101,7 +101,7 @@ export const ConfigurationPage = () => {
     
     // IA / LLM (multi-proveedor)
     llmEnabled: false,
-    llmProvider: 'openai' as 'openai' | 'ollama_cloud' | 'deepseek',
+    llmProvider: 'openai' as 'openai' | 'ollama_cloud' | 'deepseek' | 'groq',
     // OpenAI
     openaiEnabled: false,    // mantenido por compatibilidad
     openaiApiKey: '',
@@ -114,6 +114,9 @@ export const ConfigurationPage = () => {
     deepseekApiKey: '',
     deepseekModel: 'deepseek-chat',
     deepseekBaseUrl: 'https://api.deepseek.com/v1',
+    // Groq
+    groqApiKey: '',
+    groqModel: 'llama-3.3-70b-versatile',
   });
 
   const handleSave = () => {
@@ -479,6 +482,7 @@ export const ConfigurationPage = () => {
                         { value: 'openai',       label: 'OpenAI',       color: '#10A37F', desc: 'GPT-4o · GPT-4o Mini' },
                         { value: 'ollama_cloud', label: 'Ollama Cloud',  color: '#FF6B35', desc: 'LLaMA · Qwen · Mistral' },
                         { value: 'deepseek',     label: 'DeepSeek',      color: '#4F94EF', desc: 'DeepSeek Chat · Reasoner' },
+                        { value: 'groq',         label: 'Groq',          color: '#F55036', desc: 'Llama · GPT-OSS · Qwen (rápido)' },
                       ] as const
                     ).map((p) => (
                       <Card
@@ -589,6 +593,34 @@ export const ConfigurationPage = () => {
                               >
                                 <MenuItem value="deepseek-chat">DeepSeek Chat</MenuItem>
                                 <MenuItem value="deepseek-reasoner">DeepSeek Reasoner</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </>
+                        )}
+
+                        {config.llmProvider === 'groq' && (
+                          <>
+                            <TextField
+                              fullWidth
+                              type="password"
+                              label="API Key de Groq"
+                              value={config.groqApiKey}
+                              onChange={(e) => handleConfigChange('groqApiKey', e.target.value)}
+                              placeholder="gsk_..."
+                              helperText="Obtén tu API key en console.groq.com/keys"
+                            />
+                            <FormControl fullWidth>
+                              <InputLabel>Modelo</InputLabel>
+                              <Select
+                                value={config.groqModel}
+                                onChange={(e) => handleConfigChange('groqModel', e.target.value)}
+                                label="Modelo"
+                              >
+                                <MenuItem value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</MenuItem>
+                                <MenuItem value="openai/gpt-oss-120b">GPT-OSS 120B</MenuItem>
+                                <MenuItem value="openai/gpt-oss-20b">GPT-OSS 20B — rápido</MenuItem>
+                                <MenuItem value="qwen/qwen3-32b">Qwen3 32B</MenuItem>
+                                <MenuItem value="llama-3.1-8b-instant">Llama 3.1 8B Instant — más económico</MenuItem>
                               </Select>
                             </FormControl>
                           </>
